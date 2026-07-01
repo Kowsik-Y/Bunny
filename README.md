@@ -1,6 +1,6 @@
 # 🎵 Bunny - Premium Audio Streaming Client
 
-Bunny is a premium, lightweight, and minimalist audio streaming client designed for personal media playback. Engineered with React Native and Expo, Bunny provides a highly responsive, modern interface for indexing and listening to audio from public feeds.
+Bunny is a premium, lightweight, and minimalist audio streaming client designed for personal media playback. Engineered with React Native and Expo, Bunny provides a highly responsive, modern interface for indexing, searching, and listening to audio from public feeds.
 
 ---
 
@@ -11,6 +11,44 @@ Bunny is a premium, lightweight, and minimalist audio streaming client designed 
 * **Architecture ABI Splitting**: Native binaries are split per-architecture (`arm64-v8a`, `armeabi-v7a`), reducing installation footprints from 112MB to under 47MB.
 * **On-Device Cache Manager**: Fast metadata lookup caches and media stream segment indexing to optimize networking traffic and minimize loading times.
 * **Customization Suite**: Built-in dark/light mode configurations, custom accent palettes, and multiple font faces.
+* **GitHub Releases Auto-Updater**: Scans the GitHub API for new releases and prompts the user with direct options to download and update the `.apk` on startup.
+
+---
+
+## 📂 Project Architecture
+
+```
+Bunny/
+├── app/                        # Expo Router Navigation Layouts
+│   ├── (tabs)/                 # Tab Navigation (Home, Explore, Library, Profile)
+│   ├── _layout.tsx             # Root Application Layout & Service Bootstrapper
+│   ├── modal.tsx               # Floating Media Player Modal Panel
+│   ├── settings.tsx            # App Settings (Appearance, Audio, Downloads, Updates, About)
+│   └── notification.click.tsx  # Dynamic Push Notification click handler
+├── components/                 # React Native UI Components
+│   ├── player/                 # Track player controls and Lyrics Scroller
+│   ├── ui/                     # Design System (Typography, BunnyCard, LoadingScreen, etc.)
+│   ├── bottom-tab-bar.tsx      # BlurView custom Navigation tab bar
+│   └── SliderSeek.tsx          # Reanimated gesture-based seek slider
+├── services/                   # App Logic & Native API Clients
+│   ├── PlaybackService.ts      # Native Playback state handler (pause, play, skip hooks)
+│   ├── SetupService.ts         # TrackPlayer native initialization engine
+│   ├── downloads.ts            # Local download pipeline & filesystem storage management
+│   ├── favorites.ts            # Favorite songs AsyncStorage indexer
+│   ├── playlists.ts            # Local user playlist storage database
+│   ├── piped.ts                # Piped API client for formats & instances indexing
+│   ├── ytMusic.ts              # InnerTube endpoints wrapper for YouTube Music queries
+│   ├── useYouTubeAudio.ts      # Dynamic streams extractor hook
+│   └── updateChecker.ts        # GitHub Releases update check pipeline
+├── modules/                    # Custom Local Native Kotlin/Swift Modules
+│   ├── innertube/              # InnerTube client (downgraded to Ktor for compatibility)
+│   └── youtube-extractor/      # Audio extractor utilizing TeamNewPipe & OkHttp
+├── plugins/                    # Expo prebuild plugins
+│   └── withAppConfiguration.js # Gradle config, Proguard rules, ABI splits & Auto-Versioning
+├── patches/                    # Native NPM patches (react-native-track-player fixes)
+├── tailwind.config.js          # Tailwind CSS styling tokens config
+└── app.json                    # Expo Manifest configurations
+```
 
 ---
 
