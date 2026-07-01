@@ -34,7 +34,8 @@ function withAndroidGradleProperties(config) {
   return withGradleProperties(config, (config) => {
     const propertiesToAdd = [
       { key: 'android.enableMinifyInReleaseBuilds', value: 'true' },
-      { key: 'android.enableShrinkResourcesInReleaseBuilds', value: 'true' }
+      { key: 'android.enableShrinkResourcesInReleaseBuilds', value: 'true' },
+      { key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC' }
     ];
 
     propertiesToAdd.forEach((prop) => {
@@ -70,7 +71,14 @@ function withAndroidProguardRules(config) {
         '# Suppress R8/Proguard warnings for missing classes',
         '-dontwarn com.google.re2j.**',
         '-dontwarn java.beans.**',
-        '-dontwarn javax.script.**'
+        '-dontwarn javax.script.**',
+        '-dontwarn **',
+        '',
+        '# Keep local native Kotlin modules & package structures',
+        '-keep class com.bunny.youtubeextractor.** { *; }',
+        '-keep class com.bunny.innertube.** { *; }',
+        '-keep class com.music.innertube.** { *; }',
+        '-keep class com.kowsiky.Bunny.** { *; }'
       ];
       
       let modified = false;
