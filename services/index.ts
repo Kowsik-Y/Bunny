@@ -4,4 +4,5 @@ export * from './favorites';
 export * from './playlists';
 export * from './downloads';
 export * from './toast';
+export * from './updateChecker';
 

@@ -19,6 +19,7 @@ import {
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
 import { ToastProvider } from '@/components/ui/toast';
 import { setupPlayer } from '@/services/SetupService';
+import { checkAppUpdates } from '@/services';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -43,9 +44,10 @@ function RootLayoutWithTheme() {
     }
   }, [fontsLoaded]);
 
-  // Eagerly initialize TrackPlayer in background
+  // Eagerly initialize TrackPlayer and check for app updates in background
   useEffect(() => {
     setupPlayer().catch(() => { });
+    checkAppUpdates(true).catch(() => { });
   }, []);
 
   if (!fontsLoaded) {

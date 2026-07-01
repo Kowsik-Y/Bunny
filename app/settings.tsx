@@ -12,7 +12,8 @@ import { ThemeVariantOptions, type ThemeFontName, type ThemeMode } from '@/const
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useDownloads } from '@/services';
+import { useDownloads, checkAppUpdates } from '@/services';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const themeModes: Array<{ label: string; value: ThemeMode; icon: any }> = [
   { label: 'System', value: 'system', icon: 'gearshape.fill' },
@@ -41,12 +42,33 @@ export default function SettingsScreen() {
   const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
 
-  const handleCheckUpdate = () => {
+  useEffect(() => {
+    const loadAutoCheckSetting = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@bunny_auto_check_updates');
+        if (stored !== null) {
+          setAutoUpdate(stored === 'true');
+        }
+      } catch (e) {
+        console.warn('Failed to load auto-update setting', e);
+      }
+    };
+    loadAutoCheckSetting();
+  }, []);
+
+  const handleToggleAutoUpdate = async (value: boolean) => {
+    setAutoUpdate(value);
+    try {
+      await AsyncStorage.setItem('@bunny_auto_check_updates', String(value));
+    } catch (e) {
+      console.warn('Failed to save auto-update setting', e);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
-    setTimeout(() => {
-      setCheckingUpdate(false);
-      Alert.alert('App Update', 'Your app is up to date! (Version ' + packageJson.version + ')');
-    }, 1500);
+    await checkAppUpdates(false);
+    setCheckingUpdate(false);
   };
 
   const getDirSize = async (dirUri: string): Promise<number> => {
@@ -804,7 +826,7 @@ export default function SettingsScreen() {
                   </View>
                   <Switch
                     value={autoUpdate}
-                    onValueChange={setAutoUpdate}
+                    onValueChange={handleToggleAutoUpdate}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={autoUpdate ? '#fff' : colors.mutedForeground}
                   />
