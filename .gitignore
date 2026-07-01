@@ -41,3 +41,26 @@ app-example
 # generated native folders
 /ios
 /android
+
+# nested cloned repositories
+Echo-Music/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Gradle and build outputs
+.gradle/
+**/build/
+local.properties
+**/local.properties
+*.apk
+*.aar
+*.aab
+
+# IDEs and local workspace caches
+.vscode/
+.gemini/
+antigravity-ide/
+.agents/
+Echo-Music/

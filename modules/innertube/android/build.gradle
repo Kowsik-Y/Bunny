@@ -1,0 +1,52 @@
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-serialization:2.1.20"
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
+
+group = 'com.bunny.innertube'
+version = '0.1.0'
+
+repositories {
+  google()
+  mavenCentral()
+  maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+  // InnerTube dependencies - downgraded to Ktor 3.0.3 to be compatible with React Native's Kotlin 2.1 compiler
+  implementation "io.ktor:ktor-client-core:3.0.3"
+  implementation "io.ktor:ktor-client-okhttp:3.0.3"
+  implementation "io.ktor:ktor-client-content-negotiation:3.0.3"
+  implementation "io.ktor:ktor-serialization-kotlinx-json:3.0.3"
+  implementation "io.ktor:ktor-client-encoding:3.0.3"
+  implementation "org.brotli:dec:0.1.2"
+  implementation "com.github.TeamNewPipe:NewPipeExtractor:v0.25.2"
+  implementation "com.squareup.okhttp3:okhttp:4.9.3"
+  
+  // Gson for easy high-level object serialization to React Native JS
+  implementation "com.google.code.gson:gson:2.10.1"
+}
+
+android {
+  namespace "com.bunny.innertube"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}

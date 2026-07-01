@@ -1,0 +1,28 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.bunny.youtubeextractor'
+version = '0.1.0'
+
+repositories {
+  maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+  implementation "com.github.TeamNewPipe:NewPipeExtractor:v0.25.2"
+  implementation "com.squareup.okhttp3:okhttp:4.9.3"
+}
+
+android {
+  namespace "com.bunny.youtubeextractor"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+

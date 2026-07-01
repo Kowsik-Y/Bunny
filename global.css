@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.625rem;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #64748b;
+  --primary-foreground: #f8fafc;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1f2937;
+  --muted: #f1f5f9;
+  --muted-foreground: #6b7280;
+  --accent: #e2e8f0;
+  --accent-foreground: #1f2937;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #94a3b8;
+  --chart-1: #f97316;
+  --chart-2: #0ea5e9;
+  --chart-3: #2563eb;
+  --chart-4: #eab308;
+  --chart-5: #f59e0b;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #64748b;
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #1f2937;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #94a3b8;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #111827;
+  --card-foreground: #e2e8f0;
+  --popover: #111827;
+  --popover-foreground: #e2e8f0;
+  --primary: #cbd5f5;
+  --primary-foreground: #1e293b;
+  --secondary: #1f2937;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1f2937;
+  --muted-foreground: #94a3b8;
+  --accent: #334155;
+  --accent-foreground: #e2e8f0;
+  --destructive: #f87171;
+  --destructive-foreground: #0b0f1a;
+  --border: #1f2937;
+  --input: #334155;
+  --ring: #64748b;
+  --chart-1: #6366f1;
+  --chart-2: #22c55e;
+  --chart-3: #f59e0b;
+  --chart-4: #a855f7;
+  --chart-5: #ef4444;
+  --sidebar: #111827;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #cbd5f5;
+  --sidebar-primary-foreground: #1e293b;
+  --sidebar-accent: #1f2937;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #1f2937;
+  --sidebar-ring: #64748b;
+}
+
+.theme-stone {
+  --primary: #78716c;
+  --primary-foreground: #fafaf9;
+  --ring: #a8a29e;
+}
+
+.theme-zinc {
+  --primary: #71717a;
+  --primary-foreground: #fafafa;
+  --ring: #a1a1aa;
+}
+
+.theme-mauve {
+  --primary: #8b5fbf;
+  --primary-foreground: #f6f2f7;
+  --ring: #a08aae;
+}
+
+.theme-olive {
+  --primary: #6a7f3f;
+  --primary-foreground: #f6f7f2;
+  --ring: #99a27a;
+}
+
+.theme-mist {
+  --primary: #5b7c8a;
+  --primary-foreground: #f2f7f9;
+  --ring: #89a2ad;
+}
+
+.theme-taupe {
+  --primary: #8a6f5a;
+  --primary-foreground: #f7f3ef;
+  --ring: #b19988;
+}

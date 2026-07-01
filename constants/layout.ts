@@ -1,0 +1,5 @@
+export const TAB_BAR_BOTTOM = 16;
+export const TAB_BAR_HEIGHT = 90;
+export const MINI_PLAYER_HEIGHT = 64;
+export const PLAYER_BOTTOM_OFFSET = 90;
+export const PLAYER_TOTAL_HEIGHT = PLAYER_BOTTOM_OFFSET + MINI_PLAYER_HEIGHT;

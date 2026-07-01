@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["InnertubeModule"]
+  },
+  "android": {
+    "modules": ["com.bunny.innertube.InnertubeModule"]
+  }
+}

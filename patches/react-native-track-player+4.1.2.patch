@@ -1,0 +1,167 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
+index 02d3cbe..b5c686d 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
+@@ -55,6 +55,29 @@ class Track(context: Context, bundle: Bundle, ratingType: Int) : TrackMetadata()
+                 headers!![header] = httpHeaders.getString(header)!!
+             }
+         }
++
++        // Custom Antigravity fix for User-Agent query parameter:
++        uri?.let { currentUri ->
++            val urlString = currentUri.toString()
++            if (urlString.contains("__ua=")) {
++                val uaParam = currentUri.getQueryParameter("__ua")
++                if (uaParam != null) {
++                    userAgent = uaParam
++                    if (headers == null) {
++                        headers = HashMap()
++                    }
++                    headers!!["User-Agent"] = uaParam
++                    
++                    // Clean the URI by string replacement to preserve original encoding & signature
++                    val cleanUrlString = urlString
++                        .replace(Regex("&__ua=[^&]*"), "")
++                        .replace(Regex("\\?__ua=[^&]*&"), "?")
++                        .replace(Regex("\\?__ua=[^&]*$"), "")
++                    uri = Uri.parse(cleanUrlString)
++                }
++            }
++        }
++
+         setMetadata(context, bundle, ratingType)
+         queueId = System.currentTimeMillis()
+         originalItem = bundle
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+index b2409a0..8af364c 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+@@ -20,11 +20,19 @@ import com.google.android.exoplayer2.DefaultLoadControl.*
+ import com.google.android.exoplayer2.Player
+ import kotlinx.coroutines.MainScope
+ import kotlinx.coroutines.delay
+-import kotlinx.coroutines.launch
++import kotlinx.coroutines.launch as originalLaunch
++import kotlinx.coroutines.CoroutineScope
+ import timber.log.Timber
+ import java.util.*
+ import javax.annotation.Nonnull
+ 
++private fun CoroutineScope.launch(
++    context: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,
++    start: kotlinx.coroutines.CoroutineStart = kotlinx.coroutines.CoroutineStart.DEFAULT,
++    block: suspend CoroutineScope.() -> Unit
++) {
++    this.originalLaunch(context, start, block)
++}
+ 
+ /**
+  * @author Milen Pivchev @mpivchev
+@@ -545,7 +553,7 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+         if (verifyServiceBoundOrReject(callback)) return@launch
+ 
+         if (index >= 0 && index < musicService.tracks.size) {
+-            callback.resolve(Arguments.fromBundle(musicService.tracks[index].originalItem))
++            callback.resolve(Arguments.fromBundle(musicService.tracks[index].originalItem!!))
+         } else {
+             callback.resolve(null)
+         }
+@@ -585,7 +593,7 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+         callback.resolve(
+             if (musicService.tracks.isEmpty()) null
+             else Arguments.fromBundle(
+-                musicService.tracks[musicService.getCurrentTrackIndex()].originalItem
++                musicService.tracks[musicService.getCurrentTrackIndex()].originalItem!!
+             )
+         )
+     }
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+index afa6b0f..0f34bb8 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+@@ -88,6 +88,7 @@ class MusicService : HeadlessJsTaskService() {
+             player.playWhenReady = value
+         }
+ 
++    private var lastCapturedError: PlaybackError? = null
+     private var latestOptions: Bundle? = null
+     private var capabilities: List<Capability> = emptyList()
+     private var notificationCapabilities: List<Capability> = emptyList()
+@@ -421,7 +422,7 @@ class MusicService : HeadlessJsTaskService() {
+         val bundle = Bundle()
+         bundle.putString(STATE_KEY, state.asLibState.state)
+         if (state == AudioPlayerState.ERROR) {
+-            bundle.putBundle(ERROR_KEY, getPlaybackErrorBundle())
++            bundle.putBundle(ERROR_KEY, getPlaybackErrorBundle(lastCapturedError))
+         }
+         return bundle
+     }
+@@ -604,6 +605,9 @@ class MusicService : HeadlessJsTaskService() {
+     private fun observeEvents() {
+         scope.launch {
+             event.stateChange.collect {
++                if (it != AudioPlayerState.ERROR) {
++                    lastCapturedError = null
++                }
+                 emit(MusicEvents.PLAYBACK_STATE, getPlayerStateBundle(it))
+ 
+                 if (it == AudioPlayerState.ENDED && player.nextItem == null) {
+@@ -722,26 +726,41 @@ class MusicService : HeadlessJsTaskService() {
+ 
+         scope.launch {
+             event.playbackError.collect {
+-                emit(MusicEvents.PLAYBACK_ERROR, getPlaybackErrorBundle())
++                lastCapturedError = it
++                emit(MusicEvents.PLAYBACK_ERROR, getPlaybackErrorBundle(it))
+             }
+         }
+     }
+ 
+-    private fun getPlaybackErrorBundle(): Bundle {
++    private fun getPlaybackErrorBundle(error: PlaybackError? = null): Bundle {
+         val bundle = Bundle()
+-        val error = playbackError
+-        if (error?.message != null) {
+-            bundle.putString("message", error.message)
++        val err = error ?: lastCapturedError ?: playbackError
++        if (err?.message != null) {
++            bundle.putString("message", err.message)
++        } else if (err != null) {
++            bundle.putString("message", err.toString())
+         }
+-        if (error?.code != null) {
+-            bundle.putString("code", "android-" + error.code)
++        if (err?.code != null) {
++            bundle.putString("code", "android-" + err.code)
+         }
+         return bundle
+     }
+ 
++    private fun findReactContext(): com.facebook.react.bridge.ReactContext? {
++        return try {
++            (application as? com.facebook.react.ReactApplication)?.reactHost?.currentReactContext
++        } catch (e: Throwable) {
++            null
++        } ?: try {
++            reactNativeHost.reactInstanceManager.currentReactContext
++        } catch (e: Throwable) {
++            null
++        }
++    }
++
+     @MainThread
+     private fun emit(event: String, data: Bundle? = null) {
+-        reactNativeHost.reactInstanceManager.currentReactContext
++        findReactContext()
+             ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+             ?.emit(event, data?.let { Arguments.fromBundle(it) })
+     }
+@@ -751,7 +770,7 @@ class MusicService : HeadlessJsTaskService() {
+         val payload = Arguments.createArray()
+         data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
+ 
+-        reactNativeHost.reactInstanceManager.currentReactContext
++        findReactContext()
+             ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+             ?.emit(event, payload)
+     }
