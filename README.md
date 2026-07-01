@@ -7,7 +7,7 @@ Bunny is a premium, lightweight, and minimalist audio streaming client designed 
 ## 🌟 Key Features
 
 * **Native Audio Engine**: High-fidelity playback with low latency, background audio support, and media controls powered by `react-native-track-player`.
-* **Apple Music-Style Lyrics Scroller**: Synchronized word-by-word active text highlights driven smoothly on native UI-thread frame clocks (60/120fps), utilizing dynamic scroll measurements.
+* **LrcLib Lyrics Scroller**: Synchronized word-by-word active text highlights driven smoothly on native UI-thread frame clocks (60/120fps) with dynamic scroll measurements, fetching lyrics dynamically from LrcLib.
 * **Architecture ABI Splitting**: Native binaries are split per-architecture (`arm64-v8a`, `armeabi-v7a`), reducing installation footprints from 112MB to under 47MB.
 * **On-Device Cache Manager**: Fast metadata lookup caches and media stream segment indexing to optimize networking traffic and minimize loading times.
 * **Customization Suite**: Built-in dark/light mode configurations, custom accent palettes, and multiple font faces.
