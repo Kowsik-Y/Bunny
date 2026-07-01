@@ -15,9 +15,10 @@ import { useCurrentTrack, usePlayerState, toast } from '@/services';
 import { searchYtMusic, getSearchSuggestions, YtMusicSearchResult, CategorizedSearchResults } from '@/services/ytMusic';
 import TrackPlayer from 'react-native-track-player';
 import { pipedService } from '@/services/piped';
-import { SongCard } from '@/components/ui/SongCard';
+import { SongCard, AlbumCard, AlbumRowCard, ArtistCard } from '@/components/cards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Feather } from '@expo/vector-icons';
+import { useTrackOptions } from '@/contexts/track-options-context';
 
 import { SuggestionsOverlay } from '@/components/explore/SuggestionsOverlay';
 import { FilterChips } from '@/components/explore/FilterChips';
@@ -70,12 +71,13 @@ function getSearchScore(query: string, target: string): number {
 export default function ExploreScreen() {
   const { colors } = useAppTheme();
   const currentTrack = useCurrentTrack();
+  const { openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
   const { isPlaying } = usePlayerState();
   const { query } = useLocalSearchParams();
   const searchInputRef = useRef<TextInput>(null);
   const [search, setSearch] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [results, setResults] = useState<CategorizedSearchResults>({ songs: [], artists: [], albums: [] });
+  const [results, setResults] = useState<CategorizedSearchResults>({ songs: [], artists: [], albums: [], playlists: [] });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [locationCity, setLocationCity] = useState<string>('');
   const [localHits, setLocalHits] = useState<YtMusicSearchResult[]>([]);
@@ -83,10 +85,10 @@ export default function ExploreScreen() {
 
   // Find the dynamically best matching top result candidate
   const topResult = React.useMemo(() => {
-    if (!results.songs.length && !results.artists.length && !results.albums.length) {
+    if (!results.songs.length && !results.artists.length && !results.albums.length && !results.playlists?.length) {
       return null;
     }
-    const candidates: { type: 'song' | 'artist' | 'album'; item: any; score: number }[] = [];
+    const candidates: { type: 'song' | 'artist' | 'album' | 'playlist'; item: any; score: number }[] = [];
     
     if (results.artists.length > 0) {
       candidates.push({
@@ -107,6 +109,13 @@ export default function ExploreScreen() {
         type: 'album',
         item: results.albums[0],
         score: getSearchScore(search, results.albums[0].title || ''),
+      });
+    }
+    if (results.playlists && results.playlists.length > 0) {
+      candidates.push({
+        type: 'playlist',
+        item: results.playlists[0],
+        score: getSearchScore(search, results.playlists[0].title || ''),
       });
     }
     
@@ -266,7 +275,7 @@ export default function ExploreScreen() {
   const isSearchingRef = useRef(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [provider, setProvider] = useState<SearchProvider>('ytmusic');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'songs' | 'artists' | 'albums'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists'>('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -318,7 +327,6 @@ export default function ExploreScreen() {
         setResults(res);
       } else {
         const pipedResults = await pipedService.search(query, 'all');
-        // Map Piped results to standard format
         const formatted: CategorizedSearchResults = {
           songs: (pipedResults.items || [])
             .filter((i: any) => (i.type === 'video' || i.type === 'stream') && i.url)
@@ -337,6 +345,7 @@ export default function ExploreScreen() {
             }),
           artists: [],
           albums: [],
+          playlists: [],
         };
         setResults(formatted);
       }
@@ -351,6 +360,8 @@ export default function ExploreScreen() {
     if (item.type === 'album') {
       console.log("Album ID:", item);
       router.push(`/album/${item.id}` as any);
+    } else if (item.type === 'playlist') {
+      router.push(`/playlist/${item.id}` as any);
     } else if (item.type === 'artist') {
       router.push(`/artist/${item.id}` as any);
     } else {
@@ -370,7 +381,7 @@ export default function ExploreScreen() {
             url: s.url || '',
             title: s.title || '',
             artist: s.artist || '',
-            album: s.album || 'YouTube Music',
+            album: s.album || 'Single',
             artwork: s.thumbnail || '',
             duration: s.duration || 0,
           }));
@@ -390,7 +401,7 @@ export default function ExploreScreen() {
           url: s.url || '',
           title: s.title || '',
           artist: s.artist || '',
-          album: s.album || 'YouTube Music',
+          album: s.album || 'Single',
           artwork: s.thumbnail || '',
           duration: s.duration || 0,
         }));
@@ -404,19 +415,63 @@ export default function ExploreScreen() {
 
 
   const renderSearchResult = ({ item }: { item: YtMusicSearchResult }) => {
+    if (item.type === 'album') {
+      return (
+        <AlbumRowCard
+          title={item.title || item.name || ''}
+          artist={item.artist || 'Unknown Artist'}
+          artwork={item.thumbnail || ''}
+          onPress={() => handleTilePress(item)}
+          onLongPress={() => openAlbumOptions({ id: item.id, title: item.title || item.name || '', artist: item.artist || 'Unknown Artist', artwork: item.thumbnail || '' })}
+        />
+      );
+    }
+
+    if (item.type === 'playlist') {
+      return (
+        <AlbumRowCard
+          title={item.title || item.name || ''}
+          artist={item.artist || 'Unknown Artist'}
+          artwork={item.thumbnail || ''}
+          onPress={() => handleTilePress(item)}
+          onLongPress={() => openPlaylistOptions({ id: item.id, name: item.title || item.name || '', artwork: item.thumbnail || '' })}
+        />
+      );
+    }
+
+    if (item.type === 'artist') {
+      return (
+        <ArtistCard
+          name={item.name || item.title || ''}
+          artwork={item.thumbnail || ''}
+          onPress={() => handleTilePress(item)}
+          onLongPress={() => openArtistOptions({ id: item.id, name: item.name || item.title || '', artwork: item.thumbnail || '' })}
+        />
+      );
+    }
+
     const trackId = ((item as any).videoId || item.id) as string;
     const isActive = !!(currentTrack?.id === trackId || (currentTrack?.id && currentTrack.id.includes(trackId)));
     return (
       <SongCard
         title={item.title || item.name || ''}
-        artist={item.type === 'song' ? `Song • ${item.artist}` : 
-                item.type === 'album' ? `Album • ${item.artist}` : 
-                `Artist`}
+        artist={item.artist ? `Song • ${item.artist}` : 'Song'}
         artwork={item.thumbnail || ''}
-        rightIcon={item.type === 'song' ? 'play' : 'chevron'}
+        rightIcon="play"
         isActive={isActive}
         isPlaying={isPlaying}
-        onPress={() => item.type === 'song' ? PlayerActions.skipToTrackFromYt(item) : handleTilePress(item)}
+        onPress={() => PlayerActions.skipToTrackFromYt(item)}
+        track={{
+          id: trackId,
+          title: item.title || item.name || '',
+          artist: item.artist || '',
+          album: item.album || 'Single',
+          artwork: item.thumbnail || '',
+          url: `https://music.youtube.com/watch?v=${trackId}`,
+          duration: item.duration || 0,
+          artistId: (item as any).artistId,
+          albumId: (item as any).albumId,
+        }}
       />
     );
   };
@@ -459,7 +514,7 @@ export default function ExploreScreen() {
                     setShowSuggestions(false);
                     setIsSearching(false);
                     isSearchingRef.current = false;
-                    setResults({ songs: [], artists: [], albums: [] });
+                    setResults({ songs: [], artists: [], albums: [], playlists: [] });
                     setActiveFilter('all');
                   }}
                 >
@@ -527,6 +582,8 @@ export default function ExploreScreen() {
                               router.push(`/artist/${topResult.item.id}`);
                             } else if (topResult.type === 'album') {
                               router.push(`/album/${topResult.item.id}`);
+                            } else if (topResult.type === 'playlist') {
+                              router.push(`/playlist/${topResult.item.id}`);
                             } else {
                               PlayerActions.skipToTrackFromYt(topResult.item);
                             }
@@ -536,6 +593,8 @@ export default function ExploreScreen() {
                               handleArtistShuffle(topResult.item.name || '');
                             } else if (topResult.type === 'album') {
                               router.push(`/album/${topResult.item.id}`);
+                            } else if (topResult.type === 'playlist') {
+                              router.push(`/playlist/${topResult.item.id}`);
                             } else {
                               PlayerActions.skipToTrackFromYt(topResult.item);
                             }
@@ -545,7 +604,11 @@ export default function ExploreScreen() {
                               ? () => handleArtistMix(topResult.item.name || '')
                               : topResult.type === 'song'
                               ? () => PlayerActions.skipToTrackFromYt(topResult.item)
-                              : () => toast.success(`Saved "${topResult.item.title || 'Album'}" to Library`)
+                              : topResult.type === 'album'
+                              ? () => router.push(`/album/${topResult.item.id}`)
+                              : topResult.type === 'playlist'
+                              ? () => router.push(`/playlist/${topResult.item.id}`)
+                              : () => PlayerActions.skipToTrackFromYt(topResult.item)
                           }
                           onRecommendedSongPress={(song) => PlayerActions.skipToTrackFromYt(song)}
                         />
@@ -554,7 +617,7 @@ export default function ExploreScreen() {
                       {/* Top Songs */}
                       {results.songs.length > 0 && (
                         <View style={styles.resultsSection}>
-                          <Typography variant="small" style={styles.sectionLabel}>SONGS</Typography>
+                          <Typography variant="small" style={styles.sectionLabel}>SONGS </Typography>
                           {results.songs.slice(0, 5).map(item => (
                             <View key={item.id}>{renderSearchResult({ item })}</View>
                           ))}
@@ -566,6 +629,16 @@ export default function ExploreScreen() {
                         <View style={styles.resultsSection}>
                           <Typography variant="small" style={styles.sectionLabel}>ALBUMS</Typography>
                           {results.albums.slice(0, 5).map(item => (
+                            <View key={item.id}>{renderSearchResult({ item })}</View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Top Playlists */}
+                      {results.playlists && results.playlists.length > 0 && (
+                        <View style={styles.resultsSection}>
+                          <Typography variant="small" style={styles.sectionLabel}>PLAYLISTS</Typography>
+                          {results.playlists.slice(0, 5).map(item => (
                             <View key={item.id}>{renderSearchResult({ item })}</View>
                           ))}
                         </View>
@@ -613,11 +686,22 @@ export default function ExploreScreen() {
                     </View>
                   )}
 
+                  {/* Playlists Filter Mode */}
+                  {activeFilter === 'playlists' && results.playlists && results.playlists.length > 0 && (
+                    <View style={styles.resultsSection}>
+                      <Typography variant="small" style={styles.sectionLabel}>PLAYLISTS</Typography>
+                      {results.playlists.map(item => (
+                        <View key={item.id}>{renderSearchResult({ item })}</View>
+                      ))}
+                    </View>
+                  )}
+
                   {/* Empty State */}
-                  {((activeFilter === 'all' && results.songs.length === 0 && results.artists.length === 0 && results.albums.length === 0) ||
+                  {((activeFilter === 'all' && results.songs.length === 0 && results.artists.length === 0 && results.albums.length === 0 && (!results.playlists || results.playlists.length === 0)) ||
                     (activeFilter === 'songs' && results.songs.length === 0) ||
                     (activeFilter === 'artists' && results.artists.length === 0) ||
-                    (activeFilter === 'albums' && results.albums.length === 0)) && (
+                    (activeFilter === 'albums' && results.albums.length === 0) ||
+                    (activeFilter === 'playlists' && (!results.playlists || results.playlists.length === 0))) && (
                     <View style={styles.center}>
                       <Muted>No results found</Muted>
                     </View>
@@ -643,36 +727,29 @@ export default function ExploreScreen() {
                     style={{ marginHorizontal: -20 }}
                     contentContainerStyle={{ paddingHorizontal: 20 }}
                   >
-                    {localHits.map((song) => {
-                      const isActive = currentTrack?.id === song.id;
-                      return (
-                        <TouchableOpacity
-                          key={song.id}
-                          onPress={() => PlayerActions.skipToTrackFromYt(song)}
-                          style={{
-                            width: 140,
-                            marginRight: 16,
-                          }}
-                        >
-                          <Image
-                            source={{ uri: song.thumbnail || '' }}
-                            style={{ width: 140, height: 140, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.05)' }}
-                          />
-                          <Typography
-                            numberOfLines={1}
-                            style={{ fontWeight: '600', fontSize: 13, marginTop: 8, color: colors.text }}
-                          >
-                            {song.title}
-                          </Typography>
-                          <Typography
-                            numberOfLines={1}
-                            style={{ fontSize: 11, color: colors.tabIconDefault, marginTop: 2 }}
-                          >
-                            {song.artist}
-                          </Typography>
-                        </TouchableOpacity>
-                      );
-                    })}
+                    {localHits.map((song) => (
+                      <AlbumCard
+                        key={song.id}
+                        title={song.title || ''}
+                        subtitle={song.artist || ''}
+                        artwork={song.thumbnail || ''}
+                        type="album"
+                        variant="carousel"
+                        onPress={() => PlayerActions.skipToTrackFromYt(song)}
+                        onLongPress={() => openTrackOptions({
+                          id: song.id,
+                          title: song.title || '',
+                          artist: song.artist || '',
+                          album: song.album || 'Single',
+                          artwork: song.thumbnail || '',
+                          url: song.url || `https://music.youtube.com/watch?v=${song.id}`,
+                          duration: song.duration || 0,
+                          artistId: song.artistId,
+                          albumId: song.albumId,
+                          artists: song.artists,
+                        })}
+                      />
+                    ))}
                   </ScrollView>
                 </View>
               )}

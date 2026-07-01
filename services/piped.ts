@@ -130,12 +130,37 @@ class PipedService {
 
       const artistRuns = cleanedGroups[0] ?? [];
       const artistName = artistRuns.map((r: any) => r.text).join('') || 'Unknown Artist';
+      const artistId = artistRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+      const artistsList: { name: string; id: string }[] = [];
+      artistRuns.forEach((r: any) => {
+        const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+        const aName = r.text?.trim();
+        if (aId && aName) {
+          artistsList.push({ name: aName, id: aId });
+        }
+      });
+
+      const albumRuns = cleanedGroups[1] ?? [];
+      const group1Text = albumRuns.map((r: any) => r.text).join('').trim();
+      const isDuration = group1Text && /^\d+:\d+(:\d+)?$/.test(group1Text);
+      const isViewsOrYear = group1Text && (/^\d+(?:\.\d+)?[KMB]? views$/i.test(group1Text) || /^\d{4}$/.test(group1Text));
+
+      let albumName: string | undefined;
+      let albumId: string | undefined;
+      if (group1Text && !isDuration && !isViewsOrYear) {
+        albumName = group1Text;
+        albumId = albumRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+      }
 
       return {
         type: 'stream',
         url: `watch?v=${videoId}`,
         title,
         uploaderName: artistName,
+        artistId,
+        artists: artistsList.length > 0 ? artistsList : undefined,
+        albumName,
+        albumId,
         thumbnail,
         duration: 0,
       };
@@ -234,12 +259,37 @@ class PipedService {
 
       const artistRuns = cleanedGroups[0] ?? [];
       const artistName = artistRuns.map((r: any) => r.text).join('') || 'Unknown Artist';
+      const artistId = artistRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+      const artistsList: { name: string; id: string }[] = [];
+      artistRuns.forEach((r: any) => {
+        const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+        const aName = r.text?.trim();
+        if (aId && aName) {
+          artistsList.push({ name: aName, id: aId });
+        }
+      });
+
+      const albumRuns = cleanedGroups[1] ?? [];
+      const group1Text = albumRuns.map((r: any) => r.text).join('').trim();
+      const isDuration = group1Text && /^\d+:\d+(:\d+)?$/.test(group1Text);
+      const isViewsOrYear = group1Text && (/^\d+(?:\.\d+)?[KMB]? views$/i.test(group1Text) || /^\d{4}$/.test(group1Text));
+
+      let albumName: string | undefined;
+      let albumId: string | undefined;
+      if (group1Text && !isDuration && !isViewsOrYear) {
+        albumName = group1Text;
+        albumId = albumRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+      }
 
       return {
         type: 'stream',
         url: `watch?v=${videoId}`,
         title,
         uploaderName: artistName,
+        artistId,
+        artists: artistsList.length > 0 ? artistsList : undefined,
+        albumName,
+        albumId,
         thumbnail,
         duration: duration ?? 0,
       };
@@ -283,8 +333,10 @@ class PipedService {
         params = 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D'; // FILTER_SONG
       } else if (filter === 'channels') {
         params = 'EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D'; // FILTER_ARTIST
-      } else if (filter === 'playlists') {
+      } else if (filter === 'albums') {
         params = 'EgWKAQIYAWoKEAkQChAFEAMQBA%3D%3D'; // FILTER_ALBUM
+      } else if (filter === 'playlists') {
+        params = 'EgWKAQIoAWoKEAkQChAFEAMQBA%3D%3D'; // FILTER_PLAYLIST
       }
 
       const data = await postInnerTube('search', { query, params });
@@ -429,12 +481,23 @@ class PipedService {
             if (videoId) {
               const artistRuns = subGroups[0] ?? [];
               const artistName = artistRuns.map((r: any) => r.text).join('') || name;
+              const artistId = artistRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+              const artistsList: { name: string; id: string }[] = [];
+              artistRuns.forEach((r: any) => {
+                const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+                const aName = r.text?.trim();
+                if (aId && aName) {
+                  artistsList.push({ name: aName, id: aId });
+                }
+              });
               items.push({
                 type: 'song',
                 id: videoId,
                 title: titleName,
                 artist: artistName,
                 thumbnail,
+                artistId: artistId || channelId,
+                artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
               });
             } else if (isArtist) {
               const browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId;
@@ -493,12 +556,23 @@ class PipedService {
 
               if (videoId) {
                 const artistName = twoRow.subtitle?.runs?.[0]?.text ?? '';
+                const artistId = twoRow.subtitle?.runs?.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+                const artistsList: { name: string; id: string }[] = [];
+                twoRow.subtitle?.runs?.forEach((r: any) => {
+                  const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+                  const aName = r.text?.trim();
+                  if (aId && aName) {
+                    artistsList.push({ name: aName, id: aId });
+                  }
+                });
                 items.push({
                   type: 'song',
                   id: videoId,
                   title: titleName,
                   artist: artistName,
                   thumbnail,
+                  artistId: artistId || channelId,
+                  artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
                 });
               } else if (isArtist) {
                 const browseId = twoRow.navigationEndpoint?.browseEndpoint?.browseId;
@@ -533,6 +607,16 @@ class PipedService {
                 const itemThumbs = listItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? [];
                 const thumbnail = itemThumbs.length ? itemThumbs[itemThumbs.length - 1].url : null;
                 const artistName = listItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ?? '';
+                const runs = listItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
+                const artistId = runs.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+                const artistsList: { name: string; id: string }[] = [];
+                runs.forEach((r: any) => {
+                  const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+                  const aName = r.text?.trim();
+                  if (aId && aName) {
+                    artistsList.push({ name: aName, id: aId });
+                  }
+                });
 
                 items.push({
                   type: 'song',
@@ -540,6 +624,8 @@ class PipedService {
                   title: titleName,
                   artist: artistName,
                   thumbnail,
+                  artistId: artistId || channelId,
+                  artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
                 });
               }
             }

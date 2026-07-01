@@ -13,6 +13,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated,
+  Alert,
   Dimensions,
   Easing,
   Image,
@@ -479,7 +480,20 @@ const TrackContent = ({
 
   const handleArtistPress = () => {
     onCollapse();
-    if (track.artistId) {
+    if (track.artists && track.artists.length > 1) {
+      Alert.alert(
+        'Select Artist',
+        'Which artist would you like to view?',
+        [
+          ...track.artists.map((art) => ({
+            text: art.name,
+            onPress: () => router.push(`/artist/${art.id}` as any),
+          })),
+          { text: 'Cancel', style: 'cancel' as const },
+        ],
+        { cancelable: true }
+      );
+    } else if (track.artistId) {
       router.push(`/artist/${track.artistId}` as any);
     } else {
       router.push({ pathname: '/(tabs)/explore', params: { query: track.artist } } as any);

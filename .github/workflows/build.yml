@@ -32,6 +32,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'zulu'
+          cache: 'gradle'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3

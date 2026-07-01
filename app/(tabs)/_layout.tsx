@@ -174,26 +174,24 @@ function TabsWithPlayer() {
             }}
           />
         </Tabs>
-        {currentTrack && (
-          <View 
-            style={[StyleSheet.absoluteFill, { zIndex: 9999 }]} 
-            pointerEvents="box-none"
-          >
-            <MusicPlayerModal
-              track={currentTrack as AppTrack}
-              queue={queue}
-              isPlaying={isPlaying}
-              isBuffering={isBuffering}
-              position={position}
-              duration={duration}
-              onPlayPause={() => PlayerActions.playPause(isPlaying)}
-              onNext={PlayerActions.next}
-              onPrev={PlayerActions.previous}
-              onSeek={PlayerActions.seekTo}
-              onSkipToTrack={PlayerActions.skipToTrack}
-            />
-          </View>
-        )}
+        <View 
+          style={[StyleSheet.absoluteFill, { zIndex: 9999 }]} 
+          pointerEvents="box-none"
+        >
+          <MusicPlayerModal
+            track={currentTrack ? (currentTrack as AppTrack) : null}
+            queue={queue}
+            isPlaying={isPlaying}
+            isBuffering={isBuffering}
+            position={position}
+            duration={duration}
+            onPlayPause={() => PlayerActions.playPause(isPlaying)}
+            onNext={PlayerActions.next}
+            onPrev={PlayerActions.previous}
+            onSeek={PlayerActions.seekTo}
+            onSkipToTrack={PlayerActions.skipToTrack}
+          />
+        </View>
         <ToastContainer />
       </View>
   );

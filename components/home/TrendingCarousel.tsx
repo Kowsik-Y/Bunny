@@ -54,6 +54,9 @@ export interface QuickTrack {
   artist: string;
   artwork: string;
   duration: number;
+  artistId?: string;
+  albumId?: string;
+  artists?: { name: string; id: string }[];
 }
 
 interface TrendingCarouselProps {
@@ -166,12 +169,15 @@ export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLon
                     </View>
                     <View style={[
                       styles.playBtn, 
-                      { backgroundColor: isThisPlaying ? colors.primary : 'rgba(255,255,255,0.9)' }
+                      {
+                        backgroundColor: colors.background,
+                        
+                      }
                     ]}>
                       <IconSymbol 
                         name={isThisPlaying ? "pause.fill" : "play.fill"} 
                         size={14} 
-                        color={colors.background}
+                        color={colors.primary}
                       />
                     </View>
                   </View>

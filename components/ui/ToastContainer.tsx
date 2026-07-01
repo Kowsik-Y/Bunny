@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 8,
+    backgroundColor: 'rgba(28, 28, 30, 0.9)',
   },
   content: {
     flexDirection: 'row',

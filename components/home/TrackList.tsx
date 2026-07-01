@@ -31,6 +31,30 @@ function formatDuration(secs: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function TrackListImage({ artwork, style }: { artwork?: string | null; style: any }) {
+  const [uri, setUri] = React.useState<string | null>(
+    artwork && artwork.trim() !== '' ? artwork : null
+  );
+
+  React.useEffect(() => {
+    setUri(artwork && artwork.trim() !== '' ? artwork : null);
+  }, [artwork]);
+
+  return (
+    <Image
+      source={uri ? { uri } : require('@/assets/images/icon.png')}
+      style={style}
+      onError={() => {
+        if (uri && uri.includes('/maxresdefault.jpg')) {
+          setUri(uri.replace('/maxresdefault.jpg', '/hqdefault.jpg'));
+        } else {
+          setUri(null);
+        }
+      }}
+    />
+  );
+}
+
 export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTrack, limit = 5 }: TrackListProps) {
   const { colors } = useAppTheme();
   const [expanded, setExpanded] = React.useState(false);
@@ -102,14 +126,7 @@ export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTra
 
                   {/* Artwork */}
                   <View style={{ position: 'relative' }}>
-                    <Image
-                      source={
-                        track.artwork && track.artwork.trim() !== ''
-                          ? { uri: track.artwork }
-                          : require('@/assets/images/icon.png')
-                      }
-                      style={styles.thumb}
-                    />
+                    <TrackListImage artwork={track.artwork} style={styles.thumb} />
                     {isActive && (
                       <View style={[
                         StyleSheet.absoluteFill,

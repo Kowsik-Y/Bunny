@@ -1,12 +1,12 @@
 import React from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
-import { SongCard } from '@/components/ui/SongCard';
-import { AlbumCard } from '@/components/ui/AlbumCard';
+import { SongCard, AlbumCard } from '@/components/cards';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 import { useCurrentTrack, usePlayerState } from '@/services';
 import { Typography, Muted } from '@/components/ui/typography';
+import { useTrackOptions } from '@/contexts/track-options-context';
 
 interface ArtistTabContentProps {
   activeTab: string;
@@ -24,6 +24,7 @@ export function ArtistTabContent({
   onTilePress,
 }: ArtistTabContentProps) {
   const { colors } = useAppTheme();
+  const { openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
   const currentTrack = useCurrentTrack();
   const { isPlaying } = usePlayerState();
 
@@ -42,6 +43,17 @@ export function ArtistTabContent({
           isActive={isActive}
           isPlaying={isPlaying}
           onPress={() => onSongPress(item)}
+          track={{
+            id: trackId,
+            title: item.title,
+            artist: item.artist || artistName,
+            album: item.album || 'Single',
+            artwork: item.thumbnail || '',
+            url: `https://music.youtube.com/watch?v=${trackId}`,
+            duration: item.duration || 0,
+            artistId: item.artistId || undefined,
+            albumId: item.albumId || undefined,
+          }}
         />
       </Animated.View>
     );
@@ -60,6 +72,15 @@ export function ArtistTabContent({
               type={item.type}
               variant="carousel"
               onPress={() => onTilePress(item)}
+              onLongPress={() => {
+                if (item.type === 'album') {
+                  openAlbumOptions({ id: item.id, title: item.title || item.name || '', artist: item.artist || '', artwork: item.thumbnail });
+                } else if (item.type === 'playlist') {
+                  openPlaylistOptions({ id: item.id, name: item.title || item.name || '', artwork: item.thumbnail });
+                } else if (item.type === 'artist') {
+                  openArtistOptions({ id: item.id, name: item.name || item.title || '', artwork: item.thumbnail });
+                }
+              }}
             />
           </Animated.View>
         ))}
@@ -80,6 +101,15 @@ export function ArtistTabContent({
               type={item.type}
               variant="grid"
               onPress={() => onTilePress(item)}
+              onLongPress={() => {
+                if (item.type === 'album') {
+                  openAlbumOptions({ id: item.id, title: item.title || item.name || '', artist: item.artist || '', artwork: item.thumbnail });
+                } else if (item.type === 'playlist') {
+                  openPlaylistOptions({ id: item.id, name: item.title || item.name || '', artwork: item.thumbnail });
+                } else if (item.type === 'artist') {
+                  openArtistOptions({ id: item.id, name: item.name || item.title || '', artwork: item.thumbnail });
+                }
+              }}
             />
           </Animated.View>
         ))}

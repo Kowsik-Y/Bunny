@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { documentDirectory, cacheDirectory, createDownloadResumable, getInfoAsync, deleteAsync } from 'expo-file-system/legacy';
 import { resolveAudio } from './useYouTubeAudio';
 import { type AppTrack } from '@/components/player/Tracks';
-import { DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
+import Innertube from '@/modules/innertube';
 import * as Notifications from 'expo-notifications';
 
 Notifications.setNotificationHandler({
@@ -47,6 +48,18 @@ async function showSystemNotification(title: string, body: string, id?: string) 
 
 const lastLoggedPct: Record<string, number> = {};
 
+let totalDownloadCount = 0;
+let currentDownloadIndex = 0;
+
+function progressBarString(progress: number, length: number = 10): string {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  const filledLength = Math.round(clampedProgress * length);
+  const emptyLength = length - filledLength;
+  const filled = '█'.repeat(Math.max(0, filledLength));
+  const empty = '░'.repeat(Math.max(0, emptyLength));
+  return `[${filled}${empty}]`;
+}
+
 async function showProgressNotification(trackId: string, title: string, progress: number) {
   const pct = Math.round(progress * 100);
   const rounded = Math.floor(pct / 10) * 10;
@@ -59,16 +72,72 @@ async function showProgressNotification(trackId: string, title: string, progress
 
   try {
     await requestNotificationPermission();
+    const progressText = progressBarString(progress);
+    const songInfo = totalDownloadCount > 1 ? ` (${currentDownloadIndex} of ${totalDownloadCount})` : '';
     await Notifications.scheduleNotificationAsync({
       identifier: `download-${trackId}`,
       content: {
-        title: 'Downloading Track',
-        body: `Downloading "${title}": ${rounded}%`,
+        title: `Downloading Track${songInfo}`,
+        body: `${progressText} ${pct}% - "${title}"`,
       },
       trigger: null,
     });
   } catch (e) {
     console.warn('Failed to update system progress notification', e);
+  }
+}
+
+async function updateDownloadNotification(
+  type: 'progress' | 'complete' | 'paused' | 'cancelled' | 'failed',
+  trackId: string,
+  title: string,
+  progress: number = 0,
+  reason: string = ''
+) {
+  const notificationId = `download-${trackId}`;
+  if (Platform.OS === 'android') {
+    try {
+      switch (type) {
+        case 'progress':
+          await Innertube.showDownloadProgressNotification(notificationId, title, progress, totalDownloadCount, currentDownloadIndex);
+          break;
+        case 'complete':
+          await Innertube.showDownloadCompleteNotification(notificationId, title);
+          break;
+        case 'paused':
+          await Innertube.showDownloadPausedNotification(notificationId, title);
+          break;
+        case 'cancelled':
+          await Innertube.showDownloadCancelledNotification(notificationId);
+          break;
+        case 'failed':
+          await Innertube.showDownloadFailedNotification(notificationId, title, reason);
+          break;
+      }
+      return;
+    } catch (err) {
+      console.warn('Failed to show native Android download notification, falling back to expo-notifications', err);
+    }
+  }
+
+  // Fallback / iOS implementation using expo-notifications
+  const songInfo = totalDownloadCount > 1 ? ` (${currentDownloadIndex} of ${totalDownloadCount})` : '';
+  switch (type) {
+    case 'progress':
+      await showProgressNotification(trackId, title, progress);
+      break;
+    case 'complete':
+      await showSystemNotification('Download Complete', `"${title}" has been saved offline.`, notificationId);
+      break;
+    case 'paused':
+      await showSystemNotification('Download Paused', `Download for "${title}" is paused.`, notificationId);
+      break;
+    case 'cancelled':
+      await showSystemNotification('Download Cancelled', 'The media download was cancelled.', notificationId);
+      break;
+    case 'failed':
+      await showSystemNotification('Download Failed', `An error occurred while downloading "${title}". ${reason}`, notificationId);
+      break;
   }
 }
 
@@ -149,6 +218,10 @@ export function enqueueTrack(track: AppTrack) {
   queuedDownloadingTracks[track.id] = track;
   downloadQueue.push(track);
   
+  if (isProcessingQueue) {
+    totalDownloadCount++;
+  }
+  
   DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
   
   if (!isProcessingQueue) {
@@ -159,6 +232,9 @@ export function enqueueTrack(track: AppTrack) {
 async function processQueue() {
   if (isProcessingQueue) return;
   isProcessingQueue = true;
+  
+  totalDownloadCount = downloadQueue.length;
+  currentDownloadIndex = 0;
   
   while (downloadQueue.length > 0) {
     const nextTrack = downloadQueue[0];
@@ -177,6 +253,8 @@ async function processQueue() {
     delete queuedDownloadingTracks[nextTrack.id];
     activeDownloadingTracks[nextTrack.id] = nextTrack;
     activeDownloadingIds[nextTrack.id] = 0;
+    
+    currentDownloadIndex++;
     DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
     
     try {
@@ -195,6 +273,8 @@ async function processQueue() {
   }
   
   isProcessingQueue = false;
+  totalDownloadCount = 0;
+  currentDownloadIndex = 0;
   DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
 }
 
@@ -203,17 +283,13 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
     const existing = await getLocalDownloadUri(track.id);
     if (existing) return true;
 
-    showSystemNotification(
-      pausedStates[track.id] ? 'Resuming Download' : 'Downloading Track',
-      pausedStates[track.id] ? `Resuming download for "${track.title}"...` : `Started downloading "${track.title}": 0%`,
-      `download-${track.id}`
-    );
+    await updateDownloadNotification('progress', track.id, track.title, 0.0);
 
     const videoId = track.id.startsWith('yt-') ? track.id.substring(3) : track.id;
     const resolved = await resolveAudio(videoId);
     if (!resolved || !resolved.track || !resolved.track.url) {
       console.warn('Failed to resolve audio URL for download');
-      showSystemNotification('Download Failed', `Could not resolve stream URL for "${track.title}".`, `download-${track.id}`);
+      await updateDownloadNotification('failed', track.id, track.title, 0, 'Could not resolve stream URL.');
       delete lastLoggedPct[track.id];
       return false;
     }
@@ -230,7 +306,7 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
       (downloadProgress) => {
         const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
         if (onProgress) onProgress(progress);
-        showProgressNotification(track.id, track.title, progress);
+        updateDownloadNotification('progress', track.id, track.title, progress);
       },
       pausedStates[track.id]
     );
@@ -247,7 +323,7 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
         return false;
       }
       console.warn('Download failed or returned empty URI');
-      showSystemNotification('Download Failed', `Failed to write "${track.title}" to disk.`, `download-${track.id}`);
+      await updateDownloadNotification('failed', track.id, track.title, 0, 'Failed to write to disk.');
       delete lastLoggedPct[track.id];
       delete activeResumables[track.id];
       return false;
@@ -264,7 +340,7 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
     
     delete activeResumables[track.id];
     DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
-    showSystemNotification('Download Complete', `"${track.title}" has been saved offline.`, `download-${track.id}`);
+    await updateDownloadNotification('complete', track.id, track.title);
     delete lastLoggedPct[track.id];
     return true;
   } catch (e) {
@@ -272,7 +348,7 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
     if (activeResumables[track.id] === undefined && pausedDownloadingIds[track.id] === undefined) {
       return false;
     }
-    showSystemNotification('Download Failed', `An error occurred while downloading "${track.title}".`, `download-${track.id}`);
+    await updateDownloadNotification('failed', track.id, track.title, 0, e instanceof Error ? e.message : 'An error occurred.');
     delete lastLoggedPct[track.id];
     delete activeResumables[track.id];
     return false;
@@ -287,7 +363,8 @@ export async function pauseDownload(trackId: string): Promise<void> {
       pausedStates[trackId] = pauseResult;
       pausedDownloadingIds[trackId] = true;
       DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
-      showSystemNotification('Download Paused', `Download for track is paused.`, `download-${trackId}`);
+      const trackTitle = activeDownloadingTracks[trackId]?.title || 'track';
+      await updateDownloadNotification('paused', trackId, trackTitle);
     } catch (e) {
       console.warn('Failed to pause download:', e);
     }
@@ -296,6 +373,7 @@ export async function pauseDownload(trackId: string): Promise<void> {
 
 export async function cancelDownload(trackId: string): Promise<void> {
   const resumable = activeResumables[trackId];
+  const isActive = resumable !== undefined;
   if (resumable) {
     try {
       await resumable.cancelAsync();
@@ -308,7 +386,12 @@ export async function cancelDownload(trackId: string): Promise<void> {
   delete queuedDownloadingTracks[trackId];
   const idx = downloadQueue.findIndex(t => t.id === trackId);
   if (idx >= 0) {
-    downloadQueue.splice(idx, 1);
+    if (!isActive) {
+      downloadQueue.splice(idx, 1);
+      if (isProcessingQueue) {
+        totalDownloadCount = Math.max(0, totalDownloadCount - 1);
+      }
+    }
   }
 
   delete activeResumables[trackId];
@@ -318,7 +401,7 @@ export async function cancelDownload(trackId: string): Promise<void> {
   delete activeDownloadingTracks[trackId];
   delete lastLoggedPct[trackId];
   DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
-  showSystemNotification('Download Cancelled', 'The media download was cancelled.', `download-${trackId}`);
+  await updateDownloadNotification('cancelled', trackId, '');
 }
 
 export async function deleteDownload(trackId: string): Promise<void> {

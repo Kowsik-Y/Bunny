@@ -2,6 +2,7 @@ import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { resolveAudio } from './useYouTubeAudio';
 import { type AppTrack } from '@/components/player/Tracks';
 import { toast } from './toast';
+import { savePlayerActiveTrack, savePlayerPosition } from './SetupService';
 
 // Keep track of retry attempts per track ID to prevent infinite loops
 const retryCounts = new Map<string, number>();
@@ -100,14 +101,30 @@ async function getRadioQueue(videoId: string, limit = 10): Promise<AppTrack[]> {
         ? (parts[0] || 0) * 60 + (parts[1] || 0)
         : (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 
+      const longRuns = item.longBylineText?.runs ?? [];
+      const nonSeparators = longRuns.filter((r: any) => r.text !== ' • ' && r.text?.trim() !== '•');
+      const albumRun = nonSeparators.find((r: any, idx: number) => {
+        if (idx === 0) return false;
+        const txt = r.text?.trim() || '';
+        if (/^\d{4}$/.test(txt)) return false;
+        if (/views$/i.test(txt)) return false;
+        if (/^\d+:\d+$/.test(txt)) return false;
+        return true;
+      });
+      const albumName = albumRun?.text ?? 'Single';
+      const albumId = albumRun?.navigationEndpoint?.browseEndpoint?.browseId;
+      const artistId = item.shortBylineText?.runs?.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+
       tracks.push({
         id,
         url: `https://dummy.com/track-${id}.mp3`,
         title,
         artist,
-        album: 'YouTube Music',
+        album: albumName,
         duration,
         artwork,
+        artistId,
+        albumId,
       });
 
       if (tracks.length >= limit) break;
@@ -162,6 +179,10 @@ export async function PlaybackService() {
     }
   });
 
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    TrackPlayer.reset();
+  });
+
   // ─── Playback lifecycle ───────────────────────────────────────────
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
     // Optionally loop the queue
@@ -179,6 +200,11 @@ export async function PlaybackService() {
       retryCounts.delete(currentId);
     }
     lastTrackId = currentId;
+
+    const idx = await TrackPlayer.getActiveTrackIndex();
+    if (typeof idx === 'number') {
+      savePlayerActiveTrack(idx);
+    }
 
     if (currentId) {
       try {
@@ -203,6 +229,8 @@ export async function PlaybackService() {
                     headers: resolved.track.headers,
                     userAgent: resolved.track.userAgent,
                     artistId: resolved.track.artistId ?? targetOriginal.artistId,
+                    albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
+                    artists: (resolved.track as any).artists ?? targetOriginal.artists,
                     allAudio: resolved.track.allAudio,
                     activeItag: resolved.track.activeItag,
                     allVideo: resolved.track.allVideo,
@@ -239,7 +267,7 @@ export async function PlaybackService() {
         // ── 1. Dynamic Autoplay Queue ────────────────────────────────
         // Trigger when within 2 tracks of the end so we have time to
         // fetch before the user reaches the last song.
-        const isYtTrack = currentId.length === 11 || event.track?.album === 'YouTube Music';
+        const isYtTrack = currentId.length === 11 || event.track?.album === 'YouTube Music' || event.track?.album === 'Single' || event.track?.url?.toString().includes('googlevideo.com') || event.track?.url?.toString().includes('dummy.com');
         const tracksLeft = queue.length - 1 - (activeIndex ?? 0);
 
         if (
@@ -307,6 +335,8 @@ export async function PlaybackService() {
                         headers: resolved.track.headers,
                         userAgent: resolved.track.userAgent,
                         artistId: resolved.track.artistId ?? targetOriginal.artistId,
+                        albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
+                        artists: (resolved.track as any).artists ?? targetOriginal.artists,
                         allAudio: resolved.track.allAudio,
                         activeItag: resolved.track.activeItag,
                         allVideo: resolved.track.allVideo,
@@ -330,8 +360,8 @@ export async function PlaybackService() {
     }
   });
 
-  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (_event) => {
-    // event.position, event.duration, event.buffered
+  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+    savePlayerPosition(event.position);
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
@@ -373,7 +403,7 @@ export async function PlaybackService() {
           }
           retryCounts.set(trackId, attempts + 1);
 
-          const isYtTrack = activeTrack.id.length === 11 || activeTrack.album === 'YouTube Music' || activeTrack.url?.toString().includes('googlevideo.com');
+          const isYtTrack = activeTrack.id.length === 11 || activeTrack.album === 'YouTube Music' || activeTrack.album === 'Single' || activeTrack.url?.toString().includes('googlevideo.com') || activeTrack.url?.toString().includes('dummy.com');
           if (isYtTrack) {
             console.log(`[PlaybackService] Bad HTTP status or Source error on track ${activeTrack.title}. Refreshing stream URL (attempt ${attempts + 1}/2)...`);
             const forcePiped = attempts > 0;
@@ -394,6 +424,8 @@ export async function PlaybackService() {
                 headers: resolved.track.headers,
                 userAgent: resolved.track.userAgent,
                 artistId: resolved.track.artistId ?? originalTrack.artistId,
+                albumId: (resolved.track as any).albumId ?? originalTrack.albumId,
+                artists: (resolved.track as any).artists ?? originalTrack.artists,
                 allAudio: resolved.track.allAudio,
                 activeItag: resolved.track.activeItag,
                 allVideo: resolved.track.allVideo,

@@ -6,7 +6,7 @@ import tracks, { AppTrack } from '@/components/player/Tracks';
 import { PlayerActions, useFavorites, useDownloads, toast, useCurrentTrack, usePlayerState } from '@/services';
 import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
 import { ThemedView } from '@/components/themed-view';
-import { SongCard } from '@/components/ui/SongCard';
+import { SongCard } from '@/components/cards';
 import { PlaylistHeader } from '@/components/playlist/PlaylistHeader';
 import { getLocalPlaylists } from '@/services/playlists';
 
@@ -59,10 +59,12 @@ export default function PlaylistScreen() {
             id: s.id,
             title: s.title,
             artist: s.artist,
-            album: s.album || 'YouTube Music',
+            album: s.album || 'Single',
             artwork: s.thumbnail || '',
             duration: s.duration || 0,
             url: s.url || `https://music.youtube.com/watch?v=${s.id}`,
+            artistId: s.artistId,
+            albumId: s.albumId,
           }));
           setPlaylistTracks(tracksData);
           setPlaylistName(id as string);
@@ -102,17 +104,20 @@ export default function PlaylistScreen() {
         rightIcon="bullet"
         isActive={isActive}
         isPlaying={isPlaying}
-      onPress={() => PlayerActions.skipToTrackFromYt({
-        id: item.id,
-        title: item.title,
-        artist: item.artist,
-        album: item.album,
-        thumbnail: item.artwork,
-        url: item.url?.toString() || `https://music.youtube.com/watch?v=${item.id}`,
-        duration: item.duration,
-        type: 'song'
-      })}
-    />
+        onPress={() => PlayerActions.skipToTrackFromYt({
+          id: item.id,
+          title: item.title,
+          artist: item.artist,
+          album: item.album,
+          thumbnail: item.artwork,
+          url: item.url?.toString() || `https://music.youtube.com/watch?v=${item.id}`,
+          duration: item.duration,
+          type: 'song',
+          artistId: item.artistId,
+          albumId: item.albumId,
+        })}
+        track={item}
+      />
     );
   };
 
@@ -134,7 +139,9 @@ export default function PlaylistScreen() {
         thumbnail: playlistTracks[0].artwork,
         url: playlistTracks[0].url?.toString() || `https://music.youtube.com/watch?v=${playlistTracks[0].id}`,
         duration: playlistTracks[0].duration,
-        type: 'song'
+        type: 'song',
+        artistId: playlistTracks[0].artistId,
+        albumId: playlistTracks[0].albumId,
       });
     }
   };

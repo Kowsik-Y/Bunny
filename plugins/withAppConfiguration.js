@@ -35,7 +35,8 @@ function withAndroidGradleProperties(config) {
     const propertiesToAdd = [
       { key: 'android.enableMinifyInReleaseBuilds', value: 'true' },
       { key: 'android.enableShrinkResourcesInReleaseBuilds', value: 'true' },
-      { key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC' }
+      { key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC' },
+      { key: 'reactNativeArchitectures', value: 'armeabi-v7a,arm64-v8a' }
     ];
 
     propertiesToAdd.forEach((prop) => {
@@ -106,7 +107,7 @@ function withAndroidABISplits(config) {
         abi {
             enable true
             reset()
-            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            include "armeabi-v7a", "arm64-v8a"
             universalApk false
         }
     }`;

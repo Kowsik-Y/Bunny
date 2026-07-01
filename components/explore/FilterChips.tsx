@@ -5,8 +5,8 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 
 interface FilterChipsProps {
-  activeFilter: 'all' | 'songs' | 'artists' | 'albums';
-  onFilterChange: (filter: 'all' | 'songs' | 'artists' | 'albums') => void;
+  activeFilter: 'all' | 'songs' | 'artists' | 'albums' | 'playlists';
+  onFilterChange: (filter: 'all' | 'songs' | 'artists' | 'albums' | 'playlists') => void;
 }
 
 export function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {
@@ -17,6 +17,7 @@ export function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) 
     { id: 'songs', title: 'Songs' },
     { id: 'artists', title: 'Artists' },
     { id: 'albums', title: 'Albums' },
+    { id: 'playlists', title: 'Playlists' },
   ] as const;
 
   return (

@@ -39,7 +39,7 @@ const SPRING_CONFIG = {
 };
 
 type Props = {
-    track: AppTrack;
+    track: AppTrack | null;
     queue: AppTrack[];
     isPlaying: boolean;
     isBuffering: boolean;
@@ -57,6 +57,16 @@ const MusicPlayerModal = ({
     position, duration, onPlayPause, onNext, onPrev, onSeek, onSkipToTrack,
 }: Props) => {
     const { colors } = useAppTheme();
+    const fallbackTrack: AppTrack = {
+        id: 'no-track',
+        url: '',
+        title: 'Not Playing',
+        artist: 'Select a song to play',
+        album: 'Single',
+        duration: 0,
+        artwork: '',
+    };
+    const activeTrack = track || fallbackTrack;
     const { translateY, snapCollapsed, bottomOffset, expand: contextExpand, collapse: contextCollapse } = usePlayerAnimation();
     const [shuffleOn, setShuffleOn] = useState(false);
     const [repeatOn, setRepeatOn] = useState(false);
@@ -241,7 +251,7 @@ const MusicPlayerModal = ({
                     pointerEvents={isExpandedJS ? 'auto' : 'none'}
                 >
                     <TrackContent
-                        track={track}
+                        track={activeTrack}
                         queue={queue}
                         isPlaying={isPlaying}
                         isBuffering={isBuffering}
@@ -279,7 +289,7 @@ const MusicPlayerModal = ({
                         className='rounded-full'
                     >
                         <MiniPlayerControls
-                            track={track}
+                            track={activeTrack}
                             isPlaying={isPlaying}
                             isBuffering={isBuffering}
                             onPlayPause={handleMiniPlayPause}

@@ -11,6 +11,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 interface BunnyCardProps extends ViewProps {
   tintColor?: string;
   onPress?: () => void;
+  onLongPress?: () => void;
   glass?: boolean;
   elevated?: boolean;
   contentContainerStyle?: ViewProps['style'];
@@ -21,6 +22,7 @@ export function BunnyCard({
   style,
   tintColor,
   onPress,
+  onLongPress,
   glass = true,
   elevated = true,
   contentContainerStyle,
@@ -42,7 +44,7 @@ export function BunnyCard({
     scale.value = withSpring(1, { damping: 15, stiffness: 200 });
   };
 
-  const ContentWrapper = onPress ? Pressable : View;
+  const ContentWrapper = (onPress || onLongPress) ? Pressable : View;
 
   const cardBg = tintColor
     ? (isDark ? `${tintColor}20` : `${tintColor}10`)
@@ -51,6 +53,7 @@ export function BunnyCard({
   return (
     <ContentWrapper
       onPress={onPress}
+      onLongPress={onLongPress || onPress}
       android_ripple={{
         foreground: true,
         color: cardBg,

@@ -11,6 +11,11 @@ export interface InnertubeInterface {
   playlist(playlistId: string): Promise<any>;
   lyrics(browseId: string): Promise<any>;
   player(videoId: string): Promise<any>;
+  showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void>;
+  showDownloadCompleteNotification(notificationId: string, title: string): Promise<void>;
+  showDownloadCancelledNotification(notificationId: string): Promise<void>;
+  showDownloadPausedNotification(notificationId: string, title: string): Promise<void>;
+  showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void>;
 }
 
 const fallbackInnertube: InnertubeInterface = {
@@ -177,7 +182,13 @@ const fallbackInnertube: InnertubeInterface = {
       console.error('Fallback player failed:', e);
       return null;
     }
-  }
+  },
+
+  async showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void> {},
+  async showDownloadCompleteNotification(notificationId: string, title: string): Promise<void> {},
+  async showDownloadCancelledNotification(notificationId: string): Promise<void> {},
+  async showDownloadPausedNotification(notificationId: string, title: string): Promise<void> {},
+  async showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void> {},
 };
 
 const exportedModule: InnertubeInterface = Platform.OS === 'android' ? InnertubeModule : fallbackInnertube;

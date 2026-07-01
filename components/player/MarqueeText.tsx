@@ -3,7 +3,7 @@
  * Renders text that auto-scrolls horizontally when it overflows its container.
  * Stays still when the text fits. Pauses briefly at each end before reversing.
  */
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type TextStyle, type StyleProp } from 'react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { resolveFontStyles } from '@/components/ui/typography';

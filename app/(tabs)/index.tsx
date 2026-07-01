@@ -17,7 +17,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 import { type AppTrack } from '@/components/player/Tracks';
-import { searchYtMusic } from '@/services/ytMusic';
+import { searchYtMusic, upgradeThumbQuality } from '@/services/ytMusic';
 import { addAlpha } from '@/constants/theme';
 
 import { GreetingHeader } from '@/components/home/GreetingHeader';
@@ -28,27 +28,11 @@ import { RadioStations } from '@/components/explore/RadioStations';
 import { SwipeBottomSheet } from '@/components/player/SwipeBottomSheet';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography, Muted } from '@/components/ui/typography';
+import { useTrackOptions } from '@/contexts/track-options-context';
 
 const { width } = Dimensions.get('window');
 
-/**
- * Upgrades a YouTube / Piped thumbnail URL to the highest available
- * resolution. Falls back to hqdefault if maxresdefault might not exist.
- *
- * Patterns handled:
- *   https://i.ytimg.com/vi/{id}/hqdefault.jpg
- *   https://pipedproxy.xxx/.../vi/{id}/hqdefault.jpg
- *   https://yt3.ggpht.com/... (channel art — leave as-is)
- */
-function upgradeThumbQuality(url?: string | null): string {
-  const fallback = 'https://picsum.photos/400/400';
-  if (!url) return fallback;
-  // Replace any known low-quality suffix with maxresdefault
-  const upgraded = url
-    .replace(/\/(?:default|mqdefault|hqdefault|sddefault|maxresdefault)\.(?:jpg|webp|png)/i,
-             '/maxresdefault.jpg');
-  return upgraded;
-}
+
 
 // Static mood mixes shown immediately — no network needed
 const MOOD_MIXES = [
@@ -95,6 +79,8 @@ async function fetchRadioTracks(seedId: string, limit = 12): Promise<QuickTrack[
     if (!id || id === seedId) continue;
     const title = item.title?.runs?.[0]?.text ?? 'Unknown';
     const artist = item.shortBylineText?.runs?.[0]?.text ?? 'Unknown Artist';
+    const artistId = item.shortBylineText?.runs?.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+    const albumId = item.longBylineText?.runs?.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
     const thumbs = item.thumbnail?.thumbnails ?? [];
     const rawThumb = thumbs[thumbs.length - 1]?.url ?? '';
     // Also try building a direct maxresdefault URL from the videoId for best quality
@@ -105,7 +91,7 @@ async function fetchRadioTracks(seedId: string, limit = 12): Promise<QuickTrack[
     const parts = durationText.split(':').map(Number);
     const duration =
       parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0] * 3600 + parts[1] * 60 + (parts[2] ?? 0);
-    tracks.push({ id, title, artist, artwork, duration });
+    tracks.push({ id, title, artist, artwork, duration, artistId, albumId });
     if (tracks.length >= limit) break;
   }
   return tracks;
@@ -118,9 +104,12 @@ async function playTracks(tracks: QuickTrack[], startIdx = 0) {
     url: 'https://dummy.com/track-' + t.id + '.mp3',
     title: t.title,
     artist: t.artist,
-    album: 'YouTube Music',
+    album: 'Single',
     duration: t.duration,
     artwork: t.artwork,
+    artistId: t.artistId,
+    albumId: t.albumId,
+    artists: t.artists,
   }));
   await TrackPlayer.reset();
   await TrackPlayer.add(appTracks);
@@ -141,13 +130,23 @@ export default function HomeScreen() {
   const [localStations, setLocalStations] = useState<any[]>([]);
   const fetchedRef = useRef(false);
 
-  const [selectedTrack, setSelectedTrack] = useState<QuickTrack | null>(null);
-  const [bottomSheetVisible, setBottomSheetVisible] = useState(false);
+  const { openTrackOptions } = useTrackOptions();
 
   const handleLongPressTrack = React.useCallback((track: QuickTrack) => {
-    setSelectedTrack(track);
-    setBottomSheetVisible(true);
-  }, []);
+    const appTrack: AppTrack = {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: 'Single',
+      duration: track.duration,
+      artwork: track.artwork,
+      url: 'https://dummy.com/track-' + track.id + '.mp3',
+      artistId: track.artistId,
+      albumId: track.albumId,
+      artists: track.artists,
+    };
+    openTrackOptions(appTrack);
+  }, [openTrackOptions]);
 
   const playRadioStation = async (station: any) => {
     try {
@@ -234,7 +233,10 @@ export default function HomeScreen() {
           title: s.title || 'Unknown Title',
           artist: s.artist || 'Unknown Artist',
           artwork: upgradeThumbQuality(s.thumbnail),
-          duration: s.duration || 180
+          duration: s.duration || 180,
+          artistId: s.artistId,
+          albumId: s.albumId,
+          artists: s.artists,
         }));
 
         const trendingSearchRes = await searchYtMusic(`${country} trending hits`);
@@ -243,7 +245,10 @@ export default function HomeScreen() {
           title: s.title || 'Unknown Title',
           artist: s.artist || 'Unknown Artist',
           artwork: upgradeThumbQuality(s.thumbnail),
-          duration: s.duration || 180
+          duration: s.duration || 180,
+          artistId: s.artistId,
+          albumId: s.albumId,
+          artists: s.artists,
         }));
 
         const SEEDS = ['jfKfPfyJRdk', 'ktvTqknDobU'];
@@ -402,89 +407,7 @@ export default function HomeScreen() {
             pointerEvents="none"
           />
 
-          {/* Swipe Options Bottom Sheet */}
-          {selectedTrack && (
-            <SwipeBottomSheet
-              visible={bottomSheetVisible}
-              onClose={() => setBottomSheetVisible(false)}
-            >
-              {/* Header Info */}
-              <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
-                <Image 
-                  source={selectedTrack.artwork && selectedTrack.artwork.trim() !== '' ? { uri: selectedTrack.artwork } : require('@/assets/images/icon.png')} 
-                  style={styles.sheetArt} 
-                />
-                <View style={styles.sheetInfo}>
-                  <Typography numberOfLines={1} style={[styles.sheetTitle, { color: colors.text }]}>{selectedTrack.title}</Typography>
-                  <Muted numberOfLines={1} style={styles.sheetArtist}>{selectedTrack.artist}</Muted>
-                </View>
-              </View>
-
-              {/* Options */}
-              <View style={styles.sheetOptions}>
-                {/* Play Now */}
-                <Pressable
-                  android_ripple={{ color: colors.border }}
-                  style={styles.sheetOptionBtn}
-                  onPress={async () => {
-                    setBottomSheetVisible(false);
-                    await playTracks([selectedTrack], 0);
-                  }}
-                >
-                  <View style={[styles.sheetIconWrapper, { backgroundColor: addAlpha(colors.text, 0.06) }]}>
-                    <IconSymbol name="play.fill" size={20} color={colors.text} />
-                  </View>
-                  <Typography style={[styles.sheetOptionText, { color: colors.text }]}>Play Now</Typography>
-                </Pressable>
-
-                {/* Add to Queue */}
-                <Pressable
-                  android_ripple={{ color: colors.border }}
-                  style={styles.sheetOptionBtn}
-                  onPress={async () => {
-                    setBottomSheetVisible(false);
-                    const appTrack: AppTrack = {
-                      id: selectedTrack.id,
-                      url: 'https://dummy.com/track-' + selectedTrack.id + '.mp3',
-                      title: selectedTrack.title,
-                      artist: selectedTrack.artist,
-                      album: 'YouTube Music',
-                      duration: selectedTrack.duration,
-                      artwork: selectedTrack.artwork,
-                    };
-                    await PlayerActions.addTrack(appTrack, false);
-                  }}
-                >
-                  <View style={[styles.sheetIconWrapper, { backgroundColor: addAlpha(colors.text, 0.06) }]}>
-                    <IconSymbol name="music.note.list" size={20} color={colors.text} />
-                  </View>
-                  <Typography style={[styles.sheetOptionText, { color: colors.text }]}>Add to Queue</Typography>
-                </Pressable>
-
-                {/* Share */}
-                <Pressable
-                  android_ripple={{ color: colors.border }}
-                  style={styles.sheetOptionBtn}
-                  onPress={async () => {
-                    setBottomSheetVisible(false);
-                    try {
-                      const videoId = selectedTrack.id.startsWith('yt-') ? selectedTrack.id.substring(3) : selectedTrack.id;
-                      await Share.share({
-                        message: `Listen to "${selectedTrack.title}" by ${selectedTrack.artist}: https://music.youtube.com/watch?v=${videoId}`,
-                      });
-                    } catch (e) {
-                      console.warn(e);
-                    }
-                  }}
-                >
-                  <View style={[styles.sheetIconWrapper, { backgroundColor: addAlpha(colors.text, 0.06) }]}>
-                    <IconSymbol name="paperplane.fill" size={18} color={colors.text} />
-                  </View>
-                  <Typography style={[styles.sheetOptionText, { color: colors.text }]}>Share Track</Typography>
-                </Pressable>
-              </View>
-            </SwipeBottomSheet>
-          )}
+          {/* Swipe Options Bottom Sheet is managed globally by TrackOptionsProvider */}
         </View>
       </SafeAreaView>
     </ThemedView>

@@ -25,13 +25,14 @@ export default function MiniPlayerControls({
   track, isPlaying, isBuffering, onPlayPause, onNext, onExpand,
 }: Props) {
   const { colors } = useAppTheme();
-  const router = useRouter();
+  const isDummy = track.id === 'no-track';
+
   return (
     <View style={styles.container}>
 
       {/* Artwork + track info → tap to expand */}
       <Pressable
-        onPress={onExpand}
+        onPress={isDummy ? undefined : onExpand}
         style={styles.expandArea}
         android_ripple={{ color: 'transparent' }}
       >
@@ -46,8 +47,9 @@ export default function MiniPlayerControls({
 
       {/* Play / Pause */}
       <Pressable
-        onPress={(e) => { e.stopPropagation?.(); onPlayPause(); }}
-        style={{ backgroundColor: isBuffering ? colors.accent : colors.background, borderColor: colors.accent, marginRight: 8 }}
+        onPress={(e) => { e.stopPropagation?.(); if (!isDummy) onPlayPause(); }}
+        disabled={isDummy}
+        style={{ opacity: isDummy ? 0.3 : 1, backgroundColor: isBuffering ? colors.accent : colors.background, borderColor: colors.accent, marginRight: 8 }}
         className='p-3 rounded-full border active:scale-95'
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
@@ -58,8 +60,9 @@ export default function MiniPlayerControls({
 
       {/* Next */}
       <Pressable
-        onPress={(e) => { e.stopPropagation?.(); onNext(); }}
-        style={{ backgroundColor: colors.background, borderColor: colors.border, marginRight: 8 }}
+        onPress={(e) => { e.stopPropagation?.(); if (!isDummy) onNext(); }}
+        disabled={isDummy}
+        style={{ opacity: isDummy ? 0.3 : 1, backgroundColor: colors.background, borderColor: colors.border, marginRight: 8 }}
         className='p-3 rounded-full border active:scale-95'
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >

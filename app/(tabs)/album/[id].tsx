@@ -8,7 +8,7 @@ import { useCurrentTrack, usePlayerState, useDownloads, toast } from '@/services
 import { getAlbumDetails } from '@/services/ytMusic';
 import { Button } from '@/components/ui/button';
 import { ThemedView } from '@/components/themed-view';
-import { SongCard } from '@/components/ui/SongCard';
+import { SongCard } from '@/components/cards';
 import { AlbumHeader } from '@/components/album/AlbumHeader';
 import { type AppTrack } from '@/components/player/Tracks';
 
@@ -54,17 +54,32 @@ export default function AlbumScreen() {
         rightIcon="play"
         isActive={isActive}
         isPlaying={isPlaying}
-      onPress={() => PlayerActions.skipToTrackFromYt({
-        id: item.videoId,
-        title: item.name,
-        artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
-        album: albumData.name,
-        thumbnail: albumData.thumbnails?.[0]?.url,
-        url: `https://music.youtube.com/watch?v=${item.videoId}`,
-        duration: item.duration / 1000,
-        type: 'song'
-      })}
-    />
+        onPress={() => PlayerActions.skipToTrackFromYt({
+          id: item.videoId,
+          title: item.name,
+          artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
+          album: albumData.name,
+          thumbnail: albumData.thumbnails?.[0]?.url,
+          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          duration: item.duration / 1000,
+          type: 'song',
+          artistId: albumData.artistId,
+          albumId: id as string,
+          artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
+        })}
+        track={{
+          id: item.videoId,
+          title: item.name,
+          artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
+          album: albumData.name,
+          artwork: albumData.thumbnails?.[0]?.url || '',
+          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          duration: item.duration / 1000,
+          artistId: albumData.artistId,
+          albumId: id as string,
+          artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
+        }}
+      />
     );
   };
 
@@ -95,7 +110,10 @@ export default function AlbumScreen() {
         thumbnail: albumData.thumbnails?.[0]?.url,
         url: `https://music.youtube.com/watch?v=${albumData.tracks[0].videoId}`,
         duration: albumData.tracks[0].duration / 1000,
-        type: 'song'
+        type: 'song',
+        artistId: albumData.artistId,
+        albumId: id as string,
+        artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
       });
     }
   };
@@ -125,6 +143,9 @@ export default function AlbumScreen() {
         artwork: albumData.thumbnails?.[0]?.url || '',
         url: `https://music.youtube.com/watch?v=${item.videoId}`,
         duration: item.duration / 1000,
+        artistId: albumData.artistId,
+        albumId: id as string,
+        artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
       };
       startDownload(track);
     }

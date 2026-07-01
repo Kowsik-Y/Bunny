@@ -35,32 +35,6 @@ const POPULAR_PRESETS = [
   { name: 'Dubai', country: 'UAE' },
 ];
 
-const REGION_MAP: Record<string, string> = {
-  // Indian States
-  'TN': 'Tamil Nadu',
-  'KA': 'Karnataka',
-  'MH': 'Maharashtra',
-  'DL': 'Delhi',
-  'AP': 'Andhra Pradesh',
-  'TG': 'Telangana',
-  'KL': 'Kerala',
-  'WB': 'West Bengal',
-  'GJ': 'Gujarat',
-  'UP': 'Uttar Pradesh',
-  'HR': 'Haryana',
-  'PN': 'Punjab',
-  // US States
-  'NY': 'New York',
-  'CA': 'California',
-  'TX': 'Texas',
-  'FL': 'Florida',
-  'IL': 'Illinois',
-  'PA': 'Pennsylvania',
-  'OH': 'Ohio',
-  'GA': 'Georgia',
-  'NC': 'North Carolina',
-  'MI': 'Michigan',
-};
 
 export default function RadioScreen() {
   const { colors } = useAppTheme();
@@ -103,10 +77,10 @@ export default function RadioScreen() {
       });
       if (!res.ok) throw new Error('Radio Garden geo request failed');
       const data = await res.json();
-      const city = data.city || 'Chennai';
+      const city = data.city || '';
       const regionCode = data.region_code || '';
       const country = data.country_code || 'India';
-      const regionName = REGION_MAP[regionCode] || regionCode || '';
+      const regionName = regionCode || '';
       
       // Search city on Radio Garden to get placeId
       const searchRes = await fetch(`https://radio.garden/api/search?q=${encodeURIComponent(city)}`, {

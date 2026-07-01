@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { H2, Typography } from '@/components/ui/typography';
-import { AlbumCard } from '@/components/ui/AlbumCard';
+import { FeaturedAlbumCard } from '@/components/cards';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useTrackOptions } from '@/contexts/track-options-context';
 
 interface FeaturedAlbumItem {
   id: string;
@@ -19,6 +20,7 @@ interface FeaturedAlbumsProps {
 
 export function FeaturedAlbums({ albums, onAlbumPress }: FeaturedAlbumsProps) {
   const { colors } = useAppTheme();
+  const { openAlbumOptions } = useTrackOptions();
 
   return (
     <View>
@@ -30,14 +32,13 @@ export function FeaturedAlbums({ albums, onAlbumPress }: FeaturedAlbumsProps) {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredScroll}>
         {albums.map((item, index) => (
-          <AlbumCard
+          <FeaturedAlbumCard
             key={index}
             title={item.title}
             subtitle={item.sub}
             color={item.color}
-            type="album"
-            variant="featured"
             onPress={() => onAlbumPress(item)}
+            onLongPress={() => openAlbumOptions({ id: item.id, title: item.title, artist: item.sub })}
           />
         ))}
       </ScrollView>

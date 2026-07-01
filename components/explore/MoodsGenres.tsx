@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, FlatList } from 'react-native';
 import { H2 } from '@/components/ui/typography';
-import { AlbumCard } from '@/components/ui/AlbumCard';
+import { CategoryCard } from '@/components/cards';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { IconSymbolName } from '@/components/ui/icon-symbol';
 
@@ -23,11 +23,10 @@ export function MoodsGenres({ categories, onCategoryPress }: MoodsGenresProps) {
       entering={FadeInDown.delay(index * 50)}
       style={styles.categoryCardContainer}
     >
-      <AlbumCard
+      <CategoryCard
         title={item.title}
         color={item.color}
         icon={item.icon}
-        variant="category"
         onPress={() => onCategoryPress(item)}
       />
     </Animated.View>

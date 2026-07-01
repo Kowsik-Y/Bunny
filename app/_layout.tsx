@@ -17,6 +17,7 @@ import {
 } from '@expo-google-fonts/poppins';
 
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
+import { TrackOptionsProvider } from '@/contexts/track-options-context';
 import { ToastProvider } from '@/components/ui/toast';
 import { setupPlayer } from '@/services/SetupService';
 import { checkAppUpdates } from '@/services';
@@ -71,24 +72,27 @@ function RootLayoutWithTheme() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={navigationTheme}>
-        <ToastProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            <Stack.Screen 
-              name="notification.click" 
-              options={{ 
-                presentation: 'transparentModal', 
-                animation: 'none', 
-                headerShown: false 
-              }} 
-            />
-          </Stack>
-        </ToastProvider>
-        <StatusBar
-          style={colorScheme === 'dark' ? 'light' : 'dark'}
-          {...({ backgroundColor: colors.background } as any)}
-        />
+        <TrackOptionsProvider>
+          <ToastProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              <Stack.Screen name="settings" options={{ headerShown: false }}  />
+              <Stack.Screen 
+                name="notification.click" 
+                options={{ 
+                  presentation: 'transparentModal', 
+                  animation: 'none', 
+                  headerShown: false 
+                }} 
+              />
+            </Stack>
+          </ToastProvider>
+          <StatusBar
+            style={colorScheme === 'dark' ? 'light' : 'dark'}
+            {...({ backgroundColor: colors.background } as any)}
+          />
+        </TrackOptionsProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

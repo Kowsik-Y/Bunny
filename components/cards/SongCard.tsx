@@ -1,9 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
-import { useAppTheme } from '@/contexts/app-theme-context';
-import { IconSymbol } from './icon-symbol';
-import { Typography, Muted } from './typography';
 import { addAlpha } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useTrackOptions } from '@/contexts/track-options-context';
+import { type AppTrack } from '@/components/player/Tracks';
+import React from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Muted, Typography } from '../ui/typography';
+import { IconSymbol } from '../ui/icon-symbol';
+import { Pause, Play } from 'lucide-react-native';
 
 export interface SongCardProps {
   title: string;
@@ -17,6 +20,10 @@ export interface SongCardProps {
   isActive?: boolean;
   isPlaying?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
+  track?: AppTrack;
+  artistId?: string;
+  albumId?: string;
 }
 
 export function SongCard({
@@ -31,13 +38,57 @@ export function SongCard({
   isActive = false,
   isPlaying = false,
   onPress,
+  onLongPress,
+  track,
+  artistId,
+  albumId,
 }: SongCardProps) {
   const { colors } = useAppTheme();
+  const { openTrackOptions } = useTrackOptions();
+
+  const handleLongPress = () => {
+    if (onLongPress) {
+      onLongPress();
+    } else {
+      const trackObj: AppTrack = track || {
+        id: title + artist,
+        title,
+        artist,
+        album: album || '',
+        artwork: artwork || '',
+        url: '',
+        duration: 0,
+        artistId,
+        albumId,
+      };
+      openTrackOptions(trackObj);
+    }
+  };
+
+  const [imageUri, setImageUri] = React.useState<string | null>(
+    artwork && artwork.trim() !== '' ? artwork : null
+  );
+
+  React.useEffect(() => {
+    setImageUri(artwork && artwork.trim() !== '' ? artwork : null);
+  }, [artwork]);
+
+  const handleImageError = () => {
+    if (imageUri && imageUri.includes('/maxresdefault.jpg')) {
+      setImageUri(imageUri.replace('/maxresdefault.jpg', '/hqdefault.jpg'));
+    } else {
+      setImageUri(null);
+    }
+  };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
+      android_ripple={{
+        color: colors.border
+      }}
       onPress={onPress}
+      onLongPress={handleLongPress}
+      delayLongPress={50}
       style={[
         styles.trackItem,
         isActive && { backgroundColor: addAlpha(colors.accent, 0.12), borderRadius: 14 }
@@ -45,7 +96,7 @@ export function SongCard({
     >
       {showRank && typeof index === 'number' && (
         <View style={styles.trackIndexContainer}>
-          <Muted style={[styles.trackIndex, isActive && { color: colors.primary, fontWeight: '700' }]}>
+          <Muted style={[styles.trackIndex, { fontWeight: '700' }, isActive && { color: colors.primary }]}>
             {index + 1}
           </Muted>
         </View>
@@ -53,20 +104,24 @@ export function SongCard({
 
       {showIndex && typeof index === 'number' && !showRank ? (
         <View style={styles.trackIndexContainer}>
-          <Muted style={[styles.trackIndex, isActive && { color: colors.primary, fontWeight: '700' }]}>
+          <Muted style={[styles.trackIndex, { fontWeight: '700' }, isActive && { color: colors.primary }]}>
             {index + 1}
           </Muted>
         </View>
-      ) : artwork && artwork.trim() !== '' ? (
-        <Image source={{ uri: artwork }} style={styles.trackArtwork} />
+      ) : imageUri ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.trackArtwork}
+          onError={handleImageError}
+        />
       ) : (
         <Image source={require('@/assets/images/icon.png')} style={styles.trackArtwork} />
       )}
 
       <View style={styles.trackInfo}>
-        <Typography 
-          variant="large" 
-          numberOfLines={1} 
+        <Typography
+          variant="large"
+          numberOfLines={1}
           style={isActive ? { color: colors.primary, fontWeight: '700' } : undefined}
         >
           {title}
@@ -80,12 +135,12 @@ export function SongCard({
         <IconSymbol name="list.bullet" size={18} color={isActive ? colors.primary : colors.muted} />
       )}
       {rightIcon === 'play' && (
-        <IconSymbol name={isActive && isPlaying ? "pause.fill" : "play.fill"} size={16} color={colors.primary} />
+        (isActive && isPlaying) ? <Pause size={18} style={styles.icon} strokeWidth={0} fill={colors.primary} /> : <Play size={18} style={styles.icon} strokeWidth={0} fill={colors.primary} />
       )}
       {rightIcon === 'chevron' && (
         <IconSymbol name="chevron.right" size={20} color={colors.muted} />
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -118,4 +173,7 @@ const styles = StyleSheet.create({
   trackInfo: {
     flex: 1,
   },
+  icon: {
+    marginRight: 10,
+  }
 });

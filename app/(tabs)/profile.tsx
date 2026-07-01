@@ -16,7 +16,6 @@ import { useRouter } from 'expo-router';
 import TrackPlayer from 'react-native-track-player';
 import { Feather } from '@expo/vector-icons';
 
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { H1, Muted, Typography, Typography as Text } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
@@ -36,6 +35,7 @@ import {
 } from '@/services';
 import { type AppTrack } from '@/components/player/Tracks';
 import { SwipeBottomSheet } from '@/components/player/SwipeBottomSheet';
+import { PlaylistRowCard } from '@/components/cards';
 
 type Tab = 'playlists' | 'downloads';
 
@@ -164,47 +164,29 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               {/* Special Liked Music Auto Playlist Row */}
-              <TouchableOpacity
+              <PlaylistRowCard
+                id="liked"
+                name="Liked Music"
+                songCount={favorites.length}
+                isLikedMusic={true}
                 onPress={() => router.push('/playlist/liked')}
-                style={styles.playlistRow}
-              >
-                <LinearGradient
-                  colors={['#8E2DE2', '#4A00E0']}
-                  style={styles.likedIconContainer}
-                >
-                  <Feather name="thumbs-up" size={18} color="#ffffff" />
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Typography style={styles.playlistName}>Liked Music</Typography>
-                  <Muted style={styles.playlistSub}>Auto playlist · {favorites.length} songs</Muted>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
-              </TouchableOpacity>
+              />
 
               {/* User Custom Playlists */}
               {playlists.map((playlist) => (
-                <TouchableOpacity
+                <PlaylistRowCard
                   key={playlist.id}
+                  id={playlist.id}
+                  name={playlist.name}
+                  songCount={playlist.tracks.length}
                   onPress={() => router.push(`/playlist/${playlist.id}`)}
-                  style={styles.playlistRow}
-                >
-                  <Feather name="folder" size={28} color={colors.primary} style={{ marginRight: 15 }} />
-                  <View style={{ flex: 1 }}>
-                    <Typography style={styles.playlistName}>{playlist.name}</Typography>
-                    <Muted style={styles.playlistSub}>{playlist.tracks.length} songs</Muted>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Alert.alert('Delete Playlist', `Delete "${playlist.name}"?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(playlist.id) }
-                      ]);
-                    }}
-                    style={styles.deletePlaylistBtn}
-                  >
-                    <Feather name="trash-2" size={16} color="#FF3B30" />
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                  onDeletePress={() => {
+                    Alert.alert('Delete Playlist', `Delete "${playlist.name}"?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(playlist.id) }
+                    ]);
+                  }}
+                />
               ))}
             </View>
           ) : (

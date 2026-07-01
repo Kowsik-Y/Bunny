@@ -3,7 +3,7 @@ import { pipedService } from './piped';
 import { resolveAudio } from './useYouTubeAudio';
 
 export type YtMusicSearchResult = {
-  type: 'song' | 'artist' | 'album';
+  type: 'song' | 'artist' | 'album' | 'playlist';
   id: string;
   title?: string;
   name?: string;
@@ -13,12 +13,16 @@ export type YtMusicSearchResult = {
   thumbnail?: string | null;
   url?: string;
   subscribers?: string;
+  artistId?: string;
+  albumId?: string;
+  artists?: { name: string; id: string }[];
 };
 
 export type CategorizedSearchResults = {
   songs: YtMusicSearchResult[];
   artists: YtMusicSearchResult[];
   albums: YtMusicSearchResult[];
+  playlists: YtMusicSearchResult[];
 };
 
 export type YtMusicResolve = {
@@ -36,18 +40,20 @@ export type YtMusicResolve = {
 
 export async function searchYtMusic(query: string): Promise<CategorizedSearchResults> {
   const q = query.trim();
-  if (!q) return { songs: [], artists: [], albums: [] };
+  if (!q) return { songs: [], artists: [], albums: [], playlists: [] };
 
   try {
-    const [songsData, artistsData, playlistsData] = await Promise.all([
+    const [songsData, artistsData, albumsData, playlistsData] = await Promise.all([
       pipedService.search(q, "music_songs"),
       pipedService.search(q, "channels"),
+      pipedService.search(q, "albums"),
       pipedService.search(q, "playlists"),
     ]);
 
     const songs: YtMusicSearchResult[] = [];
     const artists: YtMusicSearchResult[] = [];
     const albums: YtMusicSearchResult[] = [];
+    const playlists: YtMusicSearchResult[] = [];
 
     // Songs
     for (const item of songsData?.items ?? []) {
@@ -61,10 +67,13 @@ export async function searchYtMusic(query: string): Promise<CategorizedSearchRes
         id: videoId,
         title: item.title,
         artist: item.uploaderName || "Unknown Artist",
-        album: "YouTube Music",
+        album: item.albumName || "Single",
         duration: item.duration,
-        thumbnail: item.thumbnail,
+        thumbnail: upgradeThumbQuality(item.thumbnail),
         url: `https://music.youtube.com/watch?v=${videoId}`,
+        artistId: item.artistId,
+        albumId: item.albumId,
+        artists: item.artists,
       });
     }
 
@@ -79,12 +88,31 @@ export async function searchYtMusic(query: string): Promise<CategorizedSearchRes
         type: "artist",
         id: channelId,
         name: item.name || item.title,
-        thumbnail: item.thumbnail,
+        thumbnail: upgradeThumbQuality(item.thumbnail),
         subscribers: item.subscribers,
       });
     }
 
-    // Albums / Playlists
+    // Albums
+    for (const item of albumsData?.items ?? []) {
+      const albumId =
+        item.url?.split("list=")[1] ||
+        item.url?.split("/").pop() ||
+        "";
+
+      // Skip YouTube Mixes
+      if (!albumId || albumId.startsWith("RDEM")) continue;
+
+      albums.push({
+        type: "album",
+        id: albumId,
+        title: item.name || item.title,
+        artist: item.uploaderName || "Unknown Artist",
+        thumbnail: upgradeThumbQuality(item.thumbnail),
+      });
+    }
+
+    // Playlists
     for (const item of playlistsData?.items ?? []) {
       const playlistId =
         item.url?.split("list=")[1] ||
@@ -94,19 +122,19 @@ export async function searchYtMusic(query: string): Promise<CategorizedSearchRes
       // Skip YouTube Mixes
       if (!playlistId || playlistId.startsWith("RDEM")) continue;
 
-      albums.push({
-        type: "album",
+      playlists.push({
+        type: "playlist",
         id: playlistId,
         title: item.name || item.title,
         artist: item.uploaderName || "Unknown Artist",
-        thumbnail: item.thumbnail,
+        thumbnail: upgradeThumbQuality(item.thumbnail),
       });
     }
 
-    return { songs, artists, albums };
+    return { songs, artists, albums, playlists };
   } catch (e) {
     console.error("Failed to search YTMusic:", e);
-    return { songs: [], artists: [], albums: [] };
+    return { songs: [], artists: [], albums: [], playlists: [] };
   }
 }
 export async function getSearchSuggestions(query: string): Promise<string[]> {
@@ -155,6 +183,9 @@ export async function getAlbumDetails(id: string): Promise<any> {
         videoId,
         name: stream.title,
         duration: (stream.duration || 0) * 1000,
+        albumId: id,
+        artistId: data.artistId,
+        artists: data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined,
       };
     });
 
@@ -184,6 +215,9 @@ export async function getPlaylistDetails(id: string): Promise<any> {
         artwork: data.thumbnailUrl || '',
         duration: stream.duration || 0,
         url: `https://music.youtube.com/watch?v=${videoId}`,
+        artistId: data.artistId,
+        albumId: id,
+        artists: data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined,
       };
     });
 
@@ -247,4 +281,22 @@ export async function downloadYtMusic(
   // Use the new File.downloadFileAsync API which returns a File instance
   const downloaded = await FileSystem.File.downloadFileAsync(streamUrl, targetFile);
   return downloaded.uri;
+}
+
+export function upgradeThumbQuality(url?: string | null): string {
+  const fallback = 'https://picsum.photos/400/400';
+  if (!url) return fallback;
+
+  // 1. Google user content / ggpht resize parameter upgrade (e.g. w120-h120)
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    if (url.includes('=')) {
+      return url.split('=')[0] + '=w544-h544-l90-rj';
+    }
+  }
+
+  // 2. Youtube standard thumbnail upgrade
+  const upgraded = url
+    .replace(/\/(?:default|mqdefault|hqdefault|sddefault|maxresdefault)\.(?:jpg|webp|png)/i,
+             '/maxresdefault.jpg');
+  return upgraded;
 }

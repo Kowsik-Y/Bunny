@@ -11,6 +11,8 @@ export type AppTrack = Track & {
   url: string | number;
   videoUrl?: string;
   artistId?: string;
+  albumId?: string;
+  artists?: { name: string; id: string }[];
   allAudio?: any[];
   activeItag?: number;
   allVideo?: any[];

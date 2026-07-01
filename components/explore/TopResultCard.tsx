@@ -6,7 +6,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 
 interface TopResultCardProps {
-  type: 'song' | 'artist' | 'album';
+  type: 'song' | 'artist' | 'album' | 'playlist';
   item: {
     id: string;
     name?: string;
@@ -44,7 +44,7 @@ export function TopResultCard({
 
   const isArtist = type === 'artist';
   const isSong = type === 'song';
-  const isAlbum = type === 'album';
+  const isAlbum = type === 'album' || type === 'playlist';
 
   const name = isArtist ? item.name : item.title;
   const thumbnail = isArtist ? item.thumbnail : (item.thumbnail || item.artwork);
@@ -53,6 +53,8 @@ export function TopResultCard({
     ? `Artist ${item.subscribers ? `• ${item.subscribers}` : ''}`
     : isSong
     ? `Song • ${item.artist || 'Unknown Artist'} ${item.duration ? `• ${formatDuration(item.duration)}` : ''}`
+    : type === 'playlist'
+    ? `Playlist • ${item.artist || 'Unknown Artist'}`
     : `Album • ${item.artist || 'Unknown Artist'} ${item.year ? `• ${item.year}` : ''}`;
 
   const primaryBtnLabel = isArtist ? 'Shuffle' : 'Play';

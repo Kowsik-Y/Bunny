@@ -7,7 +7,9 @@ import TrackPlayer, {
   State,
   Capability,
   Event,
+  AppKilledPlaybackBehavior,
 } from 'react-native-track-player';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import tracks, { type AppTrack } from '@/components/player/Tracks';
 import { resolveAudio } from './useYouTubeAudio';   // ← ADD THIS
 import { getLocalDownloadUri } from './downloads';
@@ -17,6 +19,7 @@ const originalAdd = TrackPlayer.add;
 TrackPlayer.add = async function (tracks: any, insertBeforeIndex?: number) {
   const res = await originalAdd(tracks, insertBeforeIndex);
   DeviceEventEmitter.emit('queue-changed');
+  savePlayerQueue();
   return res;
 };
 
@@ -24,6 +27,7 @@ const originalRemove = TrackPlayer.remove;
 TrackPlayer.remove = async function (index: any) {
   const res = await originalRemove(index);
   DeviceEventEmitter.emit('queue-changed');
+  savePlayerQueue();
   return res;
 };
 
@@ -31,8 +35,34 @@ const originalReset = TrackPlayer.reset;
 TrackPlayer.reset = async function () {
   const res = await originalReset();
   DeviceEventEmitter.emit('queue-changed');
+  savePlayerQueue();
   return res;
 };
+
+export async function savePlayerQueue() {
+  try {
+    const queue = await TrackPlayer.getQueue();
+    await AsyncStorage.setItem('player-persisted-queue', JSON.stringify(queue));
+  } catch (e) {
+    console.warn('[SetupService] Failed to save player queue:', e);
+  }
+}
+
+export async function savePlayerActiveTrack(index: number) {
+  try {
+    await AsyncStorage.setItem('player-persisted-index', String(index));
+  } catch (e) {
+    console.warn('[SetupService] Failed to save player active index:', e);
+  }
+}
+
+export async function savePlayerPosition(position: number) {
+  try {
+    await AsyncStorage.setItem('player-persisted-position', String(position));
+  } catch (e) {
+    // Silently fail
+  }
+}
 
 
 // ─── Global init flag ─────────────────────────────────────────────────────────
@@ -49,6 +79,9 @@ export async function setupPlayer(): Promise<void> {
     await TrackPlayer.setupPlayer({ maxCacheSize: 1024 * 10 });
 
     await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      },
       capabilities: [
         Capability.Play,
         Capability.Pause,
@@ -73,10 +106,42 @@ export async function setupPlayer(): Promise<void> {
       ],
     });
 
-    // Seed queue only when empty (avoid duplicate adds on hot reload)
-    const queue = await TrackPlayer.getQueue();
-    if (queue.length === 0 && tracks.length > 0) {
-      await TrackPlayer.add(tracks);
+    // Restore persisted queue and play state
+    try {
+      const persistedQueueRaw = await AsyncStorage.getItem('player-persisted-queue');
+      const persistedIndexRaw = await AsyncStorage.getItem('player-persisted-index');
+      const persistedPositionRaw = await AsyncStorage.getItem('player-persisted-position');
+
+      if (persistedQueueRaw) {
+        const persistedQueue = JSON.parse(persistedQueueRaw) as AppTrack[];
+        if (persistedQueue.length > 0) {
+          await TrackPlayer.add(persistedQueue);
+          
+          if (persistedIndexRaw) {
+            const index = parseInt(persistedIndexRaw, 10);
+            if (index >= 0 && index < persistedQueue.length) {
+              await TrackPlayer.skip(index);
+            }
+          }
+          if (persistedPositionRaw) {
+            const position = parseFloat(persistedPositionRaw);
+            if (position > 0) {
+              await TrackPlayer.seekTo(position);
+            }
+          }
+        }
+      } else {
+        const queue = await TrackPlayer.getQueue();
+        if (queue.length === 0 && tracks.length > 0) {
+          await TrackPlayer.add(tracks);
+        }
+      }
+    } catch (e) {
+      console.warn('[SetupService] Failed to restore persisted player state:', e);
+      const queue = await TrackPlayer.getQueue();
+      if (queue.length === 0 && tracks.length > 0) {
+        await TrackPlayer.add(tracks);
+      }
     }
 
     _isReady = true;
@@ -265,10 +330,12 @@ export const PlayerActions = {
           url:      localUri,
           title:    ytTrack.title || 'Unknown',
           artist:   ytTrack.artist || 'Unknown Artist',
-          album:    ytTrack.album || 'YouTube Music',
+          album:    ytTrack.album || 'Single',
           duration: ytTrack.duration || 0,
           artwork:  ytTrack.thumbnail || ytTrack.artwork || 'https://picsum.photos/400/400',
           artistId: ytTrack.artistId || ytTrack.authorId || undefined,
+          albumId:  ytTrack.albumId || undefined,
+          artists:  ytTrack.artists || undefined,
         };
         await TrackPlayer.add([newTrack]);
         const newQueue = await TrackPlayer.getQueue();
@@ -284,13 +351,15 @@ export const PlayerActions = {
         url:      result.track.url,
         title:    result.title    || ytTrack.title   || 'Unknown',
         artist:   result.artist   || ytTrack.artist  || 'Unknown Artist',
-        album:    ytTrack.album   || 'YouTube Music',
+        album:    ytTrack.album   || 'Single',
         duration: result.duration || ytTrack.duration || 0,
         artwork:  result.thumbnail || ytTrack.thumbnail || 'https://picsum.photos/400/400',
         headers:  result.track.headers,   // ← User-Agent for ExoPlayer
         userAgent: result.track.userAgent,
         videoUrl: result.videoUrl ?? undefined,
         artistId: result.track.artistId || ytTrack.artistId || ytTrack.authorId || undefined,
+        albumId:  (result.track as any).albumId || ytTrack.albumId || undefined,
+        artists:  (result.track as any).artists || ytTrack.artists || undefined,
         allAudio: result.track.allAudio || undefined,
         activeItag: result.track.activeItag || undefined,
         allVideo: result.track.allVideo || undefined,

@@ -66,7 +66,7 @@ export default function ArtistScreen() {
       if (searchRes.songs.length > 0) {
         const shuffled = [...searchRes.songs]
           .sort(() => Math.random() - 0.5)
-          .map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: 'YouTube Music', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+          .map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
         await PlayerActions.playCollection(shuffled as any);
       }
     } catch (err) { console.error(err); }
@@ -76,7 +76,7 @@ export default function ArtistScreen() {
     try {
       const searchRes = await searchYtMusic((artistData.name ?? '') + ' songs');
       if (searchRes.songs.length > 0) {
-        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: 'YouTube Music', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
         await PlayerActions.playCollection(mix as any);
       }
     } catch (err) { console.error(err); }
@@ -97,7 +97,9 @@ export default function ArtistScreen() {
         thumbnail: item.thumbnail || item.artwork || '',
         url: item.url || `https://music.youtube.com/watch?v=${item.id || item.videoId}`,
         duration: item.duration || 0,
-        type: 'song'
+        type: 'song',
+        artistId: item.artistId || id as string,
+        albumId: item.albumId,
       });
     }
   };
@@ -128,6 +130,8 @@ export default function ArtistScreen() {
       url: `https://music.youtube.com/watch?v=${item.id}`,
       duration: 0,
       type: 'song',
+      artistId: item.artistId || id as string,
+      albumId: item.albumId,
     });
   };
 

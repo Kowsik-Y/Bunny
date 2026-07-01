@@ -70,7 +70,7 @@ export function RadioStations({ stations, onStationPress, loading }: RadioStatio
                       {item.sub}
                     </Muted>
                   </View>
-                  <IconSymbol name="radio" size={14} color={item.color} />
+                  <IconSymbol name="antenna.radiowaves.left.and.right" size={14} color={item.color} />
                 </TouchableOpacity>
               </Animated.View>
             ))}
