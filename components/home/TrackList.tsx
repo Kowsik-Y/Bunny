@@ -110,6 +110,7 @@ export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTra
                   android_ripple={{
                     color: colors.border
                   }}
+                  delayLongPress={250}
                   style={[
                     styles.row,
                     { borderRadius: 10 },

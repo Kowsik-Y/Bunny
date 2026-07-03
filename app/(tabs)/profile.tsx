@@ -1,41 +1,39 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBottomSheet';
+import { Alert } from '@/components/ui/alert';
+import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  Pressable,
-  Alert,
-  TextInput,
-  Platform,
   Image,
-  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import TrackPlayer from 'react-native-track-player';
-import { Feather } from '@expo/vector-icons';
 
 
-import { H1, Muted, Typography, Typography as Text } from '@/components/ui/typography';
+
+import { QueueTrackRow } from '@/components/library/QueueTrackRow';
 import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
-import { QueueTrackRow } from '@/components/library/QueueTrackRow';
-import { EmptyState } from '@/components/library/EmptyState';
-import { 
-  PlayerActions, 
-  useActiveTrackIndex, 
-  usePlayerState, 
-  useQueue, 
-  useFavorites,
-  usePlaylists,
-  useDownloads,
-} from '@/services';
-import { type AppTrack } from '@/components/player/Tracks';
-import { SwipeBottomSheet } from '@/components/player/SwipeBottomSheet';
+
 import { PlaylistRowCard } from '@/components/cards';
+import { type AppTrack } from '@/components/player/Tracks';
+import { Button } from '@/components/ui/button';
+import {
+  PlayerActions,
+  useActiveTrackIndex,
+  useDownloads,
+  useFavorites,
+  usePlayerState,
+  usePlaylists,
+  useQueue,
+} from '@/services';
+import { Cog } from 'lucide-react-native';
 
 type Tab = 'playlists' | 'downloads';
 
@@ -46,7 +44,11 @@ export default function ProfileScreen() {
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertDesc, setAlertDesc] = useState('');
+  const [onConfirm, setOnConfirm] = useState<() => void>(() => { });
 
   // Favorites Hook
   const { favorites, toggleFavorite } = useFavorites();
@@ -55,15 +57,15 @@ export default function ProfileScreen() {
   const { playlists, createPlaylist, deletePlaylist } = usePlaylists();
 
   // Downloads Hook
-  const { 
-    downloadedTracks, 
-    removeDownload, 
-    downloadingIds, 
-    downloadingTracks, 
-    pausedDownloadingIds, 
-    pauseDownload, 
-    cancelDownload, 
-    startDownload 
+  const {
+    downloadedTracks,
+    removeDownload,
+    downloadingIds,
+    downloadingTracks,
+    pausedDownloadingIds,
+    pauseDownload,
+    cancelDownload,
+    startDownload
   } = useDownloads();
 
   // Playback Queue Hooks
@@ -85,6 +87,10 @@ export default function ProfileScreen() {
     }
   }, [queue]);
 
+
+
+
+
   const handleDownloadTrackPress = useCallback(async (index: number, track: AppTrack) => {
     try {
       const tracksToPlay = downloadedTracks.map(d => d.track);
@@ -95,14 +101,6 @@ export default function ProfileScreen() {
     }
   }, [downloadedTracks]);
 
-
-  const handleCreatePlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
-    await createPlaylist(newPlaylistName.trim());
-    setNewPlaylistName('');
-    setShowCreateModal(false);
-  };
-
   const currentTrack = queue[activeIndex];
 
   return (
@@ -110,22 +108,19 @@ export default function ProfileScreen() {
       <SafeAreaView edges={['top']} style={styles.safe}>
         {/* Profile Title Header */}
         <View style={styles.header}>
-          <View/>
-          <TouchableOpacity 
-            onPress={() => router.push('/settings')} 
-            style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <IconSymbol name="gearshape.fill" size={20} color={colors.text} />
-          </TouchableOpacity>
+          <View />
+          <Button variant="secondary" size="icon" onPress={() => router.push('/settings')}>
+            <Cog size={20} color={colors.primary} />
+          </Button>
         </View>
 
         {/* Segmented Tabs: Playlists / Downloads */}
         <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity 
-            onPress={() => setActiveTab('playlists')} 
+          <TouchableOpacity
+            onPress={() => setActiveTab('playlists')}
             style={[styles.tabBtn, activeTab === 'playlists' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           >
-            <Typography style={[styles.tabText, { 
+            <Typography style={[styles.tabText, {
               fontWeight: activeTab === 'playlists' ? '700' : '400',
               color: activeTab === 'playlists' ? colors.primary : colors.mutedForeground
             }]}>
@@ -133,11 +128,11 @@ export default function ProfileScreen() {
             </Typography>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            onPress={() => setActiveTab('downloads')} 
+          <TouchableOpacity
+            onPress={() => setActiveTab('downloads')}
             style={[styles.tabBtn, activeTab === 'downloads' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           >
-            <Typography style={[styles.tabText, { 
+            <Typography style={[styles.tabText, {
               fontWeight: activeTab === 'downloads' ? '700' : '400',
               color: activeTab === 'downloads' ? colors.primary : colors.mutedForeground
             }]}>
@@ -146,7 +141,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomSpacing + 20 }]}
         >
@@ -181,55 +176,55 @@ export default function ProfileScreen() {
                   songCount={playlist.tracks.length}
                   onPress={() => router.push(`/playlist/${playlist.id}`)}
                   onDeletePress={() => {
-                    Alert.alert('Delete Playlist', `Delete "${playlist.name}"?`, [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(playlist.id) }
-                    ]);
+                    setAlertTitle('Delete Playlist');
+                    setAlertDesc(`Delete "${playlist.name}"?`);
+                    setOnConfirm(() => () => deletePlaylist(playlist.id));
+                    setAlertVisible(true);
                   }}
                 />
               ))}
             </View>
           ) : (
             <View style={styles.listSection}>
-                {/* Active Downloading Progress Rows */}
-                {Object.keys(downloadingIds).map((trackId) => {
-                  const track = downloadingTracks[trackId];
-                  const progress = downloadingIds[trackId] || 0;
-                  const isPaused = pausedDownloadingIds[trackId];
-                  if (!track) return null;
+              {/* Active Downloading Progress Rows */}
+              {Object.keys(downloadingIds).map((trackId) => {
+                const track = downloadingTracks[trackId];
+                const progress = downloadingIds[trackId] || 0;
+                const isPaused = pausedDownloadingIds[trackId];
+                if (!track) return null;
 
-                  return (
-                    <View key={`downloading-${trackId}`} style={styles.downloadingRow}>
-                      <Image source={track.artwork && track.artwork.trim() !== '' ? { uri: track.artwork } : require('@/assets/images/icon.png')} style={styles.downloadingArtwork} />
-                      <View style={styles.downloadingMeta}>
-                        <Typography style={{ fontWeight: '600', fontSize: 15 }} numberOfLines={1}>
-                          {track.title}
-                        </Typography>
-                        <Muted style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                          {isPaused ? 'Paused' : `Downloading... ${Math.round(progress * 100)}%`}
-                        </Muted>
-                        <View style={styles.progressBarContainer}>
-                          <View style={[
-                            styles.progressBar, 
-                            { 
-                              width: `${progress * 100}%`, 
-                              backgroundColor: isPaused ? colors.mutedForeground : colors.primary 
-                            }
-                          ]} />
-                        </View>
-                      </View>
-                      
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 12 }}>
-                        <TouchableOpacity onPress={() => isPaused ? startDownload(track) : pauseDownload(track.id)}>
-                          <Feather name={isPaused ? "play" : "pause"} size={18} color={colors.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => cancelDownload(track.id)}>
-                          <Feather name="x-circle" size={18} color="#FF3B30" />
-                        </TouchableOpacity>
+                return (
+                  <View key={`downloading-${trackId}`} style={styles.downloadingRow}>
+                    <Image source={track.artwork && track.artwork.trim() !== '' ? { uri: track.artwork } : require('@/assets/images/icon.png')} style={styles.downloadingArtwork} />
+                    <View style={styles.downloadingMeta}>
+                      <Typography style={{ fontWeight: '600', fontSize: 15 }} numberOfLines={1}>
+                        {track.title}
+                      </Typography>
+                      <Muted style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                        {isPaused ? 'Paused' : `Downloading... ${Math.round(progress * 100)}%`}
+                      </Muted>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[
+                          styles.progressBar,
+                          {
+                            width: `${progress * 100}%`,
+                            backgroundColor: isPaused ? colors.mutedForeground : colors.primary
+                          }
+                        ]} />
                       </View>
                     </View>
-                  );
-                })}
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+                      <TouchableOpacity onPress={() => isPaused ? startDownload(track) : pauseDownload(track.id)}>
+                        <Feather name={isPaused ? "play" : "pause"} size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => cancelDownload(track.id)}>
+                        <Feather name="x-circle" size={18} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
 
               {downloadedTracks.length === 0 && Object.keys(downloadingIds).length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 60 }}>
@@ -249,10 +244,10 @@ export default function ProfileScreen() {
                     isPlaying={isPlaying && currentTrack?.id === download.track.id}
                     onPress={() => handleDownloadTrackPress(i, download.track)}
                     onRemove={() => {
-                      Alert.alert('Remove Download', `Remove "${download.track.title}" from device?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: () => removeDownload(download.track.id) }
-                      ]);
+                      setAlertTitle('Remove Download');
+                      setAlertDesc(`Remove "${download.track.title}" from device?`);
+                      setOnConfirm(() => () => removeDownload(download.track.id));
+                      setAlertVisible(true);
                     }}
                   />
                 ))
@@ -260,29 +255,25 @@ export default function ProfileScreen() {
             </View>
           )}
         </ScrollView>
+
       </SafeAreaView>
 
       {/* Create Playlist dialog BottomSheet */}
-      <SwipeBottomSheet
+      <CreatePlaylistBottomSheet
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        backgroundColor={colors.card}
-      >
-        <Text style={[styles.modalTitle, { color: colors.text }]}>Create New Playlist</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            value={newPlaylistName}
-            onChangeText={setNewPlaylistName}
-            placeholder="Playlist name"
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.textInput, { color: colors.text, borderColor: colors.border }]}
-            autoFocus
-          />
-        </View>
-        <TouchableOpacity onPress={handleCreatePlaylist} style={[styles.createBtn, { backgroundColor: colors.primary }]}>
-          <Text style={styles.createBtnText}>Create</Text>
-        </TouchableOpacity>
-      </SwipeBottomSheet>
+      />
+
+      <Alert
+        visible={alertVisible}
+        onClose={() => setAlertVisible(false)}
+        title={alertTitle}
+        description={alertDesc}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={onConfirm}
+        variant="destructive"
+      />
     </ThemedView>
   );
 }
@@ -293,6 +284,11 @@ const styles = StyleSheet.create({
   },
   safe: {
     flex: 1,
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 36,
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -420,35 +416,6 @@ const styles = StyleSheet.create({
   },
   deletePlaylistBtn: {
     padding: 8,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  textInput: {
-    height: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  createBtn: {
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  createBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
   likedIconContainer: {
     width: 44,

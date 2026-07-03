@@ -2,15 +2,13 @@ import React from 'react';
 import { StyleSheet, View, ScrollView, Pressable, Platform, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Github, ChevronRight } from 'lucide-react-native';
 
 import { H1, H3, Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import packageJson from '../../package.json';
-import { ChevronRight } from 'lucide-react-native';
 
 export default function AboutSettingsScreen() {
   const { colors } = useAppTheme();
@@ -52,13 +50,13 @@ export default function AboutSettingsScreen() {
         <BunnyCard style={styles.settingCard}>
           <Pressable onPress={() => Linking.openURL('https://github.com/Kowsik-Y')} style={[styles.settingRow, { marginBottom: 0 }]}>
             <View style={styles.iconContainer}>
-              <Feather name="github" size={20} color={colors.primary} />
+              <Github size={20} color={colors.primary} />
             </View>
             <View style={styles.settingInfo}>
               <Typography variant="large">GitHub Profile</Typography>
               <Muted>Check out the developer profile</Muted>
             </View>
-            <ChevronRight size={20} color={colors.mutedForeground}/>
+            <ChevronRight size={20} color={colors.mutedForeground} />
           </Pressable>
         </BunnyCard>
       </ScrollView>

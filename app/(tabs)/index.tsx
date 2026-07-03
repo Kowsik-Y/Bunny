@@ -3,10 +3,6 @@ import {
   StyleSheet,
   View,
   ScrollView,
-  Dimensions,
-  Share,
-  Image,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TrackPlayer from 'react-native-track-player';
@@ -25,12 +21,8 @@ import { TrendingCarousel, QuickTrack } from '@/components/home/TrendingCarousel
 import { MoodMixesGrid } from '@/components/home/MoodMixesGrid';
 import { TrackList } from '@/components/home/TrackList';
 import { RadioStations } from '@/components/explore/RadioStations';
-import { SwipeBottomSheet } from '@/components/player/SwipeBottomSheet';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Typography, Muted } from '@/components/ui/typography';
 import { useTrackOptions } from '@/contexts/track-options-context';
 
-const { width } = Dimensions.get('window');
 
 
 

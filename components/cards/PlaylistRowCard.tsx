@@ -1,7 +1,6 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
 
@@ -35,6 +34,7 @@ export function PlaylistRowCard({
       }}
       onPress={onPress}
       onLongPress={onLongPress || onPress}
+      delayLongPress={250}
       style={styles.rowContainer}
     >
       {isLikedMusic ? (

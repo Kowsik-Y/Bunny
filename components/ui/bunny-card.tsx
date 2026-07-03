@@ -1,12 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ViewProps, Pressable, Platform } from 'react-native';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { BlurView } from 'expo-blur';
-import {
+import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, Pressable, StyleSheet, View, ViewProps } from 'react-native';
+import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { useAppTheme } from '@/contexts/app-theme-context';
 
 interface BunnyCardProps extends ViewProps {
   tintColor?: string;
@@ -37,57 +37,86 @@ export function BunnyCard({
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 200 });
+    if (onPress || onLongPress) {
+      scale.value = withSpring(0.97, { damping: 15, stiffness: 200 });
+    }
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+    if (onPress || onLongPress) {
+      scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+    }
   };
 
   const ContentWrapper = (onPress || onLongPress) ? Pressable : View;
 
-  const cardBg = tintColor
-    ? (isDark ? `${tintColor}20` : `${tintColor}10`)
-    : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)');
+  const rimColors: [string, string] = isDark
+    ? (tintColor ? [tintColor, 'rgba(0,0,0,0.5)'] : ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)'])
+    : (tintColor ? ['#FFFFFF', `${tintColor}40`] : ['#FFFFFF', colors.border]);
+
+  const innerColors: [string, string] = isDark
+    ? (tintColor
+      ? [`${tintColor}10`, 'rgba(0,0,0,0.85)']
+      : (glass ? ['rgba(0, 0, 0, 0.45)', 'rgba(255, 255, 255, 0.05)'] : ['#151517', '#252529']))
+    : (tintColor
+      ? [`${tintColor}05`, '#FFFFFF']
+      : (glass ? ['rgba(0, 0, 0, 0.06)', 'rgba(255, 255, 255, 0.95)'] : ['#E2E2E6', '#FFFFFF']));
+
+  const shadowStyle = elevated ? styles.shadow : null;
 
   return (
-    <ContentWrapper
-      onPress={onPress}
-      onLongPress={onLongPress || onPress}
-      android_ripple={{
-        foreground: true,
-        color: cardBg,
-      }}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[
-        styles.card,
-        {
-          backgroundColor: cardBg,
-          borderColor: tintColor ? `${tintColor}50` : colors.border,
-        },
-        style
-      ]}
-      {...props}
-    >
-      {glass && (
-        <BlurView
-          intensity={isDark ? 30 : 65}
-          tint={isDark ? 'dark' : 'light'}
-          style={[StyleSheet.absoluteFill, { backgroundColor: cardBg }]}
-        />
-      )}
-      <View style={[styles.innerContent, contentContainerStyle]}>
-        {children}
-      </View>
-    </ContentWrapper>
+    <Animated.View style={[animatedStyle, shadowStyle, style]}>
+      <ContentWrapper
+        onPress={onPress}
+        onLongPress={onLongPress || onPress}
+        delayLongPress={250}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.cardWrapper}
+        {...props}
+      >
+        <LinearGradient
+          colors={rimColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.cardOuter}
+        >
+          <LinearGradient
+            colors={innerColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.cardInner}
+          >
+            {glass && (
+              <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 22.8 }]} pointerEvents="none">
+                <BlurView
+                  intensity={isDark ? 30 : 65}
+                  tint={isDark ? 'dark' : 'light'}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+            )}
+            <View style={[styles.innerContent, contentContainerStyle]}>
+              {children}
+            </View>
+          </LinearGradient>
+        </LinearGradient>
+      </ContentWrapper>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardWrapper: {
     borderRadius: 24,
-    borderWidth: 1.2,
+  },
+  cardOuter: {
+    borderRadius: 24,
+    padding: 1.2,
+    overflow: 'hidden',
+  },
+  cardInner: {
+    borderRadius: 22.8,
     overflow: 'hidden',
   },
   innerContent: {
@@ -97,15 +126,15 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.12,
-        shadowRadius: 16,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 8,
+        elevation: 4,
       },
       web: {
-        boxShadow: '0 12px 24px rgba(0,0,0,0.1)',
+        boxShadow: '0 6px 12px rgba(0,0,0,0.08)',
       }
     }),
   },

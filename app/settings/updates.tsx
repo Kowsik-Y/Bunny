@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Switch, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { RefreshCw, Bell } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Switch } from '@/components/ui/switch';
 
 import { H1, H3, Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
@@ -55,11 +56,11 @@ export default function UpdatesSettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <H3 style={styles.sectionTitle}>Update Status</H3>
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>App Updates</Text>
         <BunnyCard style={styles.settingCard}>
           <View style={styles.settingRow}>
             <View style={styles.iconContainer}>
-              <Feather name="refresh-cw" size={20} color={colors.primary} />
+              <RefreshCw size={20} color={colors.primary} />
             </View>
             <View style={styles.settingInfo}>
               <Typography variant="large">Current Version</Typography>
@@ -72,17 +73,15 @@ export default function UpdatesSettingsScreen() {
           
           <View style={[styles.settingRow, { marginTop: 8, marginBottom: 8 }]}>
             <View style={styles.iconContainer}>
-              <Feather name="bell" size={20} color={colors.primary} />
+              <Bell size={20} color={colors.primary} />
             </View>
             <View style={styles.settingInfo}>
               <Typography variant="large">Auto-Check for Updates</Typography>
               <Muted>Check for updates automatically on startup</Muted>
             </View>
             <Switch
-              value={autoUpdate}
-              onValueChange={handleToggleAutoUpdate}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={autoUpdate ? '#fff' : colors.mutedForeground}
+              checked={autoUpdate}
+              onCheckedChange={handleToggleAutoUpdate}
             />
           </View>
           
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,
     paddingBottom: 40,
   },
   sectionTitle: {
@@ -177,5 +176,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1.5,
+  },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
 });

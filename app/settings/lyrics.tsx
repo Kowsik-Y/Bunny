@@ -1,17 +1,68 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
+import React, { useRef, useMemo, useCallback } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
+import { Stack } from 'expo-router';
+import { Play, Type, AlignLeft, Check, ChevronRight } from 'lucide-react-native';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
-import { H1, H3, Muted, Typography } from '@/components/ui/typography';
+import { H3, Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+
+const playerStyleOptions = [
+  { label: 'Flat Gradient', value: 'flat' },
+  { label: 'Solid Dark', value: 'solid' },
+] as const;
+
+const lyricsSizeOptions = [
+  { label: 'Small', value: 'small' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'Large', value: 'large' },
+] as const;
+
+const lyricsSpacingOptions = [
+  { label: 'Compact', value: 'compact' },
+  { label: 'Regular', value: 'regular' },
+  { label: 'Spacious', value: 'spacious' },
+] as const;
 
 export default function LyricsSettingsScreen() {
-  const { colors, playerStyle, setPlayerStyle, lyricsSize, setLyricsSize, lyricsSpacing, setLyricsSpacing } = useAppTheme();
-  const router = useRouter();
+  const { 
+    colors, 
+    colorScheme,
+    playerStyle, 
+    setPlayerStyle, 
+    lyricsSize, 
+    setLyricsSize, 
+    lyricsSpacing, 
+    setLyricsSpacing 
+  } = useAppTheme();
+  
+  const isDark = colorScheme === 'dark';
+
+  const playerStyleSheetRef = useRef<BottomSheetModal>(null);
+  const sizeSheetRef = useRef<BottomSheetModal>(null);
+  const spacingSheetRef = useRef<BottomSheetModal>(null);
+
+  const playerStyleSnapPoints = useMemo(() => ['30%'], []);
+  const sizeSnapPoints = useMemo(() => ['32%'], []);
+  const spacingSnapPoints = useMemo(() => ['32%'], []);
+
+  const currentPlayerStyleLabel = playerStyleOptions.find((o) => o.value === playerStyle)?.label ?? 'Flat Gradient';
+  const currentLyricsSizeLabel = lyricsSizeOptions.find((o) => o.value === lyricsSize)?.label ?? 'Medium';
+  const currentLyricsSpacingLabel = lyricsSpacingOptions.find((o) => o.value === lyricsSpacing)?.label ?? 'Regular';
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.4}
+      />
+    ),
+    []
+  );
 
   return (
     <ThemedView style={styles.screen}>
@@ -20,171 +71,194 @@ export default function LyricsSettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        {/* Player Background Card */}
-        <H3 style={styles.sectionTitle}>Player Style</H3>
-        <BunnyCard style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View style={styles.iconContainer}>
-              <IconSymbol name="play.fill" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.settingInfo}>
-              <Typography variant="large">Player Background UI</Typography>
-              <Muted>Select background style for player</Muted>
-            </View>
-          </View>
-          <View style={styles.chipContainer}>
-            {([
-              { label: 'Flat Gradient', value: 'flat' },
-              { label: 'Solid Dark', value: 'solid' }
-            ] as const).map((option) => {
-              const selected = playerStyle === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setPlayerStyle(option.value)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selected ? colors.primary : colors.card,
-                      borderColor: selected ? colors.primary : colors.border,
-                      flex: 1,
-                      alignItems: 'center',
-                    },
-                  ]}>
-                  <Typography
-                    style={{
-                      color: selected ? colors.primaryForeground : colors.text,
-                      fontSize: 11,
-                    }}>
-                    {option.label}
-                  </Typography>
-                </Pressable>
-              );
-            })}
-          </View>
-        </BunnyCard>
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>Player & Lyrics</Text>
 
-        {/* Lyrics Size Card */}
-        <H3 style={styles.sectionTitle}>Lyrics Size</H3>
-        <BunnyCard style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View style={styles.iconContainer}>
-              <IconSymbol name="textformat" size={20} color={colors.primary} />
+        
+        {/* Player Style Card */}
+        <Pressable onPress={() => playerStyleSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Play size={20} color={colors.primary} fill={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Player Background UI</Typography>
+                <Muted>Select background style for player</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {currentPlayerStyleLabel}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
             </View>
-            <View style={styles.settingInfo}>
-              <Typography variant="large">Lyrics Font Size</Typography>
-              <Muted>Select the text size for lyrics</Muted>
-            </View>
-          </View>
-          <View style={styles.chipContainer}>
-            {([
-              { label: 'Small', value: 'small' },
-              { label: 'Medium', value: 'medium' },
-              { label: 'Large', value: 'large' }
-            ] as const).map((option) => {
-              const selected = lyricsSize === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setLyricsSize(option.value)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selected ? colors.primary : colors.card,
-                      borderColor: selected ? colors.primary : colors.border,
-                      flex: 1,
-                      alignItems: 'center',
-                    },
-                  ]}>
-                  <Typography
-                    style={{
-                      color: selected ? colors.primaryForeground : colors.text,
-                      fontSize: 13,
-                    }}>
-                    {option.label}
-                  </Typography>
-                </Pressable>
-              );
-            })}
-          </View>
-        </BunnyCard>
+          </BunnyCard>
+        </Pressable>
 
-        {/* Lyrics Spacing Card */}
-        <H3 style={styles.sectionTitle}>Lyrics Spacing</H3>
-        <BunnyCard style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View style={styles.iconContainer}>
-              <IconSymbol name="quote.bubble" size={20} color={colors.primary} />
+        <H3 style={styles.sectionTitle}>Lyrics Layout</H3>
+
+        {/* Lyrics Font Size Card */}
+        <Pressable onPress={() => sizeSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Type size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Lyrics Font Size</Typography>
+                <Muted>Select the text size for lyrics</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {currentLyricsSizeLabel}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
             </View>
-            <View style={styles.settingInfo}>
-              <Typography variant="large">Lyrics Line Spacing</Typography>
-              <Muted>Select vertical spacing for lyrics</Muted>
+          </BunnyCard>
+        </Pressable>
+
+        {/* Lyrics Line Spacing Card */}
+        <Pressable onPress={() => spacingSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <AlignLeft size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Lyrics Line Spacing</Typography>
+                <Muted>Select vertical spacing for lyrics</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {currentLyricsSpacingLabel}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
             </View>
-          </View>
-          <View style={styles.chipContainer}>
-            {([
-              { label: 'Compact', value: 'compact' },
-              { label: 'Regular', value: 'regular' },
-              { label: 'Spacious', value: 'spacious' }
-            ] as const).map((option) => {
-              const selected = lyricsSpacing === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setLyricsSpacing(option.value)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selected ? colors.primary : colors.card,
-                      borderColor: selected ? colors.primary : colors.border,
-                      flex: 1,
-                      alignItems: 'center',
-                    },
-                  ]}>
-                  <Typography
-                    style={{
-                      color: selected ? colors.primaryForeground : colors.text,
-                      fontSize: 13,
-                    }}>
-                    {option.label}
-                  </Typography>
-                </Pressable>
-              );
-            })}
-          </View>
-        </BunnyCard>
+          </BunnyCard>
+        </Pressable>
       </ScrollView>
+
+      {/* ─── Player Style Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={playerStyleSheetRef}
+        snapPoints={playerStyleSnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Select Player Style</Typography>
+          </View>
+          {playerStyleOptions.map((item, index) => {
+            const selected = playerStyle === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => {
+                  setPlayerStyle(item.value);
+                  playerStyleSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < playerStyleOptions.length - 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* ─── Lyrics Font Size Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={sizeSheetRef}
+        snapPoints={sizeSnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Select Lyrics Size</Typography>
+          </View>
+          {lyricsSizeOptions.map((item, index) => {
+            const selected = lyricsSize === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => {
+                  setLyricsSize(item.value);
+                  sizeSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < lyricsSizeOptions.length - 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* ─── Lyrics Line Spacing Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={spacingSheetRef}
+        snapPoints={spacingSnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Select Lyrics Spacing</Typography>
+          </View>
+          {lyricsSpacingOptions.map((item, index) => {
+            const selected = lyricsSpacing === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => {
+                  setLyricsSpacing(item.value);
+                  spacingSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < lyricsSpacingOptions.length - 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  safe: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 4,
-  },
-  backButton: {
-    padding: 4,
-    marginLeft: -4,
-  },
-  titleText: {
-    fontSize: 28,
-  },
+  screen: { flex: 1 },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,
     paddingBottom: 40,
   },
   sectionTitle: {
@@ -192,13 +266,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
-  settingCard: {
-    marginBottom: 16,
-  },
-  settingRow: {
+  navCard: { marginBottom: 12 },
+  navSettingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
   iconContainer: {
     width: 40,
@@ -209,17 +281,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  settingInfo: {
-    flex: 1,
-  },
-  chipContainer: {
+  settingInfo: { flex: 1 },
+  rightContainer: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 4,
   },
-  chip: {
-    paddingVertical: 6,
+  selectedValue: { fontSize: 14, marginRight: 4 },
+  sheetContent: {
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sheetOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 10,
-    borderWidth: 1.5,
+  },
+  optionLabel: { fontSize: 16 },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
 });

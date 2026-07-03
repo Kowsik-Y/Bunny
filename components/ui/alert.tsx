@@ -1,103 +1,139 @@
 import React from 'react';
-import { View, ViewProps, StyleSheet } from 'react-native';
+import { Modal, StyleSheet, View, TouchableWithoutFeedback, Platform } from 'react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { addAlpha } from '@/constants/theme';
 import { Typography } from './typography';
+import { Button } from './button';
 
 export type AlertVariant = 'default' | 'destructive';
 
-interface AlertProps extends ViewProps {
+export interface AlertProps {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void | Promise<void>;
   variant?: AlertVariant;
-  title?: string;
-  description?: string;
-  icon?: React.ReactNode;
 }
 
 export function Alert({
-  variant = 'default',
+  visible,
+  onClose,
   title,
   description,
-  icon,
-  style,
-  ...props
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  onConfirm,
+  variant = 'default',
 }: AlertProps) {
   const { colors, semiBoldFontFamily } = useAppTheme();
-
-  const getVariantStyles = () => {
-    switch (variant) {
-      case 'destructive':
-        return {
-          container: { borderColor: colors.destructive, backgroundColor: addAlpha(colors.destructive, 0.08) },
-          title: { color: colors.destructive },
-          description: { color: colors.destructive },
-        };
-      default:
-        return {
-          container: { borderColor: colors.border, backgroundColor: colors.card },
-          title: { color: colors.text },
-          description: { color: colors.text },
-        };
-    }
-  };
-
-  const variantStyles = getVariantStyles();
+  const isDestructive = variant === 'destructive';
 
   return (
-    <View
-      style={[
-        styles.container,
-        variantStyles.container,
-        style,
-      ]}
-      {...props}
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
     >
-      {icon && <View style={styles.iconContainer}>{icon}</View>}
-      <View style={styles.content}>
-        {title && (
-          <Typography
-            style={[
-              styles.title,
-              variantStyles.title,
-              { fontFamily: semiBoldFontFamily, fontWeight: '600' },
-            ]}
-          >
-            {title}
-          </Typography>
-        )}
-        {description && (
-          <Typography
-            variant="small"
-            style={[styles.description, variantStyles.description]}
-          >
-            {description}
-          </Typography>
-        )}
-      </View>
-    </View>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={[
+              styles.dialog,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              }
+            ]}>
+              <Typography style={[
+                styles.title,
+                {
+                  color: colors.text,
+                  fontFamily: semiBoldFontFamily,
+                }
+              ]}>
+                {title}
+              </Typography>
+
+              <Typography style={[
+                styles.description,
+                {
+                  color: colors.mutedForeground,
+                }
+              ]}>
+                {description}
+              </Typography>
+
+              <View style={styles.actions}>
+                <Button
+                  variant="ghost"
+                  onPress={onClose}
+                  label={cancelText}
+                  style={styles.button}
+                />
+                <Button
+                  variant={isDestructive ? 'destructive' : 'default'}
+                  onPress={async () => {
+                    onClose();
+                    await onConfirm();
+                  }}
+                  label={confirmText}
+                  style={styles.button}
+                />
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    width: '100%',
-  },
-  iconContainer: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  content: {
+  overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  dialog: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
   title: {
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   description: {
     fontSize: 14,
-    opacity: 0.9,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

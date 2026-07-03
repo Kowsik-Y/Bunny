@@ -1,13 +1,9 @@
-import React from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, Image,  Dimensions } from 'react-native';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { H1, Muted, Typography } from '@/components/ui/typography';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { BunnyCard } from '@/components/ui/bunny-card';
 import { Button } from '@/components/ui/button';
 import { useAppTheme } from '@/contexts/app-theme-context';
-
 import { Feather } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -18,7 +14,6 @@ interface AlbumHeaderProps {
   onShufflePress: () => void;
   onHeartPress: () => void;
   onArtistPress: () => void;
-  onBackPress: () => void;
   onDownloadPress?: () => void;
 }
 
@@ -28,39 +23,26 @@ export function AlbumHeader({
   onShufflePress,
   onHeartPress,
   onArtistPress,
-  onBackPress,
   onDownloadPress,
 }: AlbumHeaderProps) {
   const { colors } = useAppTheme();
 
   return (
     <>
-      <SafeAreaView edges={['top']} style={styles.headerNav}>
-        <Button
-          variant="ghost" size="icon" onPress={onBackPress} style={{width:24,height:24}} >
-          <View style={{ transform: [{ rotate: '90deg' }] }}>
-            <IconSymbol name="chevron.down" size={24} color={colors.text} />
-          </View>
-        </Button>
-      </SafeAreaView>
-
       <View style={styles.albumHeader}>
         <Animated.View entering={FadeInUp.duration(600)} style={styles.artworkContainer}>
           <Image source={{ uri: albumData.thumbnails?.[albumData.thumbnails.length - 1]?.url }} style={styles.artwork} />
-          <BunnyCard glass style={styles.playOverlay} onPress={onPlayPress}>
-            <IconSymbol name="play.fill" size={32} color={colors.primary} active />
-          </BunnyCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200)} style={styles.albumMeta}>
           <H1 numberOfLines={2} style={styles.albumTitle}>
             {albumData.name}
           </H1>
-          <TouchableOpacity onPress={onArtistPress}>
+          <Button variant="link" onPress={onArtistPress}>
             <Typography variant="lead" style={{ color: colors.primary }}>
               {typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name}
             </Typography>
-          </TouchableOpacity>
+          </Button>
           <Muted style={styles.albumStats}>
             Album • {albumData.tracks?.length || 0} tracks • {albumData.year || 'Unknown'}
           </Muted>
@@ -148,9 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mainAction: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    height: 50,
-    borderRadius: 25,
+    height: 48,
+    borderRadius: 24,
   },
 });

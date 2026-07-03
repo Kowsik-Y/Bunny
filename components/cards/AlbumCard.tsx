@@ -1,5 +1,4 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
-import React from 'react';
 import { Image, Pressable, StyleSheet } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
 
@@ -33,6 +32,7 @@ export function AlbumCard({
         style={[styles.carouselCard, isArtist && { width: 110 }]}
         onPress={onPress}
         onLongPress={onLongPress || onPress}
+        delayLongPress={250}
         android_ripple={{
           color: colors.accent,
         }}
@@ -63,6 +63,7 @@ export function AlbumCard({
         style={styles.gridCard}
         onPress={onPress}
         onLongPress={onLongPress || onPress}
+        delayLongPress={250}
         android_ripple={{
           color: colors.accent,
         }}

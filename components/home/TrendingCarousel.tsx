@@ -8,6 +8,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';
@@ -15,6 +16,9 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentTrack, usePlayerState, PlayerActions } from '@/services';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Play, Pause } from 'lucide-react-native';
+
 
 const { width } = Dimensions.get('window');
 const CARD_W = width - 56; // one card + small peek of next
@@ -68,18 +72,26 @@ interface TrendingCarouselProps {
 }
 
 export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLongPressTrack }: TrendingCarouselProps) {
-  const { colors } = useAppTheme();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const currentTrack = useCurrentTrack();
-  const { isPlaying } = usePlayerState();
+  const { isPlaying, isBuffering } = usePlayerState();
+
+  const outerGradient: [string, string] = isDark 
+    ? [colors.border, colors.background] 
+    : ['#FFFFFF', colors.border];
+  const innerGradient: [string, string] = isDark 
+    ? [colors.card, colors.card] 
+    : [colors.secondary, '#FFFFFF'];
+  const iconColor = colors.primary;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
     const idx = Math.round(x / (CARD_W + 12));
     setActiveIndex(idx);
   };
-
   return (
     <View style={styles.section}>
       {/* Header row */}
@@ -125,6 +137,15 @@ export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLon
               track.id === `yt-${currentTrack.id}`
             ));
             const isThisPlaying = isActive && isPlaying;
+            const isThisBuffering = isActive && isBuffering;
+            const isDummy = track.id === 'no-track';
+            const onPlayPause = () => {
+              if (isActive) {
+                PlayerActions.playPause(isPlaying);
+              } else {
+                onPlayTracks(trending, i);
+              }
+            };
 
             return (
               <Animated.View
@@ -139,6 +160,7 @@ export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLon
                       onPlayTracks(trending, i);
                     }
                   }}
+                  delayLongPress={250}
                   onLongPress={() => onLongPressTrack?.(track)}
                   android_ripple={{
                     color: "#fff00",
@@ -167,19 +189,43 @@ export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLon
                         {track.artist}
                       </Muted>
                     </View>
-                    <View style={[
-                      styles.playBtn, 
-                      {
-                        backgroundColor: colors.background,
-                        
-                      }
-                    ]}>
-                      <IconSymbol 
-                        name={isThisPlaying ? "pause.fill" : "play.fill"} 
-                        size={14} 
-                        color={colors.primary}
-                      />
-                    </View>
+                    {/* Play / Pause button from MiniPlayerControls */}
+                    <Pressable
+                      onPress={(e) => { e.stopPropagation?.(); if (!isDummy) onPlayPause(); }}
+                      disabled={isDummy}
+                      style={({ pressed }) => [
+                        styles.playPauseBtnShadow,
+                        {
+                          opacity: isDummy ? 0.3 : 1,
+                          transform: [{ scale: pressed ? 0.95 : 1 }],
+                        }
+                      ]}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                      <LinearGradient
+                        colors={outerGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={styles.playPauseBtnOuter}
+                      >
+                        <LinearGradient
+                          colors={innerGradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={styles.playPauseBtnInner}
+                        >
+                          {isThisBuffering ? (
+                            <ActivityIndicator size="small" color={iconColor} />
+                          ) : isThisPlaying ? (
+                            <Pause size={16} strokeWidth={0} fill={iconColor} />
+                          ) : (
+                            <View style={{ marginLeft: 2 }}>
+                              <Play size={16} strokeWidth={0} fill={iconColor} />
+                            </View>
+                          )}
+                        </LinearGradient>
+                      </LinearGradient>
+                    </Pressable>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -273,5 +319,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
+  },
+  playPauseBtnShadow: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  playPauseBtnOuter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 1.2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playPauseBtnInner: {
+    width: 41.6,
+    height: 41.6,
+    borderRadius: 20.8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Typography, H1, H2, Muted } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
-import { IconSymbol, IconSymbolName } from '@/components/ui/icon-symbol';
+import {  IconSymbolName } from '@/components/ui/icon-symbol';
 import { Input } from '@/components/ui/input';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';

@@ -78,7 +78,7 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
       style={styles.clip}
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
-      <Animated.View style={{ transform: [{ translateX }] }}>
+      <Animated.View style={{ transform: [{ translateX }], width: textWidth || undefined }}>
         <Text
           style={resolvedStyle}
           numberOfLines={1}
@@ -94,6 +94,6 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
 const styles = StyleSheet.create({
   clip: {
     overflow: 'hidden',
-    flexShrink: 1,
+    flex: 1,
   },
 });

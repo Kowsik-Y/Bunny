@@ -5,13 +5,14 @@ import {
   Image,
   Pressable,
   Share,
-  Alert,
   ScrollView,
   Dimensions,
   TextInput,
   Text,
 } from 'react-native';
-import { SwipeBottomSheet } from '@/components/player/SwipeBottomSheet';
+import { Alert } from '@/components/ui/alert';
+import { Typography } from '@/components/ui/typography';
+import { SwipeBottomSheet, BottomSheetContext, BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 import { type AppTrack } from '@/components/player/Tracks';
@@ -20,6 +21,7 @@ import TrackPlayer from 'react-native-track-player';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAlbumDetails, getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -62,6 +64,9 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
   const [sheetScreen, setSheetScreen] = useState<'main' | 'playlists' | 'credits' | 'stats'>('main');
   const [newPlaylistVisible, setNewPlaylistVisible] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [showArtistSheet, setShowArtistSheet] = useState(false);
+  const [artistOptions, setArtistOptions] = useState<Array<{ name: string; id: string }>>([]);
+  const [dismissQueueVisible, setDismissQueueVisible] = useState(false);
 
   const openTrackOptions = (track: AppTrack) => {
     setSelectedTrack(track);
@@ -198,18 +203,8 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
     if (!selectedTrack) return;
     setVisible(false);
     if (selectedTrack.artists && selectedTrack.artists.length > 1) {
-      Alert.alert(
-        'Select Artist',
-        'Which artist would you like to view?',
-        [
-          ...selectedTrack.artists.map((art) => ({
-            text: art.name,
-            onPress: () => router.push(`/artist/${art.id}` as any),
-          })),
-          { text: 'Cancel', style: 'cancel' as const },
-        ],
-        { cancelable: true }
-      );
+      setArtistOptions(selectedTrack.artists);
+      setShowArtistSheet(true);
     } else if (selectedTrack.artistId) {
       router.push(`/artist/${selectedTrack.artistId}` as any);
     }
@@ -228,19 +223,14 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  const handleDismissQueue = async () => {
+  const handleDismissQueue = () => {
     setVisible(false);
-    Alert.alert('Dismiss Queue', 'Clear the entire playback queue?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: async () => {
-          await TrackPlayer.reset();
-          toast.success('Queue cleared');
-        },
-      },
-    ]);
+    setDismissQueueVisible(true);
+  };
+
+  const confirmDismissQueue = async () => {
+    await TrackPlayer.reset();
+    toast.success('Queue cleared');
   };
 
   const handlePinListenAgain = () => {
@@ -525,6 +515,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
           visible={visible}
           onClose={() => setVisible(false)}
           backgroundColor={colors.card}
+          contentKey={sheetScreen}
         >
           {/* ── MAIN SCREEN ─────────────────────────────────────────────── */}
           {sheetScreen === 'main' && (
@@ -551,9 +542,8 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
               </View>
 
               {/* Options */}
-              <ScrollView
+              <BottomSheetScrollView
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: SCREEN_HEIGHT * 0.55 }}
                 contentContainerStyle={{ paddingBottom: 32 }}
               >
                 {selectedItem.type === 'track' && selectedTrack && (
@@ -650,26 +640,22 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
                       onPress={handleShare}
                     />
                     <ActionRow
-                      icon={<Feather name="flag" size={18} color={colors.text} />}
-                      label="Report"
-                      onPress={handleReport}
-                    />
-                    <ActionRow
                       icon={<MaterialCommunityIcons name="pin" size={20} color={colors.text} />}
                       label="Pin to Listen again"
                       onPress={handlePinListenAgain}
+                    />
+                     <ActionRow
+                      icon={<MaterialCommunityIcons name="chart-bar" size={20} color={colors.text} />}
+                      label="Stats for nerds"
+                      onPress={() => setSheetScreen('stats')}
+                      last
                     />
                     <ActionRow
                       icon={<MaterialCommunityIcons name="playlist-remove" size={20} color={colors.text} />}
                       label="Dismiss queue"
                       onPress={handleDismissQueue}
                     />
-                    <ActionRow
-                      icon={<MaterialCommunityIcons name="chart-bar" size={20} color={colors.text} />}
-                      label="Stats for nerds"
-                      onPress={() => setSheetScreen('stats')}
-                      last
-                    />
+                   
                   </>
                 )}
 
@@ -786,7 +772,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
                     />
                   </>
                 )}
-              </ScrollView>
+              </BottomSheetScrollView>
             </View>
           )}
 
@@ -799,8 +785,8 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
                 </Pressable>
                 <Text style={[styles.subHeaderTitle, { color: colors.text }]}>Save to Playlist</Text>
               </View>
-              <ScrollView
-                style={{ maxHeight: SCREEN_HEIGHT * 0.55 }}
+              <BottomSheetScrollView
+                style={{ maxHeight: SCREEN_HEIGHT * 0.72 }}
                 contentContainerStyle={{ paddingBottom: 32 }}
               >
                 <ActionRow
@@ -824,7 +810,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
                     last={i === playlists.length - 1}
                   />
                 ))}
-              </ScrollView>
+              </BottomSheetScrollView>
             </View>
           )}
 
@@ -907,7 +893,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
         <Text style={[styles.newPlaylistTitle, { color: colors.text }]}>New Playlist</Text>
         <View style={[styles.inputRow, { borderColor: addAlpha(colors.text, 0.12) }]}>
           <Feather name="edit-3" size={18} color={colors.mutedForeground} style={{ marginRight: 10 }} />
-          <TextInput
+          <BottomSheetTextInput
             value={newPlaylistName}
             onChangeText={setNewPlaylistName}
             placeholder="Playlist name"
@@ -923,6 +909,46 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
           <Text style={styles.createBtnText}>Create & Save</Text>
         </Pressable>
       </SwipeBottomSheet>
+
+      {/* Artist Selection BottomSheet */}
+      <SwipeBottomSheet
+        visible={showArtistSheet}
+        onClose={() => setShowArtistSheet(false)}
+      >
+        <Typography variant="large" style={{ fontWeight: '800', textAlign: 'center', marginBottom: 16, marginTop: 10 }}>
+          Select Artist
+        </Typography>
+        <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+          {artistOptions.map((art) => (
+            <Pressable
+              key={art.id}
+              onPress={() => {
+                setShowArtistSheet(false);
+                router.push(`/artist/${art.id}` as any);
+              }}
+              style={{
+                paddingVertical: 14,
+                borderBottomWidth: 0.5,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <Typography style={{ fontSize: 16 }}>{art.name}</Typography>
+            </Pressable>
+          ))}
+        </BottomSheetScrollView>
+      </SwipeBottomSheet>
+
+      {/* Dismiss Queue Alert */}
+      <Alert
+        visible={dismissQueueVisible}
+        onClose={() => setDismissQueueVisible(false)}
+        title="Dismiss Queue"
+        description="Clear the entire playback queue?"
+        confirmText="Clear"
+        cancelText="Cancel"
+        onConfirm={confirmDismissQueue}
+        variant="destructive"
+      />
     </TrackOptionsContext.Provider>
   );
 }

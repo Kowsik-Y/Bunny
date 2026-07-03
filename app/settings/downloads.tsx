@@ -1,42 +1,59 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
+import { Stack } from 'expo-router';
+import { Folder, Trash2, Check, ChevronRight } from 'lucide-react-native';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
-import { H1, H3, Muted, Typography } from '@/components/ui/typography';
+import { H3, Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useDownloads } from '@/services';
+import { useToast } from '@/components/ui/toast';
+import { Alert } from '@/components/ui/alert';
+
+const downloadLocationOptions = [
+  { label: 'Internal Storage', value: 'internal' },
+  { label: 'Temporary Cache', value: 'cache' },
+] as const;
 
 export default function DownloadsSettingsScreen() {
-  const { colors } = useAppTheme();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const { downloadLocation, changeDownloadLocation, clearDownloads, downloadedTracks } = useDownloads();
-  const router = useRouter();
+  const { toast } = useToast();
+
+  const [promptVisible, setPromptVisible] = useState(false);
+
+  const locationSheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['30%'], []);
+
+  const currentLocationLabel = downloadLocationOptions.find((o) => o.value === downloadLocation)?.label ?? 'Internal Storage';
 
   const handleClearAll = () => {
     if (downloadedTracks.length === 0) {
-      Alert.alert('Info', 'You have no offline downloaded songs.');
+      toast({ title: 'Info', description: 'You have no offline downloaded songs.', type: 'info' });
       return;
     }
-    Alert.alert(
-      'Clear Downloads',
-      `Delete all ${downloadedTracks.length} offline downloaded songs from this device?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            await clearDownloads();
-            Alert.alert('Success', 'All downloaded media tracks deleted.');
-          },
-        },
-      ]
-    );
+    setPromptVisible(true);
   };
+
+  const confirmClear = async () => {
+    await clearDownloads();
+    toast({ title: 'Success', description: 'All downloaded media tracks deleted.', type: 'success' });
+  };
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.4}
+      />
+    ),
+    []
+  );
 
   return (
     <ThemedView style={styles.screen}>
@@ -46,58 +63,37 @@ export default function DownloadsSettingsScreen() {
         contentContainerStyle={styles.container}
       >
         {/* Storage Location preferences */}
-        <H3 style={styles.sectionTitle}>Storage Preferences</H3>
-        <BunnyCard style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View style={styles.iconContainer}>
-              <Feather name="folder" size={20} color={colors.primary} />
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>Downloads</Text>
+       
+        <Pressable onPress={() => locationSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Folder size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Save Location</Typography>
+                <Muted>Select directory to download audio files</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {currentLocationLabel.split(' ')[0]}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
             </View>
-            <View style={styles.settingInfo}>
-              <Typography variant="large">Save Location</Typography>
-              <Muted>Select directory to download audio files</Muted>
-            </View>
-          </View>
-          <View style={styles.chipContainer}>
-            {([
-              { label: 'Internal Storage', value: 'internal' },
-              { label: 'Temporary Cache', value: 'cache' }
-            ] as const).map((option) => {
-              const selected = downloadLocation === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => changeDownloadLocation(option.value)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selected ? colors.primary : colors.card,
-                      borderColor: selected ? colors.primary : colors.border,
-                      flex: 1,
-                      alignItems: 'center',
-                    },
-                  ]}>
-                  <Typography
-                    style={{
-                      color: selected ? colors.primaryForeground : colors.text,
-                      fontSize: 12,
-                    }}>
-                    {option.label}
-                  </Typography>
-                </Pressable>
-              );
-            })}
-          </View>
-        </BunnyCard>
+          </BunnyCard>
+        </Pressable>
 
         {/* Storage Management cleanup */}
         <H3 style={styles.sectionTitle}>Storage Management</H3>
-        <BunnyCard style={styles.settingCard}>
-          <View style={styles.settingRow}>
+        <BunnyCard style={styles.navCard}>
+          <View style={styles.navSettingRow}>
             <View style={styles.iconContainer}>
-              <Feather name="trash-2" size={20} color="#FF3B30" />
+              <Trash2 size={20} color="#FF3B30" />
             </View>
             <View style={styles.settingInfo}>
-              <Typography variant="large">Clear Cache</Typography>
+              <Typography variant="large">Clear Downloads</Typography>
               <Muted>Delete all local offline tracks to free space</Muted>
             </View>
           </View>
@@ -124,37 +120,63 @@ export default function DownloadsSettingsScreen() {
           </Pressable>
         </BunnyCard>
       </ScrollView>
+
+      {/* ─── Save Location Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={locationSheetRef}
+        snapPoints={snapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Select Save Location</Typography>
+          </View>
+          {downloadLocationOptions.map((item, index) => {
+            const selected = downloadLocation === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => {
+                  changeDownloadLocation(item.value);
+                  locationSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < downloadLocationOptions.length - 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      <Alert
+        visible={promptVisible}
+        onClose={() => setPromptVisible(false)}
+        title="Clear Downloads"
+        description={`Delete all ${downloadedTracks.length} offline downloaded songs from this device?`}
+        confirmText="Delete All"
+        cancelText="Cancel"
+        onConfirm={confirmClear}
+        variant="destructive"
+      />
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  safe: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 4,
-  },
-  backButton: {
-    padding: 4,
-    marginLeft: -4,
-  },
-  titleText: {
-    fontSize: 28,
-  },
+  screen: { flex: 1 },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,
     paddingBottom: 40,
   },
   sectionTitle: {
@@ -162,13 +184,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
-  settingCard: {
-    marginBottom: 16,
-  },
-  settingRow: {
+  navCard: { marginBottom: 12 },
+  navSettingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
   iconContainer: {
     width: 40,
@@ -179,17 +199,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  settingInfo: {
-    flex: 1,
-  },
-  chipContainer: {
+  settingInfo: { flex: 1 },
+  rightContainer: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 4,
   },
-  chip: {
-    paddingVertical: 6,
+  selectedValue: { fontSize: 14, marginRight: 4 },
+  sheetContent: {
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sheetOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 10,
+  },
+  optionLabel: { fontSize: 16 },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
+  },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
 });

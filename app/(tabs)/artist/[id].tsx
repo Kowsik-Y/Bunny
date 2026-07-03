@@ -4,15 +4,24 @@ import {
   StyleSheet, View, Dimensions,
   ScrollView, ActivityIndicator, Animated as RNAnimated, Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography as Text } from '@/components/ui/typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerActions } from '@/services/SetupService';
 import { getArtistDetails, searchYtMusic } from '@/services/ytMusic';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { addAlpha } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { ChevronLeft } from 'lucide-react-native';
+
 
 import { ArtistHero } from '@/components/artist/ArtistHero';
 import { ArtistTabBar, ArtistActionButtons } from '@/components/artist/ArtistTabBar';
 import { ArtistTabContent } from '@/components/artist/ArtistTabContent';
+import { Button } from '@/components/ui/button';
+
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -40,6 +49,7 @@ export default function ArtistScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('Top Songs');
   const scrollY = useRef(new RNAnimated.Value(0)).current;
   const tabScrollRef = useRef<ScrollView>(null);
+  const bottomSpacing = useBottomTabSpacing();
 
   useEffect(() => { if (id) loadArtist(); }, [id]);
 
@@ -157,8 +167,34 @@ export default function ArtistScreen() {
 
   const thumbnailUrl = artistData.thumbnails?.[artistData.thumbnails.length - 1]?.url;
 
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
+        <Button
+        style={{
+            padding: 5,
+            borderRadius: 50,
+            backgroundColor: addAlpha(colors.background, 0.85),
+            borderColor: colors.border,
+            borderWidth: 0.8,
+            alignSelf: 'flex-start',
+            pointerEvents: 'auto',
+          }}
+          onPress={() => router.back()}
+          variant="secondary" size="icon">
+          <ChevronLeft size={20} color={colors.primary} />
+        </Button>
+        <Pressable
+          
+          
+        >
+          <View style={{ transform: [{ rotate: '90deg' }] }}>
+            <IconSymbol name="chevron.down" size={24} color={colors.text} />
+          </View>
+        </Pressable>
+      </SafeAreaView>
+
       <RNAnimated.ScrollView
         onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
@@ -199,6 +235,34 @@ export default function ArtistScreen() {
           onTilePress={handleTilePress}
         />
       </RNAnimated.ScrollView>
+
+      {/* Top Fade Gradient */}
+      <LinearGradient
+        colors={[
+          colors.background,
+          addAlpha(colors.background, 0.9),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.1),
+          'transparent'
+        ]}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
+      {/* Bottom Fade Gradient */}
+      <LinearGradient
+        colors={[
+          'transparent',
+          addAlpha(colors.background, 0.1),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.9),
+          colors.background
+        ]}
+        style={[styles.bottomGradient, { height: bottomSpacing + 25 }]}
+        pointerEvents="none"
+      />
     </View>
   );
 }
@@ -207,4 +271,26 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
   backFallback: { marginTop: 10, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
+  stickyBackContainer: {
+    position: 'absolute',
+    top: 20,
+    left: 15,
+    zIndex: 100,
+    right: 0,
+  },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    zIndex: 10,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
 });

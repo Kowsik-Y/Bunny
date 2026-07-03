@@ -4,11 +4,8 @@ import { useEffect } from 'react';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
 import * as Notifications from 'expo-notifications';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import BottomTabBar from '@/components/bottom-tab-bar';
 import MusicPlayerModal from '@/components/player/Musicplayermodal';
@@ -120,35 +117,24 @@ function TabsWithPlayer() {
             name="index"
             options={{
               title: 'Home',
-              tabBarIcon: ({ color }) => <IconSymbol size={22} name="house.fill" color={color} />,
             }}
           />
           <Tabs.Screen
             name="radio"
             options={{
               title: 'Radio',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="antenna.radiowaves.left.and.right" color={color} />,
-            }}
-          />
-          <Tabs.Screen
-            name="library"
-            options={{
-              title: 'Library',
-              tabBarIcon: ({ color }) => <IconSymbol size={22} name="music.note.list" color={color} />,
             }}
           />
           <Tabs.Screen
             name="explore"
             options={{
               title: 'Explore',
-              tabBarIcon: ({ color }) => <IconSymbol size={22} name="paperplane.fill" color={color} />,
             }}
           />
           <Tabs.Screen
             name="profile"
             options={{
               title: 'Profile',
-              tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} />,
             }}
           />
           {/* Hidden Detail Screens - Hidden from Tab Bar but visible with bar */}
@@ -175,7 +161,7 @@ function TabsWithPlayer() {
           />
         </Tabs>
         <View 
-          style={[StyleSheet.absoluteFill, { zIndex: 9999 }]} 
+          style={[StyleSheet.absoluteFill, { zIndex: 989 }]} 
           pointerEvents="box-none"
         >
           <MusicPlayerModal

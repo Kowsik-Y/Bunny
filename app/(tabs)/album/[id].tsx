@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { H1, Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerActions } from '@/services/SetupService';
@@ -11,6 +12,13 @@ import { ThemedView } from '@/components/themed-view';
 import { SongCard } from '@/components/cards';
 import { AlbumHeader } from '@/components/album/AlbumHeader';
 import { type AppTrack } from '@/components/player/Tracks';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { addAlpha } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { ChevronLeft } from 'lucide-react-native';
+
+
 
 
 
@@ -23,6 +31,7 @@ export default function AlbumScreen() {
   const { isPlaying } = usePlayerState();
   const [albumData, setAlbumData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const bottomSpacing = useBottomTabSpacing();
 
   useEffect(() => {
     if (id) {
@@ -153,6 +162,23 @@ export default function AlbumScreen() {
 
   return (
     <ThemedView style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
+         <Button
+        style={{
+            padding: 5,
+            borderRadius: 50,
+            backgroundColor: addAlpha(colors.background, 0.85),
+            borderColor: colors.border,
+            borderWidth: 0.8,
+            alignSelf: 'flex-start',
+            pointerEvents: 'auto',
+          }}
+          onPress={() => router.back()}
+          variant="secondary" size="icon">
+          <ChevronLeft size={20} color={colors.primary} />
+        </Button>
+      </SafeAreaView>
+
       <FlatList
         data={albumData.tracks || []}
         keyExtractor={(item, index) => item.videoId || String(index)}
@@ -170,12 +196,39 @@ export default function AlbumScreen() {
                 router.push({ pathname: '/(tabs)/explore', params: { query: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name } } as any);
               }
             }}
-            onBackPress={() => router.back()}
             onDownloadPress={handleDownloadPress}
           />
         }
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Top Fade Gradient */}
+      <LinearGradient
+        colors={[
+          colors.background,
+          addAlpha(colors.background, 0.9),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.1),
+          'transparent'
+        ]}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
+      {/* Bottom Fade Gradient */}
+      <LinearGradient
+        colors={[
+          'transparent',
+          addAlpha(colors.background, 0.1),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.9),
+          colors.background
+        ]}
+        style={[styles.bottomGradient, { height: bottomSpacing + 25 }]}
+        pointerEvents="none"
       />
     </ThemedView>
   );
@@ -190,6 +243,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingTop:80,
+    paddingBottom: 180,
+  },
+  stickyBackContainer: {
+    position: 'absolute',
+    top: 20,
+    left: 15,
+    zIndex: 100,
+    right: 0,
+  },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    zIndex: 10,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
 });

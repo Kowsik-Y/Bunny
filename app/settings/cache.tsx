@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Database } from 'lucide-react-native';
 import { cacheDirectory, getInfoAsync, deleteAsync, readDirectoryAsync } from 'expo-file-system/legacy';
+import { useToast } from '@/components/ui/toast';
+import { Alert } from '@/components/ui/alert';
 
 import { H1, H3, Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
@@ -16,7 +18,12 @@ export default function CacheSettingsScreen() {
   const { colors } = useAppTheme();
   const { downloadLocation, downloadedTracks } = useDownloads();
   const router = useRouter();
+  const { toast } = useToast();
+
   const [cacheSize, setCacheSize] = useState<string>('Calculating...');
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [promptTitle, setPromptTitle] = useState('');
+  const [promptDescription, setPromptDescription] = useState('');
 
   const getDirSize = async (dirUri: string): Promise<number> => {
     try {
@@ -58,45 +65,36 @@ export default function CacheSettingsScreen() {
     loadCacheSize();
   }, []);
 
-  const handleClearCache = async () => {
+  const proceedClear = async () => {
     const dir = cacheDirectory;
     if (!dir) return;
-    
-    const proceedClear = async () => {
-      try {
-        setCacheSize('Clearing...');
-        const files = await readDirectoryAsync(dir);
-        for (const file of files) {
-          await deleteAsync(`${dir}${file}`, { idempotent: true });
-        }
-        Alert.alert('Success', 'App cache files cleared successfully!');
-        loadCacheSize();
-      } catch (e) {
-        console.warn('Failed to clear cache', e);
-        Alert.alert('Error', 'Failed to clear cache files.');
-        loadCacheSize();
+    try {
+      setCacheSize('Clearing...');
+      const files = await readDirectoryAsync(dir);
+      for (const file of files) {
+        await deleteAsync(`${dir}${file}`, { idempotent: true });
       }
-    };
+      toast({ title: 'Success', description: 'App cache files cleared successfully!', type: 'success' });
+      loadCacheSize();
+    } catch (e) {
+      console.warn('Failed to clear cache', e);
+      toast({ title: 'Error', description: 'Failed to clear cache files.', type: 'error' });
+      loadCacheSize();
+    }
+  };
+
+  const handleClearCache = () => {
+    const dir = cacheDirectory;
+    if (!dir) return;
 
     if (downloadLocation === 'cache' && downloadedTracks.length > 0) {
-      Alert.alert(
-        'Warning',
-        'Your download storage is set to "Temporary Cache". Clearing the cache will delete all your offline downloaded songs. Do you still want to proceed?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => loadCacheSize() },
-          { text: 'Clear Anyway', style: 'destructive', onPress: proceedClear }
-        ]
-      );
+      setPromptTitle('Warning');
+      setPromptDescription('Your download storage is set to "Temporary Cache". Clearing the cache will delete all your offline downloaded songs. Do you still want to proceed?');
     } else {
-      Alert.alert(
-        'Clear Cache',
-        'Clear all temporary images, metadata, and stream cache files from this device?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear Cache', style: 'destructive', onPress: proceedClear }
-        ]
-      );
+      setPromptTitle('Clear Cache');
+      setPromptDescription('Clear all temporary images, metadata, and stream cache files from this device?');
     }
+    setPromptVisible(true);
   };
 
   return (
@@ -107,11 +105,12 @@ export default function CacheSettingsScreen() {
         contentContainerStyle={styles.container}
       >
         {/* Cache Details Card */}
-        <H3 style={styles.sectionTitle}>App Cache</H3>
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>Cache</Text>
+       
         <BunnyCard style={styles.settingCard}>
           <View style={styles.settingRow}>
             <View style={styles.iconContainer}>
-              <Feather name="database" size={20} color={colors.primary} />
+              <Database size={20} color={colors.primary} />
             </View>
             <View style={styles.settingInfo}>
               <Typography variant="large">Temporary Files Size</Typography>
@@ -144,6 +143,17 @@ export default function CacheSettingsScreen() {
           </Pressable>
         </BunnyCard>
       </ScrollView>
+
+      <Alert
+        visible={promptVisible}
+        onClose={() => setPromptVisible(false)}
+        title={promptTitle}
+        description={promptDescription}
+        confirmText="Clear anyway"
+        cancelText="Cancel"
+        onConfirm={proceedClear}
+        variant="destructive"
+      />
     </ThemedView>
   );
 }
@@ -174,7 +184,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,
     paddingBottom: 40,
   },
   sectionTitle: {
@@ -207,5 +217,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1.5,
+  },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
 });

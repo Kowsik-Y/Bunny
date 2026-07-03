@@ -23,9 +23,10 @@ import { setupPlayer } from '@/services/SetupService';
 import { checkAppUpdates } from '@/services';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootLayoutWithTheme() {
   const { colorScheme, colors } = useAppTheme();
@@ -41,7 +42,7 @@ function RootLayoutWithTheme() {
   // Hide the splash screen once fonts are loaded
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }
   }, [fontsLoaded]);
 
@@ -72,27 +73,29 @@ function RootLayoutWithTheme() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={navigationTheme}>
-        <TrackOptionsProvider>
-          <ToastProvider>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              <Stack.Screen name="settings" options={{ headerShown: false }}  />
-              <Stack.Screen 
-                name="notification.click" 
-                options={{ 
-                  presentation: 'transparentModal', 
-                  animation: 'none', 
-                  headerShown: false 
-                }} 
-              />
-            </Stack>
-          </ToastProvider>
-          <StatusBar
-            style={colorScheme === 'dark' ? 'light' : 'dark'}
-            {...({ backgroundColor: colors.background } as any)}
-          />
-        </TrackOptionsProvider>
+        <BottomSheetModalProvider>
+          <TrackOptionsProvider>
+            <ToastProvider>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                <Stack.Screen name="settings" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="notification.click"
+                  options={{
+                    presentation: 'transparentModal',
+                    animation: 'none',
+                    headerShown: false
+                  }}
+                />
+              </Stack>
+            </ToastProvider>
+            <StatusBar
+              style={colorScheme === 'dark' ? 'light' : 'dark'}
+              {...({ backgroundColor: colors.background } as any)}
+            />
+          </TrackOptionsProvider>
+        </BottomSheetModalProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

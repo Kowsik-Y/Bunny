@@ -8,7 +8,9 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MINI_PLAYER_HEIGHT } from '@/constants/layout';
 import MarqueeText from './MarqueeText';
 
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { Pause, Play, SkipForward } from 'lucide-react-native';
 
 const MINI_HEIGHT = MINI_PLAYER_HEIGHT;
 
@@ -24,8 +26,17 @@ type Props = {
 export default function MiniPlayerControls({
   track, isPlaying, isBuffering, onPlayPause, onNext, onExpand,
 }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const isDummy = track.id === 'no-track';
+
+  const outerGradient: [string, string] = isDark 
+    ? [colors.border, colors.background] 
+    : ['#FFFFFF', colors.border];
+  const innerGradient: [string, string] = isDark 
+    ? [colors.card, colors.card] 
+    : [colors.secondary, '#FFFFFF'];
+  const iconColor = colors.primary;
 
   return (
     <View style={styles.container}>
@@ -39,9 +50,9 @@ export default function MiniPlayerControls({
         <Image source={track.artwork && (track.artwork as string).trim() !== '' ? { uri: track.artwork as string } : require('@/assets/images/icon.png')} style={styles.artwork} />
         <View style={styles.info}>
           <MarqueeText style={[styles.title, { color: colors.text }]}>{track.title}</MarqueeText>
-            <MarqueeText style={[styles.artist, { color: '#999' }]}>
-              {`${track.artist}${track.album ? ` • ${track.album}` : ''}`}
-            </MarqueeText>
+          <MarqueeText style={[styles.artist, { color: colors.mutedForeground }]}>
+            {`${track.artist}${track.album ? ` • ${track.album}` : ''}`}
+          </MarqueeText>
         </View>
       </Pressable>
 
@@ -49,24 +60,68 @@ export default function MiniPlayerControls({
       <Pressable
         onPress={(e) => { e.stopPropagation?.(); if (!isDummy) onPlayPause(); }}
         disabled={isDummy}
-        style={{ opacity: isDummy ? 0.3 : 1, backgroundColor: isBuffering ? colors.accent : colors.background, borderColor: colors.accent, marginRight: 8 }}
-        className='p-3 rounded-full border active:scale-95'
+        style={({ pressed }) => [
+          styles.playPauseBtnShadow,
+          {
+            opacity: isDummy ? 0.3 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+          }
+        ]}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        {isBuffering
-          ? <ActivityIndicator size="small" color={colors.accentForeground} />
-          : <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={20} color={colors.accentForeground} active={isPlaying} />}
+        <LinearGradient
+          colors={outerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.playPauseBtnOuter}
+        >
+          <LinearGradient
+            colors={innerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.playPauseBtnInner}
+          >
+            {isBuffering ? (
+              <ActivityIndicator size="small" color={iconColor} />
+            ) : isPlaying ? (
+              <Pause size={16} strokeWidth={0} fill={iconColor} />
+            ) : (
+              <View style={{ marginLeft: 2 }}>
+                <Play size={16} strokeWidth={0} fill={iconColor} />
+              </View>
+            )}
+          </LinearGradient>
+        </LinearGradient>
       </Pressable>
 
       {/* Next */}
       <Pressable
         onPress={(e) => { e.stopPropagation?.(); if (!isDummy) onNext(); }}
         disabled={isDummy}
-        style={{ opacity: isDummy ? 0.3 : 1, backgroundColor: colors.background, borderColor: colors.border, marginRight: 8 }}
-        className='p-3 rounded-full border active:scale-95'
+        style={({ pressed }) => [
+          styles.nextBtnShadow,
+          {
+            opacity: isDummy ? 0.3 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+          }
+        ]}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <IconSymbol name="forward.fill" size={20} color={colors.accentForeground} />
+        <LinearGradient
+          colors={outerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.nextBtnOuter}
+        >
+          <LinearGradient
+            colors={innerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.nextBtnInner}
+          >
+            <SkipForward size={14} color={iconColor} strokeWidth={3} fill={iconColor} />
+          </LinearGradient>
+        </LinearGradient>
       </Pressable>
     </View>
   );
@@ -109,5 +164,47 @@ const styles = StyleSheet.create({
   artist: {
     fontSize: 12,
     color: '#999',
-  }
+  },
+  playPauseBtnShadow: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 8,
+  },
+  playPauseBtnOuter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    padding: 1.2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playPauseBtnInner: {
+    width: 41.6,
+    height: 41.6,
+    borderRadius: 20.8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextBtnShadow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  nextBtnOuter: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    padding: 1.0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextBtnInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

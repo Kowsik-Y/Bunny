@@ -1,12 +1,13 @@
+import { type AppTrack } from '@/components/player/Tracks';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
-import { type AppTrack } from '@/components/player/Tracks';
-import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { Muted, Typography } from '../ui/typography';
-import { IconSymbol } from '../ui/icon-symbol';
+import { Ionicons } from '@expo/vector-icons';
 import { Pause, Play } from 'lucide-react-native';
+import React from 'react';
+import { Image, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { IconSymbol } from '../ui/icon-symbol';
+import { Muted, Typography } from '../ui/typography';
 
 export interface SongCardProps {
   title: string;
@@ -88,7 +89,7 @@ export function SongCard({
       }}
       onPress={onPress}
       onLongPress={handleLongPress}
-      delayLongPress={50}
+      delayLongPress={250}
       style={[
         styles.trackItem,
         isActive && { backgroundColor: addAlpha(colors.accent, 0.12), borderRadius: 14 }
@@ -132,7 +133,26 @@ export function SongCard({
       </View>
 
       {rightIcon === 'bullet' && (
-        <IconSymbol name="list.bullet" size={18} color={isActive ? colors.primary : colors.muted} />
+        <TouchableOpacity
+          onPress={() => {
+            const trackObj: AppTrack = track || {
+              id: title + artist,
+              title,
+              artist,
+              album: album || '',
+              artwork: artwork || '',
+              url: '',
+              duration: 0,
+              artistId,
+              albumId,
+            };
+            openTrackOptions(trackObj);
+          }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          style={{ padding: 4 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={isActive ? colors.primary : colors.muted} />
+        </TouchableOpacity>
       )}
       {rightIcon === 'play' && (
         (isActive && isPlaying) ? <Pause size={18} style={styles.icon} strokeWidth={0} fill={colors.primary} /> : <Play size={18} style={styles.icon} strokeWidth={0} fill={colors.primary} />

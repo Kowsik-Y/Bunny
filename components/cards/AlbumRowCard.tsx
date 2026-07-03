@@ -44,6 +44,7 @@ export function AlbumRowCard({
       }}
       onPress={onPress}
       onLongPress={onLongPress || onPress}
+      delayLongPress={250}
       style={styles.container}
     >
       {imageUri ? (

@@ -1,15 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated as RNAnimated, Easing, Pressable, View, LayoutChangeEvent, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, interpolate, Extrapolate, runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, interpolate, Extrapolate } from 'react-native-reanimated';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
 import { type BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Home, Search, ListMusic, Podcast } from 'lucide-react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { TAB_BAR_BOTTOM, PLAYER_BOTTOM_OFFSET } from '@/constants/layout';
+
 
 const VISIBLE_ROUTES = ['index', 'radio', 'explore', 'profile'];
 
@@ -23,8 +26,19 @@ const ROUTE_ICONS: Record<string, any> = {
 const PILL_H = 50;
 
 export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
-  const { colors } = useAppTheme();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const { translateY, snapCollapsed, bottomOffset } = usePlayerAnimation();
+
+  const outerGradient: [string, string] = isDark 
+    ? [colors.border, colors.background] 
+    : ['#FFFFFF', colors.border];
+  const innerGradient: [string, string] = isDark 
+    ? [colors.card, colors.card] 
+    : [colors.secondary, '#FFFFFF'];
+  const earColors: [string, string] = isDark 
+    ? [colors.border, colors.background] 
+    : ['#FFFFFF', colors.border];
 
   useEffect(() => {
     bottomOffset.value = PLAYER_BOTTOM_OFFSET;
@@ -194,7 +208,6 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
     };
   });
 
-  const isDark = colors.background !== '#ffffff';
 
   return (
     <Animated.View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0 }, tabContainerStyle]}>
@@ -205,43 +218,81 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             bottom: TAB_BAR_BOTTOM,
             left: 24,
             right: 24,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             borderRadius: 999,
-            paddingVertical: 8,
-            paddingHorizontal: 8,
-            shadowColor: colors.accent,
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.08,
-            shadowRadius: 20,
-            elevation: 10,
+            shadowOpacity: isDark ? 0.35 : 0.15,
+            shadowRadius: 10,
+            elevation: 6,
           }}
         >
-          <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 999, backgroundColor: isDark ? "rgba(10, 10, 10, 0.6)" : "rgba(255, 255, 255, 0.65)" }]} pointerEvents="none">
-            <BlurView
-              intensity={70}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-          </View>
-          <RNAnimated.View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: pillX,
-              width: pillW,
-              height: PILL_H,
-              borderRadius: PILL_H / 2,
-              backgroundColor: colors.tint,
-              transform: [
-                { scale: pillScale }
-              ]
-            }}
+          <LinearGradient
+            colors={isDark ? ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)'] : ['#FFFFFF', colors.border]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ borderRadius: 999, padding: 1.2, overflow: 'hidden' }}
           >
-            <View style={{ position: 'absolute', top: -12, left: '20%', width: 10, height: 18, backgroundColor: colors.tint, borderTopLeftRadius: 10, borderTopRightRadius: 10, transform: [{ rotate: '-15deg' }] }} />
-            <View style={{ position: 'absolute', top: -12, right: '20%', width: 10, height: 18, backgroundColor: colors.tint, borderTopLeftRadius: 10, borderTopRightRadius: 10, transform: [{ rotate: '15deg' }] }} />
-          </RNAnimated.View>
+            <LinearGradient
+              colors={isDark ? ['rgba(24, 24, 26, 0.82)', 'rgba(38, 38, 41, 0.82)'] : ['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.75)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{
+                borderRadius: 999,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 8,
+                paddingHorizontal: 8,
+                overflow: 'hidden',
+              }}
+            >
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <BlurView
+                  intensity={70}
+                  tint={isDark ? "dark" : "light"}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+
+              {/* Inner sliding active pill body component (clipped inside the overflow:hidden containers) */}
+              <RNAnimated.View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: pillX,
+                  width: pillW,
+                  height: PILL_H,
+                  borderRadius: PILL_H / 2,
+                  transform: [
+                    { scale: pillScale }
+                  ]
+                }}
+              >
+                {/* Pill Body Outer Bevel Rim */}
+                <LinearGradient
+                  colors={outerGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={{
+                    width: '100%',
+                    height: PILL_H,
+                    borderRadius: PILL_H / 2,
+                    padding: 1.0,
+                  }}
+                >
+                  {/* Pill Body Inner Concave Gradient */}
+                  <LinearGradient
+                    colors={innerGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: (PILL_H - 2) / 2,
+                    }}
+                  />
+                </LinearGradient>
+              </RNAnimated.View>
 
           {state.routes.map((route, index) => {
             if (!VISIBLE_ROUTES.includes(route.name)) return null;
@@ -260,6 +311,8 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
               }
             };
 
+            const iconColor = isFocused ? colors.tabIconSelected : colors.tabIconDefault;
+
             return (
               <Pressable
                 key={route.key}
@@ -276,15 +329,81 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
                   paddingVertical: 15,
                 }}
               >
-                <IconSymbol
-                  size={20}
-                  name={icon}
-                  color={isFocused ? colors.background : colors.tabIconDefault}
-                  active={isFocused}
-                />
+                {route.name === 'index' ? (
+                  <Home size={20} color={iconColor} fill={iconColor} />
+                ) : route.name === 'explore' ? (
+                  <Search size={20} color={iconColor} fill={iconColor} />
+                ) : route.name === 'profile' ? (
+                  <ListMusic size={20} color={iconColor}/>
+                ) : route.name === 'radio' ? (
+                  <Podcast size={20} color={iconColor} />
+                ) : (
+                  <IconSymbol
+                    size={20}
+                    name={icon}
+                    color={iconColor}
+                    active={isFocused}
+                  />
+                )}
               </Pressable>
             );
           })}
+            </LinearGradient>
+          </LinearGradient>
+
+          {/* Outer sliding ears component (unclipped because it sits outside overflow:hidden gradient containers, and rendered on top of the capsule) */}
+          <RNAnimated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: pillX,
+              width: pillW,
+              height: PILL_H,
+              borderRadius: PILL_H / 2,
+              top: 8, // offset to align with the inner pill body inside the paddingVertical: 8 container
+              zIndex: 3,
+              transform: [
+                { scale: pillScale }
+              ]
+            }}
+          >
+            {/* Left Ear */}
+            <LinearGradient
+              colors={earColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{
+                position: 'absolute',
+                top: -12,
+                left: '18%',
+                width: 10,
+                height: 16,
+                borderTopLeftRadius: 5,
+                borderTopRightRadius: 5,
+                borderWidth: 0.1,
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                transform: [{ rotate: '-15deg' }]
+              }}
+            />
+            {/* Right Ear */}
+            <LinearGradient
+              colors={earColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{
+                position: 'absolute',
+                top: -12,
+                right: '18%',
+                width: 10,
+                height: 16,
+                borderTopLeftRadius: 5,
+                borderTopRightRadius: 5,
+                borderWidth: 0.1,
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                transform: [{ rotate: '15deg' }]
+              }}
+            />
+          </RNAnimated.View>
         </View>
       </GestureDetector>
     </Animated.View>

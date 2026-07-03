@@ -2,13 +2,22 @@ import React from 'react';
 import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import {
+  Paintbrush,
+  Play,
+  Radio,
+  Download,
+  Database,
+  RefreshCw,
+  Info,
+  ChevronRight,
+} from 'lucide-react-native';
 
-import { H1, Muted, Typography } from '@/components/ui/typography';
+import {  Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Text } from 'react-native';
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();
@@ -21,19 +30,21 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
+        {/* Floating title — scrolls with content, sits below the sticky back btn */}
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>Settings</Text>
         <View style={{ gap: 4 }}>
           {/* Appearance Row */}
           <Pressable onPress={() => router.push('/settings/appearance')}>
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <IconSymbol name="paintbrush.fill" size={20} color={colors.primary} />
+                  <Paintbrush size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">Appearance</Typography>
                   <Muted>Choose app theme, accent colors, and fonts</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -43,13 +54,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <IconSymbol name="play.fill" size={20} color={colors.primary} />
+                  <Play size={20} color={colors.primary} fill={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">Player & Lyrics</Typography>
                   <Muted>Customize player background and lyric sizing</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -59,13 +70,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <IconSymbol name="antenna.radiowaves.left.and.right" size={20} color={colors.primary} />
+                  <Radio size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">Playback & Audio</Typography>
                   <Muted>Set sound streaming quality presets</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -75,13 +86,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <Feather name="download" size={20} color={colors.primary} />
+                  <Download size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">Downloads</Typography>
                   <Muted>Download location and offline library cleanup</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -91,13 +102,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <Feather name="database" size={20} color={colors.primary} />
+                  <Database size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">Cache Management</Typography>
                   <Muted>Free up space by cleaning temporary cache files</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -107,13 +118,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <Feather name="refresh-cw" size={20} color={colors.primary} />
+                  <RefreshCw size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">App Updates</Typography>
                   <Muted>Check for updates and manage auto-updates</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -123,13 +134,13 @@ export default function SettingsScreen() {
             <BunnyCard style={styles.navCard}>
               <View style={styles.navSettingRow}>
                 <View style={styles.iconContainer}>
-                  <Feather name="info" size={20} color={colors.primary} />
+                  <Info size={20} color={colors.primary} />
                 </View>
                 <View style={styles.settingInfo}>
                   <Typography variant="large">About</Typography>
                   <Muted>Developer details, version, and resources</Muted>
                 </View>
-                <IconSymbol name="chevron.right" size={20} color={colors.mutedForeground} />
+                <ChevronRight size={20} color={colors.mutedForeground} />
               </View>
             </BunnyCard>
           </Pressable>
@@ -165,8 +176,14 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,   // clears the floating sticky back button
     paddingBottom: 40,
+  },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
   navCard: {
     marginBottom: 12,

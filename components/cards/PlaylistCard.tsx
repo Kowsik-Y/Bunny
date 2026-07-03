@@ -1,7 +1,6 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
 
@@ -31,6 +30,7 @@ export function PlaylistCard({
       style={styles.cardContainer}
       onPress={onPress}
       onLongPress={onLongPress || onPress}
+      delayLongPress={250}
       android_ripple={{
         color: colors.accent,
       }}
@@ -49,7 +49,7 @@ export function PlaylistCard({
           <Feather name="folder" size={36} color={colors.primary} />
         </View>
       )}
-      
+
       <Typography
         variant="small"
         numberOfLines={1}

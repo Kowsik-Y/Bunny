@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useRef, useState, useEffect } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     Dimensions,
     StyleSheet,
@@ -56,7 +57,14 @@ const MusicPlayerModal = ({
     track, queue, isPlaying, isBuffering,
     position, duration, onPlayPause, onNext, onPrev, onSeek, onSkipToTrack,
 }: Props) => {
-    const { colors } = useAppTheme();
+    const { colors, colorScheme } = useAppTheme();
+    const isDark = colorScheme === 'dark';
+    const miniOuterColors: [string, string] = isDark 
+        ? [colors.border, colors.background] 
+        : ['#FFFFFF', colors.border];
+    const miniInnerColors: [string, string] = isDark 
+        ? [colors.card, colors.card] 
+        : [colors.secondary, '#FFFFFF'];
     const fallbackTrack: AppTrack = {
         id: 'no-track',
         url: '',
@@ -279,23 +287,33 @@ const MusicPlayerModal = ({
                             styles.miniBar,
                             miniOpacity,
                             {
-                                backgroundColor: colors.card,
-                                borderWidth: 1,
-                                borderColor: colors.border,
                                 top: 0,
                             }
                         ]}
                         pointerEvents={isExpandedJS ? 'none' : 'auto'}
-                        className='rounded-full'
                     >
-                        <MiniPlayerControls
-                            track={activeTrack}
-                            isPlaying={isPlaying}
-                            isBuffering={isBuffering}
-                            onPlayPause={handleMiniPlayPause}
-                            onNext={onNext}
-                            onExpand={expand}
-                        />
+                        <LinearGradient
+                            colors={miniOuterColors}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={styles.miniBarOuter}
+                        >
+                            <LinearGradient
+                                colors={miniInnerColors}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={styles.miniBarInner}
+                            >
+                                <MiniPlayerControls
+                                    track={activeTrack}
+                                    isPlaying={isPlaying}
+                                    isBuffering={isBuffering}
+                                    onPlayPause={handleMiniPlayPause}
+                                    onNext={onNext}
+                                    onExpand={expand}
+                                />
+                            </LinearGradient>
+                        </LinearGradient>
                     </Animated.View>
                 </GestureDetector>
 
@@ -345,14 +363,17 @@ const styles = StyleSheet.create({
         left: 24,
         right: 24,
         top: 0,
-        elevation: 5,
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 10,
-            },
-        }),
+        borderRadius: 32,
+    },
+    miniBarOuter: {
+        borderRadius: 32,
+        padding: 1.2,
+        overflow: 'hidden',
+    },
+    miniBarInner: {
+        borderRadius: 30.8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        overflow: 'hidden',
     },
 });

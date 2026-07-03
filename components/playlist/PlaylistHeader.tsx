@@ -1,16 +1,13 @@
-import React from 'react';
 import { StyleSheet, View, Image, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { H1, Muted, Typography } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/button';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '@/components/player/Tracks';
+import { addAlpha } from '@/constants/theme';
+import { Play, Pause, Shuffle, Download } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
-
-import { Feather } from '@expo/vector-icons';
 
 interface PlaylistHeaderProps {
   playlistName: string;
@@ -20,7 +17,7 @@ interface PlaylistHeaderProps {
   onPlayPress: () => void;
   onShufflePress: () => void;
   onDownloadPress: () => void;
-  onBackPress: () => void;
+  isPlayingPlaylist?: boolean;
 }
 
 export function PlaylistHeader({
@@ -31,24 +28,12 @@ export function PlaylistHeader({
   onPlayPress,
   onShufflePress,
   onDownloadPress,
-  onBackPress,
+  isPlayingPlaylist = false,
 }: PlaylistHeaderProps) {
   const { colors } = useAppTheme();
 
   return (
     <>
-      <SafeAreaView edges={['top']} style={styles.headerNav}>
-        <Button android_ripple={{
-          foreground: true,
-          radius: 32,
-          color: colors.primary,
-        }} variant="ghost" size="icon" onPress={onBackPress}>
-          <View style={{ transform: [{ rotate: '90deg' }] }}>
-            <IconSymbol name="chevron.down" size={24} color={colors.text} />
-          </View>
-        </Button>
-      </SafeAreaView>
-
       <View style={styles.playlistHeader}>
         <Animated.View entering={FadeInUp.duration(600)} style={styles.artworkContainer}>
           {artworkUrl && artworkUrl.trim() !== '' ? (
@@ -67,19 +52,25 @@ export function PlaylistHeader({
         <View style={styles.playlistMeta}>
           <H1 style={styles.playlistTitle}>{playlistName}</H1>
           <Muted style={styles.playlistStats}>
-            Playlist • Created by You • {playlistTracks.length} tracks, {Math.floor(totalDuration / 60)} min
+            {playlistTracks.length} tracks, {Math.floor(totalDuration / 60)} min
           </Muted>
 
           <View style={styles.actionRow}>
             <Button variant="default" style={styles.mainAction} onPress={onPlayPress}>
-              <IconSymbol name="play.fill" size={20} color={colors.background} />
-              <Typography style={{ color: colors.background, fontWeight: '600', marginLeft: 8 }}>Play</Typography>
+              {isPlayingPlaylist ? (
+                <Pause size={20} color={colors.background} fill={colors.background} />
+              ) : (
+                <Play size={20} color={colors.background} fill={colors.background} />
+              )}
+              <Typography style={{ color: colors.background, fontWeight: '600', marginLeft: 8 }}>
+                {isPlayingPlaylist ? "Pause" : "Play"}
+              </Typography>
             </Button>
             <Button variant="secondary" size="icon" onPress={onShufflePress}>
-              <IconSymbol name="shuffle" size={20} color={colors.primary} />
+              <Shuffle size={20} color={colors.primary} />
             </Button>
             <Button variant="secondary" size="icon" onPress={onDownloadPress}>
-              <Feather name="download" size={20} color={colors.primary} />
+              <Download size={20} color={colors.primary} />
             </Button>
           </View>
         </View>
@@ -108,10 +99,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
-    elevation: 15,
+    elevation: 5,
   },
   artwork: {
     width: '100%',
@@ -146,9 +137,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mainAction: {
-    flexDirection: 'row',
-    paddingHorizontal: 30,
-    height: 50,
-    borderRadius: 25,
+    height: 48,
+    borderRadius: 24,
   },
 });
