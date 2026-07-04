@@ -260,6 +260,33 @@ const TrackContent = ({
 
   // Mode switching: artwork, lyrics, queue
   const [activeView, setActiveView] = useState<'artwork' | 'lyrics' | 'queue'>('artwork');
+
+  // Shared values for tab switching animations
+  const artworkOpacity = useSharedValue(1);
+  const lyricsOpacity = useSharedValue(0);
+  const queueOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    artworkOpacity.value = withTiming(activeView === 'artwork' ? 1 : 0, { duration: 200 });
+    lyricsOpacity.value = withTiming(activeView === 'lyrics' ? 1 : 0, { duration: 200 });
+    queueOpacity.value = withTiming(activeView === 'queue' ? 1 : 0, { duration: 200 });
+  }, [activeView]);
+
+  const artworkAnimStyle = useAnimatedStyle(() => ({
+    opacity: artworkOpacity.value,
+    transform: [{ scale: 0.96 + 0.04 * artworkOpacity.value }],
+  }));
+
+  const lyricsAnimStyle = useAnimatedStyle(() => ({
+    opacity: lyricsOpacity.value,
+    transform: [{ scale: 0.96 + 0.04 * lyricsOpacity.value }],
+  }));
+
+  const queueAnimStyle = useAnimatedStyle(() => ({
+    opacity: queueOpacity.value,
+    transform: [{ scale: 0.96 + 0.04 * queueOpacity.value }],
+  }));
+
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -643,7 +670,10 @@ const TrackContent = ({
 
         {/* Main Section */}
         <View style={styles.artworkSection}>
-          {activeView === 'lyrics' ? (
+          <Reanimated.View
+            pointerEvents={activeView === 'lyrics' ? 'auto' : 'none'}
+            style={[StyleSheet.absoluteFill, lyricsAnimStyle]}
+          >
             <LyricsTab
               track={track}
               activePosition={playerMode === 'video' ? videoTime : position}
@@ -658,13 +688,24 @@ const TrackContent = ({
               }}
               primaryColor={colors.primary}
             />
-          ) : activeView === 'queue' ? (
+          </Reanimated.View>
+
+          <Reanimated.View
+            pointerEvents={activeView === 'queue' ? 'auto' : 'none'}
+            style={[StyleSheet.absoluteFill, queueAnimStyle]}
+          >
             <QueueTab
               track={track}
               onSkipToTrack={onSkipToTrack}
               primaryColor={colors.primary}
+              isVisible={activeView === 'queue'}
             />
-          ) : (
+          </Reanimated.View>
+
+          <Reanimated.View
+            pointerEvents={activeView === 'artwork' ? 'auto' : 'none'}
+            style={[StyleSheet.absoluteFill, artworkAnimStyle, { justifyContent: 'center', alignItems: 'center' }]}
+          >
             <GestureDetector gesture={Gesture.Exclusive(artworkSwipeGesture, artworkGesture)}>
               <View style={[styles.artworkWrap, playerMode === 'video' && { aspectRatio: 16 / 9, maxHeight: height * 0.28 }]}>
                 {playerMode === 'video' && track.videoUrl ? (
@@ -710,7 +751,7 @@ const TrackContent = ({
                 )}
               </View>
             </GestureDetector>
-          )}
+          </Reanimated.View>
         </View>
 
         {/* Control & Details Section */}

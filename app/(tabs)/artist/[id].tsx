@@ -186,8 +186,6 @@ export default function ArtistScreen() {
           <ChevronLeft size={20} color={colors.primary} />
         </Button>
         <Pressable
-          
-          
         >
           <View style={{ transform: [{ rotate: '90deg' }] }}>
             <IconSymbol name="chevron.down" size={24} color={colors.text} />

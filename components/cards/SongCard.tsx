@@ -21,6 +21,8 @@ export interface SongCardProps {
   isActive?: boolean;
   isPlaying?: boolean;
   onPress?: () => void;
+  /** Called instead of onPress when the song is already active — use for play/pause toggle */
+  onTogglePress?: () => void;
   onLongPress?: () => void;
   track?: AppTrack;
   artistId?: string;
@@ -39,6 +41,7 @@ export function SongCard({
   isActive = false,
   isPlaying = false,
   onPress,
+  onTogglePress,
   onLongPress,
   track,
   artistId,
@@ -87,7 +90,14 @@ export function SongCard({
       android_ripple={{
         color: colors.border
       }}
-      onPress={onPress}
+      onPress={() => {
+        // If already active: toggle play/pause instead of restarting
+        if (isActive && onTogglePress) {
+          onTogglePress();
+        } else {
+          onPress?.();
+        }
+      }}
       onLongPress={handleLongPress}
       delayLongPress={250}
       style={[

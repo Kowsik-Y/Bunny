@@ -4,7 +4,6 @@ import {
   Dimensions,
   DeviceEventEmitter,
   Image,
-  InteractionManager,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -21,6 +20,13 @@ import { GripVertical, Trash2, X } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { useQueue } from '@/services';
 import { type AppTrack } from './Tracks';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -155,72 +161,94 @@ const QueueItemRow = React.memo(({
   const { item, originalIndex, isHistory, isNowPlaying } = trackRow;
   const canDrag = !isHistory && !isNowPlaying;
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const rowHeight = useSharedValue(62); // 62 matches standard row height (item height + margin collapse)
+  const rowOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (isDeleting) {
+      rowHeight.value = withTiming(0, { duration: 180 });
+      rowOpacity.value = withTiming(0, { duration: 180 }, (finished) => {
+        if (finished) {
+          runOnJS(handleRemoveTrack)(originalIndex);
+        }
+      });
+    }
+  }, [isDeleting]);
+
+  const animatedRowStyle = useAnimatedStyle(() => ({
+    height: rowHeight.value,
+    opacity: rowOpacity.value,
+    overflow: 'hidden',
+  }));
+
+  const renderDeleteAction = () => (
+    <View style={styles.deleteAction}>
+      <Trash2 size={18} color="#FF3B3099" />
+    </View>
+  );
+
   return (
     <ShadowDecorator>
       <ScaleDecorator activeScale={1.02}>
-        <Pressable
-          onPress={() => !isActive && onSkipToTrack(item.id)}
-          android_ripple={!isActive ? { foreground: true, color: '#ffffff40' } : undefined}
-          style={[
-            styles.queueItem,
-            isHistory && { opacity: 0.45 },
-            isNowPlaying && {
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.1)',
-            },
-            isActive && {
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              borderRadius: 8,
-            },
-          ]}
-        >
-          <Image
-            source={
-              item.artwork && (item.artwork as string).trim() !== ''
-                ? { uri: item.artwork as string }
-                : require('@/assets/images/icon.png')
-            }
-            style={styles.queueArt}
-          />
-          <View style={styles.queueInfo}>
-            <Text
-              style={[styles.queueItemTitle, isNowPlaying && { fontWeight: '700' }]}
-              numberOfLines={1}
+        <Reanimated.View style={animatedRowStyle}>
+          <Swipeable
+            enabled={canDrag && !isActive && !isDeleting}
+            renderLeftActions={renderDeleteAction}
+            renderRightActions={renderDeleteAction}
+            onSwipeableOpen={() => {
+              setIsDeleting(true);
+            }}
+            friction={1.2}
+            leftThreshold={65}
+            rightThreshold={65}
+            containerStyle={{ overflow: 'hidden' }}
+          >
+            <Pressable
+              onPress={() => !isActive && !isDeleting && onSkipToTrack(item.id)}
+              onLongPress={canDrag && !isDeleting ? drag : undefined}
+              delayLongPress={220}
+              android_ripple={!isActive ? { foreground: true, color: '#ffffff40' } : undefined}
+              style={[
+                styles.queueItem,
+                isHistory && { opacity: 0.45 },
+                isNowPlaying && {
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                },
+                isActive && {
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  borderRadius: 8,
+                },
+              ]}
             >
-              {item.title}
-            </Text>
-            <Text style={styles.queueItemArtist} numberOfLines={1}>
-              {item.artist}
-            </Text>
-          </View>
+              <Image
+                source={
+                  item.artwork && (item.artwork as string).trim() !== ''
+                    ? { uri: item.artwork as string }
+                    : require('@/assets/images/icon.png')
+                }
+                style={styles.queueArt}
+              />
+              <View style={styles.queueInfo}>
+                <Text
+                  style={[styles.queueItemTitle, isNowPlaying && { fontWeight: '700' }]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text style={styles.queueItemArtist} numberOfLines={1}>
+                  {item.artist}
+                </Text>
+              </View>
 
-          {isNowPlaying && (
-            <Feather name="volume-2" size={16} color={primaryColor} style={{ marginRight: 8 }} />
-          )}
-
-          {canDrag && (
-            <View style={styles.itemControls}>
-              <TouchableOpacity
-                onLongPress={drag}
-                delayLongPress={150}
-                style={{ paddingHorizontal: 8, paddingVertical: 10 }}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              >
-                <GripVertical
-                  size={18}
-                  color={isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleRemoveTrack(originalIndex)}
-                style={[styles.controlBtn, { marginLeft: 4 }]}
-              >
-                <Trash2 size={15} color="#FF3B30" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </Pressable>
+              {isNowPlaying && (
+                <Feather name="volume-2" size={16} color={primaryColor} style={{ marginRight: 8 }} />
+              )}
+            </Pressable>
+          </Swipeable>
+        </Reanimated.View>
       </ScaleDecorator>
     </ShadowDecorator>
   );
@@ -249,29 +277,26 @@ const QueueItemRow = React.memo(({
   return true;
 });
 
-// ── QueueTab ─────────────────────────────────────────────────────────────────
 interface QueueTabProps {
   track: AppTrack;
   onSkipToTrack: (id: string) => void;
   primaryColor: string;
+  isVisible?: boolean;
 }
 
-export default function QueueTab({ track, onSkipToTrack, primaryColor }: QueueTabProps) {
+export default function QueueTab({ track, onSkipToTrack, primaryColor, isVisible = true }: QueueTabProps) {
   const queue = useQueue();
   const listRef = useRef<any>(null);
 
   // Show skeleton while the tab-switch animation settles and the queue hook
-  // hydrates. Using InteractionManager ensures the heavy DraggableFlatList
-  // mount is deferred until after all ongoing animations complete, preventing
-  // the stutter/jank when switching to the queue tab.
+  // hydrates. A short timeout defers the heavy DraggableFlatList mount until
+  // after ongoing animations complete, preventing stutter when switching tabs.
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => {
-      setLoading(false);
-    });
-    // Safety timeout in case InteractionManager never fires (e.g. no animation)
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => { handle.cancel(); clearTimeout(t); };
+    // 300 ms covers a typical tab-switch animation; the 500 ms fallback
+    // ensures we never stay in skeleton state indefinitely.
+    const t = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -491,16 +516,24 @@ export default function QueueTab({ track, onSkipToTrack, primaryColor }: QueueTa
     [itemLayouts],
   );
 
-  // Scroll to "Now Playing" header when the queue tab loads or when the active track changes
+  const hasScrolledRef = useRef(false);
+
+  // Scroll to "Now Playing" header only when the queue tab initially becomes visible
   useEffect(() => {
-    if (!loading && flatQueueData.length > 0) {
+    if (!isVisible) {
+      hasScrolledRef.current = false;
+      return;
+    }
+
+    if (isVisible && !loading && !hasScrolledRef.current && flatQueueData.length > 0) {
       const idx = flatQueueData.findIndex(item => item.key === 'header-current');
       if (idx !== -1) {
+        hasScrolledRef.current = true;
         const t = setTimeout(() => {
           try {
             listRef.current?.scrollToIndex({
               index: idx,
-              animated: false,
+              animated: true,
               viewPosition: 0,
             });
           } catch (err) {
@@ -516,13 +549,13 @@ export default function QueueTab({ track, onSkipToTrack, primaryColor }: QueueTa
                 offset += 62;
               }
             }
-            listRef.current?.scrollToOffset({ offset, animated: false });
+            listRef.current?.scrollToOffset({ offset, animated: true });
           }
         }, 80);
         return () => clearTimeout(t);
       }
     }
-  }, [loading, track.id, flatQueueData]);
+  }, [loading, flatQueueData, isVisible]);
 
   // ── drag end handler ───────────────────────────────────────────────────────
   // Strategy: use `from` (original flat index) to identify the dragged item,
@@ -649,11 +682,11 @@ export default function QueueTab({ track, onSkipToTrack, primaryColor }: QueueTa
 // ── styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   queueContainer: {
-    width: width - 32,
+    width: '100%',
     height: '100%',
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
   },
   queueContent: {
     paddingBottom: 20,
@@ -721,5 +754,13 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  deleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 60,
+    height: '100%',
+    borderRadius: 8,
+    marginBottom: 6,
   },
 });

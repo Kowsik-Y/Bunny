@@ -1,22 +1,21 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { H1, Muted, Typography } from '@/components/ui/typography';
-import { useAppTheme } from '@/contexts/app-theme-context';
-import { PlayerActions } from '@/services/SetupService';
-import { useCurrentTrack, usePlayerState, useDownloads, toast } from '@/services';
-import { getAlbumDetails } from '@/services/ytMusic';
-import { Button } from '@/components/ui/button';
-import { ThemedView } from '@/components/themed-view';
 import { SongCard } from '@/components/cards';
-import { AlbumHeader } from '@/components/album/AlbumHeader';
+import { PlaylistHeader } from '@/components/HeaderCard/PlaylistHeader';
 import { type AppTrack } from '@/components/player/Tracks';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedView } from '@/components/themed-view';
+import { Button } from '@/components/ui/button';
+import { Muted } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { toast, useCurrentTrack, useDownloads, usePlayerState } from '@/services';
+import { PlayerActions } from '@/services/SetupService';
+import { getAlbumDetails } from '@/services/ytMusic';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
@@ -76,6 +75,7 @@ export default function AlbumScreen() {
           albumId: id as string,
           artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
         })}
+        onTogglePress={() => PlayerActions.playPause(isPlaying)}
         track={{
           id: item.videoId,
           title: item.name,
@@ -109,7 +109,17 @@ export default function AlbumScreen() {
     );
   }
 
+  // Is a track from this album currently active?
+  const albumTrackIds = (albumData.tracks || []).map((t: any) => t.videoId || t.id);
+  const isAlbumActive = albumTrackIds.some(
+    (tid: string) => currentTrack?.id === tid || (currentTrack?.id && currentTrack.id.includes(tid))
+  );
+
   const handlePlayPress = () => {
+    if (isAlbumActive) {
+      PlayerActions.playPause(isPlaying);
+      return;
+    }
     if (albumData.tracks?.[0]) {
       PlayerActions.skipToTrackFromYt({
         id: albumData.tracks[0].videoId,
@@ -140,9 +150,9 @@ export default function AlbumScreen() {
       toast.info('This album has no tracks.');
       return;
     }
-    
+
     toast.info(`Queued ${albumData.tracks.length} tracks for download.`);
-    
+
     for (const item of albumData.tracks) {
       const track: AppTrack = {
         id: item.videoId,
@@ -163,8 +173,8 @@ export default function AlbumScreen() {
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
-         <Button
-        style={{
+        <Button
+          style={{
             padding: 5,
             borderRadius: 50,
             backgroundColor: addAlpha(colors.background, 0.85),
@@ -184,11 +194,10 @@ export default function AlbumScreen() {
         keyExtractor={(item, index) => item.videoId || String(index)}
         renderItem={renderTrackItem}
         ListHeaderComponent={
-          <AlbumHeader
-            albumData={albumData}
-            onPlayPress={handlePlayPress}
-            onShufflePress={handleShufflePress}
-            onHeartPress={handleHeartPress}
+          <PlaylistHeader
+            name={albumData.name}
+            artworkUrl={albumData.thumbnails?.[albumData.thumbnails.length - 1]?.url}
+            artistName={typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name}
             onArtistPress={() => {
               if (albumData.artistId) {
                 router.push(`/artist/${albumData.artistId}`);
@@ -196,6 +205,11 @@ export default function AlbumScreen() {
                 router.push({ pathname: '/(tabs)/explore', params: { query: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name } } as any);
               }
             }}
+            subtitle={`Album • ${albumData.tracks?.length || 0} tracks • ${albumData.year || 'Unknown'}`}
+            isPlaying={isAlbumActive && isPlaying}
+            onPlayPress={handlePlayPress}
+            onShufflePress={handleShufflePress}
+            onHeartPress={handleHeartPress}
             onDownloadPress={handleDownloadPress}
           />
         }
@@ -243,7 +257,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingTop:80,
+    paddingTop: 80,
     paddingBottom: 180,
   },
   stickyBackContainer: {

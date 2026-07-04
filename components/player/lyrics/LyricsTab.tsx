@@ -23,7 +23,7 @@ import Reanimated, {
 import { Feather } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { type LrcLine, fetchLyricsFromApis } from '@/services';
+import { type LrcLine, fetchLyricsFromApis, LYRICS_CACHE } from '@/services';
 import { type AppTrack } from '../Tracks';
 import LyricLine from './LyricLine';
 
@@ -122,6 +122,17 @@ export default function LyricsTab({
 
   const fetchLyrics = useCallback((force = false) => {
     if (!track?.id) return;
+
+    // Check global in-memory cache first
+    if (!force && LYRICS_CACHE.has(track.id)) {
+      const cached = LYRICS_CACHE.get(track.id);
+      if (cached) {
+        setLyricsLines(cached);
+        setLyricsLoading(false);
+        return;
+      }
+    }
+
     setLyricsLoading(true);
     setLyricsLines([]);
     setActiveIndex(-1);
@@ -129,12 +140,15 @@ export default function LyricsTab({
 
     fetchLyricsFromApis(track.title, track.artist, track.duration || 0, track.id, force)
       .then((lines) => {
+        LYRICS_CACHE.set(track.id, lines);
         setLyricsLines(lines);
         setLyricsLoading(false);
       })
       .catch((err) => {
         console.warn('[LyricsTab] Failed to fetch lyrics:', err);
-        setLyricsLines([{ time: -1, text: 'Lyrics not found' }]);
+        const fallback = [{ time: -1, text: 'Lyrics not found' }];
+        LYRICS_CACHE.set(track.id, fallback);
+        setLyricsLines(fallback);
         setLyricsLoading(false);
       });
   }, [track?.id, track?.title, track?.artist, track?.duration]);

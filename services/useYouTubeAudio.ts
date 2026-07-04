@@ -21,48 +21,6 @@ const ANDROID_UA =
   'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip';
 
 const CLIENTS = [
-  // TV_EMBEDDED: targets the YouTube TV embedded player (client ID 85).
-  // This client is exempt from bot-detection and does NOT require login cookies.
-  // It is the most reliable bypass available without OAuth.
-  {
-    name: 'TV_EMBEDDED',
-    context: { client: {
-      clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0',
-      hl: 'en', gl: 'US', timeZone: 'UTC', utcOffsetMinutes: 0,
-    }},
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.5) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.5 TV Safari/538.1',
-      'X-YouTube-Client-Name': '85',
-      'X-YouTube-Client-Version': '2.0',
-      'X-Goog-Api-Format-Version': '1',
-      'Origin': 'https://www.youtube.com',
-      'Referer': 'https://www.youtube.com/',
-    },
-    extra: { contentCheckOk: true, racyCheckOk: true },
-    streamUA: 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.5) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.5 TV Safari/538.1',
-    useSignatureTimestamp: true,
-  },
-  // MEDIA_CONNECT_FRONTEND: Cast receiver client (ID 95), also exempt from bot checks.
-  {
-    name: 'MEDIA_CONNECT_FRONTEND',
-    context: { client: {
-      clientName: 'MEDIA_CONNECT_FRONTEND', clientVersion: '0.1',
-      hl: 'en', gl: 'US', timeZone: 'UTC', utcOffsetMinutes: 0,
-    }},
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G975U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36',
-      'X-YouTube-Client-Name': '95',
-      'X-YouTube-Client-Version': '0.1',
-      'X-Goog-Api-Format-Version': '1',
-      'Origin': 'https://www.youtube.com',
-      'Referer': 'https://www.youtube.com/',
-    },
-    extra: { contentCheckOk: true, racyCheckOk: true },
-    streamUA: 'Mozilla/5.0 (Linux; Android 10; SM-G975U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36',
-    useSignatureTimestamp: true,
-  },
   {
     name: 'ANDROID_VR',
     context: {
@@ -110,6 +68,48 @@ const CLIENTS = [
     extra: { contentCheckOk: true, racyCheckOk: true },
     streamUA: 'com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)',
     useSignatureTimestamp: false,
+  },
+  // TV_EMBEDDED: targets the YouTube TV embedded player (client ID 85).
+  // This client is exempt from bot-detection and does NOT require login cookies.
+  // It is the most reliable bypass available without OAuth.
+  {
+    name: 'TV_EMBEDDED',
+    context: { client: {
+      clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0',
+      hl: 'en', gl: 'US', timeZone: 'UTC', utcOffsetMinutes: 0,
+    }},
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.5) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.5 TV Safari/538.1',
+      'X-YouTube-Client-Name': '85',
+      'X-YouTube-Client-Version': '2.0',
+      'X-Goog-Api-Format-Version': '1',
+      'Origin': 'https://www.youtube.com',
+      'Referer': 'https://www.youtube.com/',
+    },
+    extra: { contentCheckOk: true, racyCheckOk: true },
+    streamUA: 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.5) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.5 TV Safari/538.1',
+    useSignatureTimestamp: true,
+  },
+  // MEDIA_CONNECT_FRONTEND: Cast receiver client (ID 95), also exempt from bot checks.
+  {
+    name: 'MEDIA_CONNECT_FRONTEND',
+    context: { client: {
+      clientName: 'MEDIA_CONNECT_FRONTEND', clientVersion: '0.1',
+      hl: 'en', gl: 'US', timeZone: 'UTC', utcOffsetMinutes: 0,
+    }},
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G975U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36',
+      'X-YouTube-Client-Name': '95',
+      'X-YouTube-Client-Version': '0.1',
+      'X-Goog-Api-Format-Version': '1',
+      'Origin': 'https://www.youtube.com',
+      'Referer': 'https://www.youtube.com/',
+    },
+    extra: { contentCheckOk: true, racyCheckOk: true },
+    streamUA: 'Mozilla/5.0 (Linux; Android 10; SM-G975U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36',
+    useSignatureTimestamp: true,
   },
   {
     name: 'ANDROID_NO_PARAMS',
@@ -421,92 +421,9 @@ export async function resolveAudio(videoId: string, forcePiped = false) {
         const title = vd.title ?? videoId;
         const artist = vd.author ?? '';
 
-        // If the track is an Artist Track Video (ATV / static image audio track),
-        // attempt to search for the official music video (OMV) and resolve its formats.
+        // Skipping OMV (official music video) search to optimize resolution speed
         let videoVideoId: string | null = null;
         let videoData: any = null;
-        if (!vd.musicVideoType || vd.musicVideoType === 'MUSIC_VIDEO_TYPE_ATV') {
-          try {
-            // Smart search query construction:
-            // Auto-generated YouTube Music titles have format "Title · Artist 1 · Artist 2 · ..."
-            let query = `${title} ${artist}`;
-            if (title.includes('·')) {
-              const parts = title.split('·').map((p: string) => p.trim());
-              if (parts.length >= 2) {
-                
-                const cleanTitle = parts[0].replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
-                query = `${cleanTitle} ${parts[1]}`;
-              } else {
-                query = parts[0];
-              }
-            } else {
-              // Strip parenthetical content and filter uploader name if generic
-              const cleanTitle = title.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
-              const isGenericUploader = /topic|VEVO|music|records|label|studios|rosn/i.test(artist);
-              query = isGenericUploader ? cleanTitle : `${cleanTitle} ${artist}`;
-            }
-            query = query.trim();
-
-             if (__DEV__) console.log(`[YouTubeAudio] Searching OMV for "${title}" using query: "${query}"...`);
-             const searchResult = await pipedService.search(query, 'music_videos');
-             const items = searchResult?.items || [];
-             if (__DEV__) console.log(`[YouTubeAudio] Search returned ${items.length} items`);
-             // Sort items by view count descending to find the official music video with the most views
-             const sortedItems = [...items].sort((a: any, b: any) => (b.views || 0) - (a.views || 0));
-             if (__DEV__ && sortedItems.length > 0) {
-               console.log(`[YouTubeAudio] Top search results sorted by views:`);
-               sortedItems.slice(0, 3).forEach((item: any, idx: number) => {
-                 console.log(`  -> [${idx}] id: ${item.id}, views: ${item.views}, title: "${item.title}"`);
-               });
-             }
-             const mvItem = sortedItems[0];
-             if (mvItem && mvItem.id) {
-               if (mvItem.id !== videoId) {
-                 videoVideoId = mvItem.id;
-                 if (__DEV__) console.log(`[YouTubeAudio] ✓ Selected OMV match: ${videoVideoId} ("${mvItem.title}") with ${mvItem.views} views.`);
-               } else {
-                 if (__DEV__) console.log(`[YouTubeAudio] ✗ Top OMV match is the same as active track videoId: ${videoId}. Skipping resolution.`);
-               }
-             } else {
-               if (__DEV__) console.log(`[YouTubeAudio] ✗ No OMV match found in search results.`);
-             }
-             if (videoVideoId) {
-              const videoBody: any = {
-                videoId: videoVideoId,
-                context: {
-                  client: clientContext,
-                },
-                ...cfg.extra,
-              };
-
-              if (sts) {
-                videoBody.playbackContext = {
-                  contentPlaybackContext: {
-                    signatureTimestamp: sts,
-                  },
-                };
-              }
-
-              const videoRes = await fetch(PLAYER_URL, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(videoBody),
-              });
-              if (videoRes.ok) {
-                const parsedVideoData = await videoRes.json();
-                if (parsedVideoData?.playabilityStatus?.status === 'OK') {
-                  videoData = parsedVideoData;
-                } else {
-                  videoVideoId = null;
-                }
-              } else {
-                videoVideoId = null;
-              }
-            }
-          } catch (e) {
-            if (__DEV__) console.warn('[YouTubeAudio] Failed to search or resolve official music video:', e);
-          }
-        }
 
         const allAudioFormats = (data?.streamingData?.adaptiveFormats ?? [])
           .filter((f: any) => f?.mimeType?.startsWith('audio/'));
@@ -691,58 +608,9 @@ export async function resolveAudio(videoId: string, forcePiped = false) {
     const duration = data.duration ?? 0;
     const thumbnail = data.thumbnailUrl ?? null;
 
+    // Skipping OMV (official music video) search in Piped fallback to optimize resolution speed
     let videoVideoId: string | null = null;
     let videoData: any = null;
-
-    // Clean title and check if it's likely an ATV song
-    if (title.includes('·') || title.includes(' - Topic') || artist.includes(' - Topic') || artist.toLowerCase().includes('rosn')) {
-      try {
-        let query = `${title} ${artist}`;
-        if (title.includes('·')) {
-          const parts = title.split('·').map((p: string) => p.trim());
-          if (parts.length >= 2) {
-            const cleanTitle = parts[0].replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
-            query = `${cleanTitle} ${parts[1]}`;
-          } else {
-            query = parts[0];
-          }
-        } else {
-          const cleanTitle = title.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
-          const isGenericUploader = /topic|VEVO|music|records|label|studios|rosn/i.test(artist);
-          query = isGenericUploader ? cleanTitle : `${cleanTitle} ${artist}`;
-        }
-        query = query.trim();
-
-        if (__DEV__) console.log(`[Piped Fallback OMV] Searching OMV for "${title}" using query: "${query}"...`);
-        const searchResult = await pipedService.search(query, 'music_videos');
-        const items = searchResult?.items || [];
-        if (__DEV__) console.log(`[Piped Fallback OMV] Search returned ${items.length} items`);
-        const sortedItems = [...items].sort((a: any, b: any) => (b.views || 0) - (a.views || 0));
-        if (__DEV__ && sortedItems.length > 0) {
-          console.log(`[Piped Fallback OMV] Top search results sorted by views:`);
-          sortedItems.slice(0, 3).forEach((item: any, idx: number) => {
-            console.log(`  -> [${idx}] id: ${item.id}, views: ${item.views}, title: "${item.title}"`);
-          });
-        }
-        const mvItem = sortedItems[0];
-        if (mvItem && mvItem.id) {
-          if (mvItem.id !== videoId) {
-            if (__DEV__) console.log(`[Piped Fallback OMV] ✓ Selected OMV match: ${mvItem.id} ("${mvItem.title}") with ${mvItem.views} views.`);
-            const omvStreamData = await pipedService.getStream(mvItem.id);
-            if (omvStreamData) {
-              videoData = omvStreamData;
-              videoVideoId = mvItem.id;
-            }
-          } else {
-            if (__DEV__) console.log(`[Piped Fallback OMV] ✗ Top OMV match is the same as active track videoId: ${videoId}. Skipping resolution.`);
-          }
-        } else {
-          if (__DEV__) console.log(`[Piped Fallback OMV] ✗ No OMV match found in search results.`);
-        }
-      } catch (e) {
-        if (__DEV__) console.warn('[Piped Fallback OMV] Failed to search or resolve official music video:', e);
-      }
-    }
 
     const audioStreams = data?.audioStreams ?? [];
     const targetVideoData = videoData || data;

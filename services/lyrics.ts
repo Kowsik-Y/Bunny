@@ -86,6 +86,9 @@ async function queryLrcLibGetOrSearch(title: string, artist: string, duration: n
   }
 }
 
+// Shared in-memory cache to persist lyrics across mounts/remounts and background pre-fetches
+export const LYRICS_CACHE = new Map<string, LrcLine[]>();
+
 export async function fetchLyricsFromApis(
   title: string,
   artist: string,
@@ -97,13 +100,23 @@ export async function fetchLyricsFromApis(
     videoId = videoId.substring(3);
   }
 
+  // Check shared in-memory cache first if not forced
+  if (!force && LYRICS_CACHE.has(videoId)) {
+    const cached = LYRICS_CACHE.get(videoId);
+    if (cached) return cached;
+  }
+
   // If force is true, bypass SimpMusic and query LrcLib directly via search
   if (force) {
     try {
-      return await queryLrcLibSearch(title, artist);
+      const lines = await queryLrcLibSearch(title, artist);
+      LYRICS_CACHE.set(videoId, lines);
+      return lines;
     } catch (err) {
       console.warn('[lyricsService] Force fetch failed:', err);
-      return [{ time: -1, text: 'Lyrics not found' }];
+      const fallback = [{ time: -1, text: 'Lyrics not found' }];
+      LYRICS_CACHE.set(videoId, fallback);
+      return fallback;
     }
   }
 
@@ -117,7 +130,9 @@ export async function fetchLyricsFromApis(
       const lrc = match.richSyncLyrics || match.syncedLyrics || match.plainLyrics || '';
       if (lrc) {
         console.log(`[lyricsService] SimpMusic lyrics loaded successfully!`);
-        return parseLrc(lrc);
+        const lines = parseLrc(lrc);
+        LYRICS_CACHE.set(videoId, lines);
+        return lines;
       }
     }
   } catch (err: any) {
@@ -126,9 +141,13 @@ export async function fetchLyricsFromApis(
 
   // 2. Fall back to LrcLib
   try {
-    return await queryLrcLibGetOrSearch(title, artist, duration);
+    const lines = await queryLrcLibGetOrSearch(title, artist, duration);
+    LYRICS_CACHE.set(videoId, lines);
+    return lines;
   } catch (err) {
     console.warn('[lyricsService] LrcLib fetch failed:', err);
-    return [{ time: -1, text: 'Lyrics not found' }];
+    const fallback = [{ time: -1, text: 'Lyrics not found' }];
+    LYRICS_CACHE.set(videoId, fallback);
+    return fallback;
   }
 }

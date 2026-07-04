@@ -37,6 +37,10 @@ type AppThemeContextValue = {
   setLyricsSize: (size: LyricsSize) => void;
   lyricsSpacing: LyricsSpacing;
   setLyricsSpacing: (spacing: LyricsSpacing) => void;
+  preResolveLimit: number;
+  setPreResolveLimit: (limit: number) => void;
+  lyricsPrefetch: boolean;
+  setLyricsPrefetch: (enabled: boolean) => void;
 };
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
@@ -53,6 +57,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [playerStyle, setPlayerStyle] = useState<PlayerStyle>('flat');
   const [lyricsSize, setLyricsSize] = useState<LyricsSize>('medium');
   const [lyricsSpacing, setLyricsSpacing] = useState<LyricsSpacing>('regular');
+  const [preResolveLimit, setPreResolveLimit] = useState<number>(2);
+  const [lyricsPrefetch, setLyricsPrefetch] = useState<boolean>(true);
   const [hasHydrated, setHasHydrated] = useState(false);
   const colorScheme = mode === 'system' ? systemScheme : mode;
   const colors = useMemo(() => getThemeColors(variant, colorScheme), [variant, colorScheme]);
@@ -82,6 +88,10 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       setLyricsSize,
       lyricsSpacing,
       setLyricsSpacing,
+      preResolveLimit,
+      setPreResolveLimit,
+      lyricsPrefetch,
+      setLyricsPrefetch,
     }),
     [
       mode,
@@ -96,6 +106,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       playerStyle,
       lyricsSize,
       lyricsSpacing,
+      preResolveLimit,
+      lyricsPrefetch,
     ]
   );
 
@@ -112,6 +124,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
             playerStyle?: PlayerStyle;
             lyricsSize?: LyricsSize;
             lyricsSpacing?: LyricsSpacing;
+            preResolveLimit?: number;
+            lyricsPrefetch?: boolean;
           };
           if (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system') {
             setMode(parsed.mode);
@@ -144,6 +158,16 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
           if (parsed.lyricsSpacing === 'compact' || parsed.lyricsSpacing === 'regular' || parsed.lyricsSpacing === 'spacious') {
             setLyricsSpacing(parsed.lyricsSpacing);
           }
+          if (typeof parsed.preResolveLimit === 'number') {
+            setPreResolveLimit(parsed.preResolveLimit);
+          } else {
+            setPreResolveLimit(2);
+          }
+          if (typeof parsed.lyricsPrefetch === 'boolean') {
+            setLyricsPrefetch(parsed.lyricsPrefetch);
+          } else {
+            setLyricsPrefetch(true);
+          }
         }
       } catch {
         // Ignore and fallback to defaults.
@@ -165,12 +189,13 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
         variant,
         font,
         audioQuality,
-        playerStyle,
         lyricsSize,
         lyricsSpacing,
+        preResolveLimit,
+        lyricsPrefetch,
       })
     ).catch(() => undefined);
-  }, [mode, variant, font, audioQuality, playerStyle, lyricsSize, lyricsSpacing, hasHydrated]);
+  }, [mode, variant, font, audioQuality, playerStyle, lyricsSize, lyricsSpacing, preResolveLimit, lyricsPrefetch, hasHydrated]);
 
   return <AppThemeContext.Provider value={value} >{children}</AppThemeContext.Provider>;
 }

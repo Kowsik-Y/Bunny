@@ -1,21 +1,20 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '@/contexts/app-theme-context';
-import tracks, { AppTrack } from '@/components/player/Tracks';
-import { PlayerActions, useFavorites, useDownloads, toast, useCurrentTrack, usePlayerState } from '@/services';
-import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
-import { ThemedView } from '@/components/themed-view';
 import { SongCard } from '@/components/cards';
-import { PlaylistHeader } from '@/components/playlist/PlaylistHeader';
-import { getLocalPlaylists } from '@/services/playlists';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { addAlpha } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { PlaylistHeader } from '@/components/HeaderCard/PlaylistHeader';
+import tracks, { AppTrack } from '@/components/player/Tracks';
+import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
+import { addAlpha } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { PlayerActions, toast, useCurrentTrack, useDownloads, useFavorites, usePlayerState } from '@/services';
+import { getLocalPlaylists } from '@/services/playlists';
+import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
@@ -126,6 +125,7 @@ export default function PlaylistScreen() {
           artistId: item.artistId,
           albumId: item.albumId,
         })}
+        onTogglePress={() => PlayerActions.playPause(isPlaying)}
         track={item}
       />
     );
@@ -139,7 +139,17 @@ export default function PlaylistScreen() {
     );
   }
 
+  // Determine if a track from this playlist is currently active
+  const isPlaylistActive = playlistTracks.some(
+    (t) => currentTrack?.id === t.id || (currentTrack?.id && currentTrack.id.includes(t.id))
+  );
+
   const handlePlayPress = () => {
+    // If this playlist is already active, just toggle play/pause
+    if (isPlaylistActive) {
+      PlayerActions.playPause(isPlaying);
+      return;
+    }
     if (playlistTracks[0]) {
       PlayerActions.skipToTrackFromYt({
         id: playlistTracks[0].id,
@@ -202,10 +212,11 @@ export default function PlaylistScreen() {
         renderItem={renderTrackItem}
         ListHeaderComponent={
           <PlaylistHeader
-            playlistName={playlistName}
-            playlistTracks={playlistTracks}
+            name={playlistName}
+            tracks={playlistTracks}
             artworkUrl={artworkUrl}
             totalDuration={totalDuration}
+            isPlaying={isPlaylistActive && isPlaying}
             onPlayPress={handlePlayPress}
             onShufflePress={handleShufflePress}
             onDownloadPress={handleDownloadPress}

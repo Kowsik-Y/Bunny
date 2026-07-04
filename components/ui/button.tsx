@@ -1,15 +1,15 @@
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-  Pressable,
-  PressableProps,
-  View,
-  StyleSheet,
   ActivityIndicator,
   Platform,
+  Pressable,
+  PressableProps,
+  StyleSheet,
+  View,
+  Text
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAppTheme } from '@/contexts/app-theme-context';
-import { addAlpha as themeAddAlpha } from '@/constants/theme';
 import { Typography } from './typography';
 
 export type ButtonVariant =
@@ -171,22 +171,26 @@ export function Button({
     if (isDark) {
       // Dark mode: bright top rim fading out, slight inner concave darkening at top
       return {
-        rim:    ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'],
-        concave:['rgba(0,0,0,0.12)',       'rgba(255,255,255,0.07)'],
+        rim: ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'],
+        concave: ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.07)'],
         useBevel: true,
       };
     } else {
       // Light mode: white top rim, soft shadow bottom, concave grey-to-white sheen
       return {
-        rim:    ['rgba(255,255,255,0.85)', 'rgba(0,0,0,0.10)'],
-        concave:['rgba(0,0,0,0.06)',       'rgba(255,255,255,0.65)'],
+        rim: ['rgba(255,255,255,0.85)', 'rgba(0,0,0,0.10)'],
+        concave: ['rgba(0,0,0,0.06)', 'rgba(255,255,255,0.65)'],
         useBevel: true,
       };
     }
   };
 
   const bevel = getBevelColors();
-  const btnRadius = (sizeStyles.button as any).borderRadius ?? 8;
+  // Resolve the effective borderRadius: style prop overrides size preset
+  const styleRadius = style && typeof style === 'object' && !Array.isArray(style)
+    ? (style as any).borderRadius
+    : undefined;
+  const btnRadius = styleRadius ?? (sizeStyles.button as any).borderRadius ?? 8;
   const innerBorderRadius = btnRadius > 1 ? btnRadius - 1 : btnRadius;
 
   const innerContent = (
@@ -219,92 +223,103 @@ export function Button({
     </View>
   );
 
+  // The outer View is the true clip boundary for the Android ripple.
+  // Pressable's own overflow:hidden does NOT reliably clip ripples on Android.
+  // IMPORTANT: do NOT put sizeStyles.button here — padding/height belong only on
+  // the inner bevelWrapper/flatContainer, otherwise they get doubled.
+  const outerStyle = [
+    styles.rippleClip,
+    { borderRadius: btnRadius },
+  ];
+
   return (
-    <Pressable
-      android_ripple={{
-        color: variantStyles.ripple,
-        foreground: true,
-      }}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.pressable,
-        sizeStyles.button,
-        pressed && Platform.OS === 'ios' && variant !== 'link' && { opacity: 0.7 },
-      ]}
-      {...props}
-    >
-      {bevel.useBevel ? (
-        /*
-         * Bevel structure:
-         *   [Wrapper View]  ← holds the button's real theme color as backgroundColor
-         *     [Rim gradient] absoluteFill — 1px outer highlight/shadow overlay
-         *     [Concave gradient] absoluteFill with 1px inset — inner surface sheen overlay
-         *     [Content] — on top of both overlay layers
-         */
-        <View
-          style={[
-            styles.bevelWrapper,
-            variantStyles.button,
-            sizeStyles.button,
-            (disabled || loading) && { opacity: 0.5 },
-            style as any,
-          ]}
-        >
-          {/* Rim: full-bleed gradient overlay for the 1px edge highlight */}
-          <LinearGradient
-            colors={bevel.rim}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: btnRadius }]}
-          />
-          {/* Concave: inset by 1px so the rim peeks around the edge */}
-          <LinearGradient
-            colors={bevel.concave}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: innerBorderRadius }]}
-          />
-          {innerContent}
-        </View>
-      ) : (
-        /* Flat fill for transparent variants (ghost / link / outline) */
-        <View
-          style={[
-            styles.flatContainer,
-            variantStyles.button,
-            sizeStyles.button,
-            (disabled || loading) && { opacity: 0.5 },
-            style as any,
-          ]}
-        >
-          {innerContent}
-        </View>
-      )}
-    </Pressable>
+    <View style={outerStyle}>
+      <Pressable
+        android_ripple={{
+          color: variantStyles.ripple,
+          foreground: true,
+          borderless: false,
+        }}
+        disabled={disabled || loading}
+        style={({ pressed }) => [
+          styles.pressable,
+          pressed && Platform.OS === 'ios' && variant !== 'link' && { opacity: 0.7 },
+        ]}
+        {...props}
+      >
+        {bevel.useBevel ? (
+          /*
+           * Bevel structure:
+           *   [Wrapper View]  ← holds the button's real theme color as backgroundColor
+           *     [Rim gradient] absoluteFill — 1px outer highlight/shadow overlay
+           *     [Concave gradient] absoluteFill with 1px inset — inner surface sheen overlay
+           *     [Content] — on top of both overlay layers
+           */
+          <View
+            style={[
+              styles.bevelWrapper,
+              variantStyles.button,
+              sizeStyles.button,
+              (disabled || loading) && { opacity: 0.5 },
+              style as any,
+            ]}
+          >
+            {/* Rim: full-bleed gradient overlay for the 1px edge highlight */}
+            <LinearGradient
+              colors={bevel.rim}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: btnRadius }]}
+            />
+            {/* Concave: inset by 1px so the rim peeks around the edge */}
+            <LinearGradient
+              colors={bevel.concave}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: innerBorderRadius }]}
+            />
+            {innerContent}
+          </View>
+        ) : (
+          /* Flat fill for transparent variants (ghost / link / outline) */
+          <View
+            style={[
+              styles.flatContainer,
+              variantStyles.button,
+              sizeStyles.button,
+              (disabled || loading) && { opacity: 0.5 },
+              style as any,
+            ]}
+          >
+            {innerContent}
+          </View>
+        )}
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Outer View: the REAL clip boundary for Android ripple.
+  // overflow:hidden on Pressable does NOT clip ripples reliably on Android.
+  rippleClip: {
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  // Pressable fills the clip container entirely.
   pressable: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    overflow: 'hidden',
   },
   bevelWrapper: {
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
   },
   flatContainer: {
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
   },
   content: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -3,8 +3,11 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LogBox } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
+
+LogBox.ignoreLogs(['InteractionManager has been deprecated']);
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,

@@ -1,10 +1,9 @@
-import { Stack } from "expo-router";
-import { View, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import { useAppTheme } from "@/contexts/app-theme-context";
-import { ChevronLeft } from "lucide-react-native";
-import { addAlpha } from "@/constants/theme";
 import { Button } from "@/components/ui/button";
+import { addAlpha } from "@/constants/theme";
+import { useAppTheme } from "@/contexts/app-theme-context";
+import { Stack, useRouter } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
+import { Text, View } from "react-native";
 
 type CustomHeaderProps = {
   options: {
@@ -28,8 +27,6 @@ function CustomHeader({ options, route }: CustomHeaderProps) {
         height: 100,
         paddingTop: 50,
         paddingHorizontal: 16,
-        // Transparent so title content "floats" underneath
-        backgroundColor: 'transparent',
         zIndex: 10,
         pointerEvents: 'box-none',
       }}
@@ -38,15 +35,15 @@ function CustomHeader({ options, route }: CustomHeaderProps) {
       <Button
         style={{
           padding: 5,
+          paddingHorizontal: 12,
           borderRadius: 50,
           backgroundColor: addAlpha(colors.background, 0.85),
           borderColor: colors.border,
           borderWidth: 0.8,
-          alignSelf: 'flex-start',
           pointerEvents: 'auto',
         }}
         onPress={() => router.back()}
-        variant="secondary" size="icon">
+        variant="secondary" size="icon" >
         <ChevronLeft size={20} color={colors.primary} />
       </Button>
     </View>

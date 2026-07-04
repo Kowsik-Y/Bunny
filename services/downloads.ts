@@ -3,6 +3,7 @@ import { documentDirectory, cacheDirectory, createDownloadResumable, getInfoAsyn
 import { resolveAudio } from './useYouTubeAudio';
 import { type AppTrack } from '@/components/player/Tracks';
 import { DeviceEventEmitter, Platform } from 'react-native';
+import { toast } from './toast';
 import { useState, useEffect, useCallback } from 'react';
 import Innertube from '@/modules/innertube';
 import * as Notifications from 'expo-notifications';
@@ -324,6 +325,15 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
       }
       console.warn('Download failed or returned empty URI');
       await updateDownloadNotification('failed', track.id, track.title, 0, 'Failed to write to disk.');
+      
+      // If notification is disabled, show toast immediately
+      try {
+        const settings = await Notifications.getPermissionsAsync();
+        if (!settings.granted) {
+          toast.error(`Failed to download "${track.title}"`);
+        }
+      } catch (_) {}
+
       delete lastLoggedPct[track.id];
       delete activeResumables[track.id];
       return false;
@@ -341,10 +351,28 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
     delete activeResumables[track.id];
     DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
     await updateDownloadNotification('complete', track.id, track.title);
+    
+    // If notification is disabled, show toast immediately
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      if (!settings.granted) {
+        toast.success(`Downloaded "${track.title}"`);
+      }
+    } catch (_) {}
+
     delete lastLoggedPct[track.id];
     return true;
   } catch (e) {
     console.error('Failed to download track:', e);
+    
+    // If notification is disabled, show toast immediately on error catch
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      if (!settings.granted) {
+        toast.error(`Failed to download "${track.title}"`);
+      }
+    } catch (_) {}
+
     if (activeResumables[track.id] === undefined && pausedDownloadingIds[track.id] === undefined) {
       return false;
     }
@@ -480,6 +508,15 @@ export function useDownloads() {
   const startDownload = async (track: AppTrack) => {
     const existing = downloadedTracks.some((d) => String(d.track.id) === String(track.id));
     if (existing) return true;
+    
+    // If notification is disabled, show toast immediately on download click
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      if (!settings.granted) {
+        toast.info(`Downloading "${track.title}"...`);
+      }
+    } catch (_) {}
+
     enqueueTrack(track);
     return true;
   };

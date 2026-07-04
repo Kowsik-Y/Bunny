@@ -1,6 +1,4 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Platform, Linking, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, ScrollView, Pressable, Platform, Linking, Image, Text } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Github, ChevronRight } from 'lucide-react-native';
 
@@ -12,7 +10,6 @@ import packageJson from '../../package.json';
 
 export default function AboutSettingsScreen() {
   const { colors } = useAppTheme();
-  const router = useRouter();
 
   return (
     <ThemedView style={styles.screen}>
@@ -21,6 +18,7 @@ export default function AboutSettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
+        <Text style={[styles.floatingTitle, { color: colors.text }]}>About</Text>
         <BunnyCard style={styles.settingCard}>
           <View style={{ alignItems: 'center', marginVertical: 16 }}>
             <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -90,7 +88,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 100,
     paddingBottom: 40,
   },
   sectionTitle: {
@@ -117,5 +115,11 @@ const styles = StyleSheet.create({
   },
   settingInfo: {
     flex: 1,
+  },
+  floatingTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
 });

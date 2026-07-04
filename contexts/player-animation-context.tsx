@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { Dimensions } from 'react-native';
 import Animated, { useSharedValue, withSpring, SharedValue } from 'react-native-reanimated';
+import { MINI_PLAYER_HEIGHT, PLAYER_BOTTOM_OFFSET } from '@/constants/layout';
 
 const { height } = Dimensions.get('window');
 
@@ -21,10 +22,10 @@ export const SPRING_CONFIG = {
 };
 
 export function PlayerAnimationProvider({ children }: { children: React.ReactNode }) {
-  // Use a height-based initial value but it will be corrected by MusicPlayerModal on mount
-  const snapCollapsed = useSharedValue(height); 
-  const translateY = useSharedValue(height);
-  const bottomOffset = useSharedValue(0);
+  const initialSnap = height - MINI_PLAYER_HEIGHT - PLAYER_BOTTOM_OFFSET;
+  const snapCollapsed = useSharedValue(initialSnap); 
+  const translateY = useSharedValue(initialSnap);
+  const bottomOffset = useSharedValue(PLAYER_BOTTOM_OFFSET);
 
   const expand = useCallback(() => {
     translateY.value = withSpring(0, SPRING_CONFIG);

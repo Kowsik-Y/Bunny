@@ -3,6 +3,8 @@ import { resolveAudio } from './useYouTubeAudio';
 import { type AppTrack } from '@/components/player/Tracks';
 import { toast } from './toast';
 import { savePlayerActiveTrack, savePlayerPosition } from './SetupService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchLyricsFromApis } from './lyrics';
 
 // Keep track of retry attempts per track ID to prevent infinite loops
 const retryCounts = new Map<string, number>();
@@ -11,6 +13,39 @@ let lastTrackId: string | undefined = undefined;
 // Prevent concurrent or duplicate radio queue fetches
 let isFetchingRadio = false;
 const radioFetchedForId = new Set<string>();
+
+/**
+ * Maximum number of "history" (already-played) tracks to keep in the queue.
+ * Older tracks beyond this limit are automatically removed from the front
+ * to prevent unbounded queue growth. Dynamically scales: if the user has
+ * more than 50 total tracks queued, shrink the history cap proportionally.
+ */
+const BASE_HISTORY_LIMIT = 10;
+
+async function trimHistory(): Promise<void> {
+  try {
+    const queue = await TrackPlayer.getQueue();
+    const activeIndex = await TrackPlayer.getActiveTrackIndex();
+    if (activeIndex === undefined || activeIndex === null || activeIndex <= 0) return;
+
+    // Dynamic cap: shrink history when overall queue is large to avoid RAM pressure.
+    // Formula: cap = max(5, BASE_HISTORY_LIMIT - floor(queueSize / 10))
+    const dynamicCap = Math.max(5, BASE_HISTORY_LIMIT - Math.floor(queue.length / 10));
+    const historyCount = activeIndex; // tracks before the active one
+
+    if (historyCount > dynamicCap) {
+      const toRemove = historyCount - dynamicCap;
+      // Remove from index 0 up, but do it in reverse-index order so indices don't shift
+      const indices = Array.from({ length: toRemove }, (_, i) => i);
+      for (const idx of indices) {
+        await TrackPlayer.remove(0);
+      }
+      console.log(`[PlaybackService] History trimmed: removed ${toRemove} old tracks (cap=${dynamicCap}).`);
+    }
+  } catch (e: any) {
+    console.warn('[PlaybackService] trimHistory failed:', e.message);
+  }
+}
 
 /**
  * When true, the next PlaybackActiveTrackChanged event will NOT call
@@ -207,156 +242,214 @@ export async function PlaybackService() {
     }
 
     if (currentId) {
-      try {
-        const queue = await TrackPlayer.getQueue();
-        const activeIndex = await TrackPlayer.getActiveTrackIndex();
+      // Defer all heavy audio resolution, autoplay radio fetching, history trimming,
+      // and pre-resolving to prevent blocking the JS thread during transition. This
+      // allows the UI list row highlight and smooth scroll animation to run lag-free.
+      setTimeout(async () => {
+        try {
+          const queue = await TrackPlayer.getQueue();
+          const activeIndex = await TrackPlayer.getActiveTrackIndex();
+          if (activeIndex === undefined || activeIndex === null) return;
 
-        // ── 0. Resolve the CURRENT active track if it is a placeholder URL ─
-        const currentActiveTrack = event.track;
-        if (currentActiveTrack && currentActiveTrack.url && currentActiveTrack.url.toString().includes('dummy.com')) {
-          console.log(`[PlaybackService] Active track is a placeholder: ${currentActiveTrack.title}. Resolving immediately...`);
-          resolveAudio(String(currentActiveTrack.id))
-            .then(async (resolved) => {
-              const liveActiveIndex = await TrackPlayer.getActiveTrackIndex();
-              if (typeof liveActiveIndex === 'number' && liveActiveIndex === activeIndex) {
-                const latestQueue = await TrackPlayer.getQueue();
-                const targetOriginal = latestQueue[liveActiveIndex];
-                if (targetOriginal && String(targetOriginal.id) === String(currentActiveTrack.id)) {
-                  const updatedTrack = {
-                    ...targetOriginal,
-                    url: resolved.track.url,
-                    videoUrl: resolved.videoUrl ?? undefined,
-                    headers: resolved.track.headers,
-                    userAgent: resolved.track.userAgent,
-                    artistId: resolved.track.artistId ?? targetOriginal.artistId,
-                    albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
-                    artists: (resolved.track as any).artists ?? targetOriginal.artists,
-                    allAudio: resolved.track.allAudio,
-                    activeItag: resolved.track.activeItag,
-                    allVideo: resolved.track.allVideo,
-                    activeVideoItag: resolved.track.activeVideoItag,
-                  };
-                  
-                  const progress = await TrackPlayer.getProgress();
-                  const position = progress.position;
+          // Double check that active track hasn't changed during the defer delay
+          const currentTrack = queue[activeIndex];
+          if (!currentTrack || String(currentTrack.id) !== String(currentId)) {
+            console.log('[PlaybackService] Track changed during defer. Skipping resolution.');
+            return;
+          }
 
-                  await TrackPlayer.add([updatedTrack], liveActiveIndex);
-                  await TrackPlayer.skip(liveActiveIndex);
-                  await TrackPlayer.remove(liveActiveIndex + 1);
-                  
-                  if (position > 0) {
-                    await TrackPlayer.seekTo(position);
-                  }
-                  // Only auto-play if this track change was not triggered by a
-                  // video quality switch (which handles its own playback via expo-video).
-                  if (!suppressNextAutoPlay) {
-                    await TrackPlayer.play();
-                  } else {
-                    suppressNextAutoPlay = false;
-                    console.log('[PlaybackService] Suppressed auto-play (video quality change).');
-                  }
-                  console.log(`[PlaybackService] Active track resolution complete: ${currentActiveTrack.title}`);
-                }
-              }
-            })
-            .catch((err) => {
-              console.warn(`[PlaybackService] Active track resolution failed for ${currentActiveTrack.title}:`, err.message);
-            });
-        }
+          // ── 0. Resolve the CURRENT active track if it is a placeholder URL ─
+          const currentActiveTrack = currentTrack;
+          if (currentActiveTrack && currentActiveTrack.url && currentActiveTrack.url.toString().includes('dummy.com')) {
+            console.log(`[PlaybackService] Active track is a placeholder: ${currentActiveTrack.title}. Resolving immediately...`);
+            resolveAudio(String(currentActiveTrack.id))
+              .then(async (resolved) => {
+                const liveActiveIndex = await TrackPlayer.getActiveTrackIndex();
+                if (typeof liveActiveIndex === 'number' && liveActiveIndex === activeIndex) {
+                  const latestQueue = await TrackPlayer.getQueue();
+                  const targetOriginal = latestQueue[liveActiveIndex];
+                  if (targetOriginal && String(targetOriginal.id) === String(currentActiveTrack.id)) {
+                    const updatedTrack = {
+                      ...targetOriginal,
+                      url: resolved.track.url,
+                      videoUrl: resolved.videoUrl ?? undefined,
+                      headers: resolved.track.headers,
+                      userAgent: resolved.track.userAgent,
+                      artistId: resolved.track.artistId ?? targetOriginal.artistId,
+                      albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
+                      artists: (resolved.track as any).artists ?? targetOriginal.artists,
+                      allAudio: resolved.track.allAudio,
+                      activeItag: resolved.track.activeItag,
+                      allVideo: resolved.track.allVideo,
+                      activeVideoItag: resolved.track.activeVideoItag,
+                    };
+                    
+                    const progress = await TrackPlayer.getProgress();
+                    const position = progress.position;
 
-        // ── 1. Dynamic Autoplay Queue ────────────────────────────────
-        // Trigger when within 2 tracks of the end so we have time to
-        // fetch before the user reaches the last song.
-        const isYtTrack = currentId.length === 11 || event.track?.album === 'YouTube Music' || event.track?.album === 'Single' || event.track?.url?.toString().includes('googlevideo.com') || event.track?.url?.toString().includes('dummy.com');
-        const tracksLeft = queue.length - 1 - (activeIndex ?? 0);
-
-        if (
-          isYtTrack &&
-          activeIndex !== undefined &&
-          tracksLeft <= 1 &&
-          !isFetchingRadio &&
-          !radioFetchedForId.has(currentId)
-        ) {
-          isFetchingRadio = true;
-          radioFetchedForId.add(currentId);
-          console.log(`[PlaybackService] Near end of queue (${tracksLeft} left). Fetching radio queue for: ${event.track?.title}`);
-
-          // Use the last non-dummy queued track as seed for best results
-          const latestQueue = await TrackPlayer.getQueue();
-          const lastRealTrack = [...latestQueue]
-            .reverse()
-            .find((t) => t.id && String(t.id).length === 11 && !String(t.url).includes('dummy.com'));
-          const seedId = lastRealTrack?.id ? String(lastRealTrack.id) : currentId;
-
-          getRadioQueue(seedId, 10)
-            .then(async (tracksToAdd) => {
-              if (tracksToAdd.length > 0) {
-                // Filter out IDs already in the queue
-                const queueNow = await TrackPlayer.getQueue();
-                const existingIds = new Set(queueNow.map((t) => String(t.id)));
-                const fresh = tracksToAdd.filter((t) => !existingIds.has(t.id));
-                if (fresh.length > 0) {
-                  await TrackPlayer.add(fresh);
-                  console.log(`[PlaybackService] Autoplay: Added ${fresh.length} radio tracks to queue.`);
-                } else {
-                  console.log('[PlaybackService] Autoplay: All radio tracks already in queue.');
-                }
-              } else {
-                console.warn('[PlaybackService] Autoplay: Radio queue returned 0 tracks.');
-              }
-            })
-            .catch((err) => {
-              console.warn('[PlaybackService] Autoplay radio fetch failed:', err.message);
-            })
-            .finally(() => {
-              isFetchingRadio = false;
-            });
-        }
-
-        // ── 2. Pre-resolve the next track if it is a placeholder URL ─
-        if (activeIndex !== undefined) {
-          const updatedQueue = await TrackPlayer.getQueue();
-          const nextIndex = activeIndex + 1;
-          if (nextIndex < updatedQueue.length) {
-            const nextTrack = updatedQueue[nextIndex];
-            if (nextTrack && nextTrack.url && nextTrack.url.toString().includes('dummy.com')) {
-              console.log(`[PlaybackService] Pre-resolving next track in queue: ${nextTrack.title}...`);
-              resolveAudio(String(nextTrack.id))
-                .then(async (resolved) => {
-                  const currentActive = await TrackPlayer.getActiveTrackIndex();
-                  if (currentActive !== undefined && currentActive < nextIndex) {
-                    const latestQueue = await TrackPlayer.getQueue();
-                    const targetOriginal = latestQueue[nextIndex];
-                    if (targetOriginal && String(targetOriginal.id) === String(nextTrack.id)) {
-                      const updatedTrack = {
-                        ...targetOriginal,
-                        url: resolved.track.url,
-                        videoUrl: resolved.videoUrl ?? undefined,
-                        headers: resolved.track.headers,
-                        userAgent: resolved.track.userAgent,
-                        artistId: resolved.track.artistId ?? targetOriginal.artistId,
-                        albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
-                        artists: (resolved.track as any).artists ?? targetOriginal.artists,
-                        allAudio: resolved.track.allAudio,
-                        activeItag: resolved.track.activeItag,
-                        allVideo: resolved.track.allVideo,
-                        activeVideoItag: resolved.track.activeVideoItag,
-                      };
-                      await TrackPlayer.add([updatedTrack], nextIndex);
-                      await TrackPlayer.remove(nextIndex + 1);
-                      console.log(`[PlaybackService] Pre-resolution complete for next track: ${nextTrack.title}`);
+                    await TrackPlayer.add([updatedTrack], liveActiveIndex);
+                    await TrackPlayer.skip(liveActiveIndex);
+                    await TrackPlayer.remove(liveActiveIndex + 1);
+                    
+                    if (position > 0) {
+                      await TrackPlayer.seekTo(position);
                     }
+                    // Only auto-play if this track change was not triggered by a
+                    // video quality switch (which handles its own playback via expo-video).
+                    if (!suppressNextAutoPlay) {
+                      await TrackPlayer.play();
+                    } else {
+                      suppressNextAutoPlay = false;
+                      console.log('[PlaybackService] Suppressed auto-play (video quality change).');
+                    }
+                    console.log(`[PlaybackService] Active track resolution complete: ${currentActiveTrack.title}`);
                   }
-                })
-                .catch((err) => {
-                  console.warn(`[PlaybackService] Pre-resolution failed for ${nextTrack.title}:`, err.message);
-                });
+                }
+              })
+              .catch((err) => {
+                console.warn(`[PlaybackService] Active track resolution failed for ${currentActiveTrack.title}:`, err.message);
+              });
+          }
+
+          // ── 1. Dynamic Autoplay Queue ────────────────────────────────
+          // Trigger when within 2 tracks of the end so we have plenty
+          // of time to fetch before the user reaches the last song.
+          const isYtTrack = currentId.length === 11 || currentActiveTrack?.album === 'YouTube Music' || currentActiveTrack?.album === 'Single' || currentActiveTrack?.url?.toString().includes('googlevideo.com') || currentActiveTrack?.url?.toString().includes('dummy.com');
+          const tracksLeft = queue.length - 1 - activeIndex;
+
+          if (
+            isYtTrack &&
+            tracksLeft <= 2 &&
+            !isFetchingRadio &&
+            !radioFetchedForId.has(currentId)
+          ) {
+            isFetchingRadio = true;
+            radioFetchedForId.add(currentId);
+            console.log(`[PlaybackService] Near end of queue (${tracksLeft} left). Fetching radio queue for: ${currentActiveTrack?.title}`);
+
+            // Use the last non-dummy queued track as seed for best results
+            const latestQueue = await TrackPlayer.getQueue();
+            const lastRealTrack = [...latestQueue]
+              .reverse()
+              .find((t) => t.id && String(t.id).length === 11 && !String(t.url).includes('dummy.com'));
+            const seedId = lastRealTrack?.id ? String(lastRealTrack.id) : currentId;
+
+            getRadioQueue(seedId, 10)
+              .then(async (tracksToAdd) => {
+                if (tracksToAdd.length > 0) {
+                  // Filter out IDs already in the queue
+                  const queueNow = await TrackPlayer.getQueue();
+                  const existingIds = new Set(queueNow.map((t) => String(t.id)));
+                  const fresh = tracksToAdd.filter((t) => !existingIds.has(t.id));
+                  if (fresh.length > 0) {
+                    await TrackPlayer.add(fresh);
+                    console.log(`[PlaybackService] Autoplay: Added ${fresh.length} radio tracks to queue.`);
+                  } else {
+                    console.log('[PlaybackService] Autoplay: All radio tracks already in queue.');
+                  }
+                } else {
+                  console.log('[PlaybackService] Autoplay: Radio queue returned 0 tracks.');
+                }
+              })
+              .catch((err) => {
+                console.warn('[PlaybackService] Autoplay radio fetch failed:', err.message);
+              })
+              .finally(() => {
+                isFetchingRadio = false;
+              });
+          }
+
+          // Load preferences from AsyncStorage directly
+          let preResolveLimit = 2; // default
+          let lyricsPrefetch = true; // default
+          try {
+            const rawPrefs = await AsyncStorage.getItem('app-theme-preferences');
+            if (rawPrefs) {
+              const parsed = JSON.parse(rawPrefs);
+              if (typeof parsed.preResolveLimit === 'number') {
+                preResolveLimit = parsed.preResolveLimit;
+              }
+              if (typeof parsed.lyricsPrefetch === 'boolean') {
+                lyricsPrefetch = parsed.lyricsPrefetch;
+              }
+            }
+          } catch (_) {}
+
+          // ── 1b. Auto-trim history to prevent unbounded queue growth ──
+          // Run after radio fetch logic so index calculations above remain
+          // valid (trimHistory changes queue indices).
+          trimHistory().catch(() => {});
+
+          // ── 2. Pre-resolve next placeholder tracks ────────────
+          // Pre-resolve next tracks so the user never hits a
+          // dummy URL stall when skipping quickly through the queue.
+          const updatedQueue = await TrackPlayer.getQueue();
+
+          const preResolveAt = async (targetIndex: number) => {
+            if (targetIndex >= updatedQueue.length) return;
+            const targetTrack = updatedQueue[targetIndex];
+            if (!targetTrack || !targetTrack.url || !targetTrack.url.toString().includes('dummy.com')) return;
+
+            console.log(`[PlaybackService] Pre-resolving track at index ${targetIndex}: ${targetTrack.title}...`);
+            
+            // Pre-fetch lyrics in the background if enabled
+            if (lyricsPrefetch && targetTrack.title && targetTrack.artist) {
+              console.log(`[PlaybackService] Pre-fetching lyrics for: ${targetTrack.title}`);
+              fetchLyricsFromApis(
+                targetTrack.title,
+                targetTrack.artist,
+                targetTrack.duration || 0,
+                String(targetTrack.id)
+              ).catch(() => {});
+            }
+
+            resolveAudio(String(targetTrack.id))
+              .then(async (resolved) => {
+                const currentActive = await TrackPlayer.getActiveTrackIndex();
+                if (currentActive !== undefined && currentActive < targetIndex) {
+                  const latestQueue = await TrackPlayer.getQueue();
+                  const targetOriginal = latestQueue[targetIndex];
+                  if (targetOriginal && String(targetOriginal.id) === String(targetTrack.id)) {
+                    const updatedTrack = {
+                      ...targetOriginal,
+                      url: resolved.track.url,
+                      videoUrl: resolved.videoUrl ?? undefined,
+                      headers: resolved.track.headers,
+                      userAgent: resolved.track.userAgent,
+                      artistId: resolved.track.artistId ?? targetOriginal.artistId,
+                      albumId: (resolved.track as any).albumId ?? targetOriginal.albumId,
+                      artists: (resolved.track as any).artists ?? targetOriginal.artists,
+                      allAudio: resolved.track.allAudio,
+                      activeItag: resolved.track.activeItag,
+                      allVideo: resolved.track.allVideo,
+                      activeVideoItag: resolved.track.activeVideoItag,
+                    };
+                    await TrackPlayer.add([updatedTrack], targetIndex);
+                    await TrackPlayer.remove(targetIndex + 1);
+                    console.log(`[PlaybackService] Pre-resolution complete for track at index ${targetIndex}: ${targetTrack.title}`);
+                  }
+                }
+              })
+              .catch((err) => {
+                console.warn(`[PlaybackService] Pre-resolution failed for ${targetTrack.title}:`, err.message);
+              });
+          };
+
+          // Pre-resolve up to `preResolveLimit` tracks with staggered delays
+          for (let k = 1; k <= preResolveLimit; k++) {
+            const targetIndex = activeIndex + k;
+            const delay = (k - 1) * 3000;
+            if (delay === 0) {
+              preResolveAt(targetIndex);
+            } else {
+              setTimeout(() => preResolveAt(targetIndex), delay);
             }
           }
+
+        } catch (err: any) {
+          console.warn('[PlaybackService] Autoplay/Pre-resolve failed during deferred execute:', err.message);
         }
-      } catch (err: any) {
-        console.warn('[PlaybackService] Autoplay/Pre-resolve failed:', err.message);
-      }
+      }, 150);
     }
   });
 

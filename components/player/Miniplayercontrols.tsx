@@ -43,7 +43,7 @@ export default function MiniPlayerControls({
 
       {/* Artwork + track info → tap to expand */}
       <Pressable
-        onPress={isDummy ? undefined : onExpand}
+        onPress={onExpand}
         style={styles.expandArea}
         android_ripple={{ color: 'transparent' }}
       >
