@@ -113,11 +113,32 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
       style={outerStyle}
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
+      {/* Hidden text component to measure full untruncated width */}
+      <Text
+        style={[
+          resolvedTextStyle,
+          {
+            position: 'absolute',
+            opacity: 0,
+            left: -9999,
+            top: -9999,
+          }
+        ]}
+        numberOfLines={1}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && w !== textWidth) {
+            setTextWidth(w);
+          }
+        }}
+      >
+        {children}
+      </Text>
+
       <Animated.View style={{ transform: [{ translateX }], width: textWidth || undefined }}>
         <Text
           style={resolvedTextStyle}
           numberOfLines={1}
-          onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
         >
           {children}
         </Text>
