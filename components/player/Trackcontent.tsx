@@ -768,6 +768,7 @@ const TrackContent = ({
                   }}
                   onPress={handleArtistPress}
                   disabled={isLive}
+                  style={{ width: '100%' }}
                 >
                   <MarqueeText style={styles.artistText} speed={30} pauseMs={1200}>
                     {track.artist}

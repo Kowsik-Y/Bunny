@@ -69,13 +69,15 @@ export function Alert({
 
               <View style={styles.actions}>
                 <Button
-                  variant="default"
+                  variant="ghost"
+                  size='sm'
                   onPress={onClose}
                   label={cancelText}
                   style={styles.button}
                 />
                 <Button
                   variant={isDestructive ? 'destructive' : 'default'}
+                  size='sm'
                   onPress={async () => {
                     onClose();
                     await onConfirm();
