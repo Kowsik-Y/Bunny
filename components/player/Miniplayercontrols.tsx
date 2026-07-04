@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f5',
   },
   info: {
+    flex: 1,
     marginRight: 4,
   },
   title: {
