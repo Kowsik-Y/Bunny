@@ -69,7 +69,7 @@ export function Alert({
 
               <View style={styles.actions}>
                 <Button
-                  variant="ghost"
+                  variant="default"
                   onPress={onClose}
                   label={cancelText}
                   style={styles.button}

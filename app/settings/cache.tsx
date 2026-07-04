@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
 import { Stack } from 'expo-router';
 import { Database, Check, ChevronRight, Sliders, Settings } from 'lucide-react-native';

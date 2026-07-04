@@ -227,10 +227,45 @@ export function Button({
   // Pressable's own overflow:hidden does NOT reliably clip ripples on Android.
   // IMPORTANT: do NOT put sizeStyles.button here — padding/height belong only on
   // the inner bevelWrapper/flatContainer, otherwise they get doubled.
-  const outerStyle = [
+  // Split style into outer layout styles and inner styles
+  const outerStyle: any[] = [
     styles.rippleClip,
     { borderRadius: btnRadius },
   ];
+  const innerStyle: any[] = [];
+
+  if (style && typeof style === 'object') {
+    const flattened = StyleSheet.flatten(style);
+    const layoutProps = [
+      'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+      'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight',
+      'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical',
+      'position', 'top', 'bottom', 'left', 'right', 'alignSelf',
+    ];
+    
+    const outer: any = {};
+    const inner: any = {};
+    
+    for (const key of Object.keys(flattened)) {
+      if (layoutProps.includes(key)) {
+        outer[key] = (flattened as any)[key];
+      } else {
+        inner[key] = (flattened as any)[key];
+      }
+    }
+    
+    if (flattened.height !== undefined) {
+      inner.height = '100%';
+    }
+    if (flattened.width !== undefined || flattened.flex !== undefined) {
+      inner.width = '100%';
+    }
+    
+    outerStyle.push(outer);
+    innerStyle.push(inner);
+  } else {
+    innerStyle.push(style);
+  }
 
   return (
     <View style={outerStyle}>
@@ -261,7 +296,7 @@ export function Button({
               variantStyles.button,
               sizeStyles.button,
               (disabled || loading) && { opacity: 0.5 },
-              style as any,
+              ...innerStyle,
             ]}
           >
             {/* Rim: full-bleed gradient overlay for the 1px edge highlight */}
@@ -288,7 +323,7 @@ export function Button({
               variantStyles.button,
               sizeStyles.button,
               (disabled || loading) && { opacity: 0.5 },
-              style as any,
+              ...innerStyle,
             ]}
           >
             {innerContent}
@@ -310,14 +345,17 @@ const styles = StyleSheet.create({
   pressable: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
   bevelWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
   flatContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
   content: {
     flexDirection: 'row',
