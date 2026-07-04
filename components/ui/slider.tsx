@@ -30,6 +30,10 @@ export function Slider({
   const trackWidth = useSharedValue(0);
   const position = useSharedValue(((value - min) / (max - min)) * 100);
 
+  React.useEffect(() => {
+    position.value = ((value - min) / (max - min)) * 100;
+  }, [value, min, max]);
+
   const pan = Gesture.Pan()
     .enabled(!disabled)
     .onUpdate((e) => {

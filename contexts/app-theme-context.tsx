@@ -41,6 +41,10 @@ type AppThemeContextValue = {
   setPreResolveLimit: (limit: number) => void;
   lyricsPrefetch: boolean;
   setLyricsPrefetch: (enabled: boolean) => void;
+  maxCacheSize: number;
+  setMaxCacheSize: (size: number) => void;
+  autoClearCache: boolean;
+  setAutoClearCache: (enabled: boolean) => void;
 };
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
@@ -59,6 +63,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [lyricsSpacing, setLyricsSpacing] = useState<LyricsSpacing>('regular');
   const [preResolveLimit, setPreResolveLimit] = useState<number>(2);
   const [lyricsPrefetch, setLyricsPrefetch] = useState<boolean>(true);
+  const [maxCacheSize, setMaxCacheSize] = useState<number>(2048); // 2GB default
+  const [autoClearCache, setAutoClearCache] = useState<boolean>(true);
   const [hasHydrated, setHasHydrated] = useState(false);
   const colorScheme = mode === 'system' ? systemScheme : mode;
   const colors = useMemo(() => getThemeColors(variant, colorScheme), [variant, colorScheme]);
@@ -92,6 +98,10 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       setPreResolveLimit,
       lyricsPrefetch,
       setLyricsPrefetch,
+      maxCacheSize,
+      setMaxCacheSize,
+      autoClearCache,
+      setAutoClearCache,
     }),
     [
       mode,
@@ -108,6 +118,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       lyricsSpacing,
       preResolveLimit,
       lyricsPrefetch,
+      maxCacheSize,
+      autoClearCache,
     ]
   );
 
@@ -126,6 +138,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
             lyricsSpacing?: LyricsSpacing;
             preResolveLimit?: number;
             lyricsPrefetch?: boolean;
+            maxCacheSize?: number;
+            autoClearCache?: boolean;
           };
           if (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system') {
             setMode(parsed.mode);
@@ -168,6 +182,16 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
           } else {
             setLyricsPrefetch(true);
           }
+          if (typeof parsed.maxCacheSize === 'number') {
+            setMaxCacheSize(parsed.maxCacheSize);
+          } else {
+            setMaxCacheSize(2048);
+          }
+          if (typeof parsed.autoClearCache === 'boolean') {
+            setAutoClearCache(parsed.autoClearCache);
+          } else {
+            setAutoClearCache(true);
+          }
         }
       } catch {
         // Ignore and fallback to defaults.
@@ -193,9 +217,11 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
         lyricsSpacing,
         preResolveLimit,
         lyricsPrefetch,
+        maxCacheSize,
+        autoClearCache,
       })
     ).catch(() => undefined);
-  }, [mode, variant, font, audioQuality, playerStyle, lyricsSize, lyricsSpacing, preResolveLimit, lyricsPrefetch, hasHydrated]);
+  }, [mode, variant, font, audioQuality, playerStyle, lyricsSize, lyricsSpacing, preResolveLimit, lyricsPrefetch, maxCacheSize, autoClearCache, hasHydrated]);
 
   return <AppThemeContext.Provider value={value} >{children}</AppThemeContext.Provider>;
 }
