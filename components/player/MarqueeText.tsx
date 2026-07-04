@@ -125,6 +125,7 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
           }
         ]}
         numberOfLines={1}
+        ellipsizeMode="clip"
         onLayout={(e) => {
           const w = e.nativeEvent.layout.width;
           if (w > 0 && w !== textWidth) {
@@ -135,10 +136,11 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
         {children}
       </Text>
 
-      <Animated.View style={{ transform: [{ translateX }], width: textWidth || undefined }}>
+      <Animated.View style={{ transform: [{ translateX }], width: textWidth ? textWidth + 10 : undefined }}>
         <Text
           style={resolvedTextStyle}
           numberOfLines={1}
+          ellipsizeMode="clip"
         >
           {children}
         </Text>
