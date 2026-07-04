@@ -69,7 +69,7 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
   }, [textStyle, font, fontFamily, headingFontFamily, semiBoldFontFamily]);
 
   const overflow = textWidth > containerWidth;
-  const distance = overflow ? textWidth - containerWidth + 8 : 0; // 8px extra gap
+  const distance = overflow ? textWidth - containerWidth + 10 : 0; // 8px extra gap
 
   useEffect(() => {
     if (!overflow || distance <= 0) {
@@ -136,7 +136,7 @@ export default function MarqueeText({ children, style, speed = 40, pauseMs = 150
         {children}
       </Text>
 
-      <Animated.View style={{ transform: [{ translateX }], width: textWidth ? textWidth + 10 : undefined }}>
+      <Animated.View style={{ transform: [{ translateX }], width: textWidth ? textWidth + 20 : undefined }}>
         <Text
           style={resolvedTextStyle}
           numberOfLines={1}

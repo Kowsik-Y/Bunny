@@ -1,0 +1,52 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { documentDirectory, cacheDirectory, getInfoAsync } from 'expo-file-system/legacy';
+import { DeviceEventEmitter } from 'react-native';
+import { DOWNLOADS_KEY, DOWNLOAD_LOCATION_KEY, DOWNLOADS_UPDATED_EVENT } from './state';
+import { DownloadedTrack } from './types';
+
+export async function getDownloadedTracks(): Promise<DownloadedTrack[]> {
+  try {
+    const data = await AsyncStorage.getItem(DOWNLOADS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.error('Failed to load downloads list', e);
+    return [];
+  }
+}
+
+export async function getDownloadLocation(): Promise<'internal' | 'cache'> {
+  try {
+    const loc = await AsyncStorage.getItem(DOWNLOAD_LOCATION_KEY);
+    return loc === 'cache' ? 'cache' : 'internal';
+  } catch {
+    return 'internal';
+  }
+}
+
+export async function setDownloadLocation(loc: 'internal' | 'cache'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DOWNLOAD_LOCATION_KEY, loc);
+    DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
+  } catch (e) {
+    console.error('Failed to save download location preference', e);
+  }
+}
+
+export async function getActiveDirectory(): Promise<string> {
+  const loc = await getDownloadLocation();
+  const dir = loc === 'cache' ? cacheDirectory : documentDirectory;
+  return dir || documentDirectory || '';
+}
+
+export async function getLocalDownloadUri(trackId: string): Promise<string | null> {
+  const downloads = await getDownloadedTracks();
+  const found = downloads.find((d) => String(d.track.id) === String(trackId));
+  if (!found) return null;
+  
+  try {
+    const info = await getInfoAsync(found.localUri);
+    return info.exists ? found.localUri : null;
+  } catch {
+    return null;
+  }
+}

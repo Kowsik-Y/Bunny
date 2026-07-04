@@ -62,7 +62,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [lyricsSize, setLyricsSize] = useState<LyricsSize>('medium');
   const [lyricsSpacing, setLyricsSpacing] = useState<LyricsSpacing>('regular');
   const [preResolveLimit, setPreResolveLimit] = useState<number>(2);
-  const [lyricsPrefetch, setLyricsPrefetch] = useState<boolean>(true);
+  const [lyricsPrefetch, setLyricsPrefetch] = useState<boolean>(false);
   const [maxCacheSize, setMaxCacheSize] = useState<number>(2048); // 2GB default
   const [autoClearCache, setAutoClearCache] = useState<boolean>(true);
   const [hasHydrated, setHasHydrated] = useState(false);
@@ -180,7 +180,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
           if (typeof parsed.lyricsPrefetch === 'boolean') {
             setLyricsPrefetch(parsed.lyricsPrefetch);
           } else {
-            setLyricsPrefetch(true);
+            setLyricsPrefetch(false);
           }
           if (typeof parsed.maxCacheSize === 'number') {
             setMaxCacheSize(parsed.maxCacheSize);
