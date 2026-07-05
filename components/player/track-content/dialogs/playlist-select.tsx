@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
-import { BottomSheetScrollView, SwipeBottomSheet } from '../../SwipeBottomSheet';
+import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
 
 interface PlaylistSelectProps {
@@ -23,12 +24,12 @@ export function PlaylistSelect({
   colors,
 }: PlaylistSelectProps) {
   return (
-    <SwipeBottomSheet
+    <PlayerSheet
       visible={visible}
       onClose={onClose}
-      backgroundColor={colors.card}
+      title="Add to Playlist"
+      colors={colors}
     >
-      <Text style={[styles.modalTitle, { color: colors.text }]}>Add to Playlist</Text>
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         <Pressable
           android_ripple={{ color: colors.border }}
@@ -57,6 +58,6 @@ export function PlaylistSelect({
           ))
         )}
       </BottomSheetScrollView>
-    </SwipeBottomSheet>
+    </PlayerSheet>
   );
 }

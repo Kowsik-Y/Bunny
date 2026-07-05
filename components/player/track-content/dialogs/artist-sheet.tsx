@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable } from 'react-native';
 import { Typography as Text } from '@/components/ui/typography';
-import { BottomSheetScrollView, SwipeBottomSheet } from '../../SwipeBottomSheet';
-import { styles } from '../styles';
+import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { PlayerSheet } from './player-sheet';
 
 interface ArtistSheetProps {
   visible: boolean;
@@ -20,10 +20,12 @@ export function ArtistSheet({
   colors,
 }: ArtistSheetProps) {
   return (
-    <SwipeBottomSheet visible={visible} onClose={onClose}>
-      <Text variant="large" style={{ fontWeight: '800', textAlign: 'center', marginBottom: 16, marginTop: 10 }}>
-        Select Artist
-      </Text>
+    <PlayerSheet
+      visible={visible}
+      onClose={onClose}
+      title="Select Artist"
+      colors={colors}
+    >
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         {artistOptions.map((art) => (
           <Pressable
@@ -42,6 +44,6 @@ export function ArtistSheet({
           </Pressable>
         ))}
       </BottomSheetScrollView>
-    </SwipeBottomSheet>
+    </PlayerSheet>
   );
 }

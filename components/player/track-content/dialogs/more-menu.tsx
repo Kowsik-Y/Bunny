@@ -3,8 +3,8 @@ import { View, Image, Pressable, ActivityIndicator } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography as Text } from '@/components/ui/typography';
-import { SwipeBottomSheet } from '../../SwipeBottomSheet';
 import { type AppTrack } from '../../Tracks';
+import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
 
 interface MoreMenuProps {
@@ -41,7 +41,7 @@ export function MoreMenu({
   colors,
 }: MoreMenuProps) {
   return (
-    <SwipeBottomSheet visible={visible} onClose={onClose}>
+    <PlayerSheet visible={visible} onClose={onClose} colors={colors}>
       <View style={styles.moreHeader}>
         <Image
           source={
@@ -150,6 +150,6 @@ export function MoreMenu({
         <MaterialCommunityIcons name="waveform" size={18} color={colors.text} />
         <Text style={[styles.moreActionText, { color: colors.text }]}>Audio Quality</Text>
       </Pressable>
-    </SwipeBottomSheet>
+    </PlayerSheet>
   );
 }

@@ -3,9 +3,9 @@ import { View, Pressable } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
-import { BottomSheetScrollView, SwipeBottomSheet } from '../../SwipeBottomSheet';
+import { BottomSheetScrollView } from '../../SwipeBottomSheet';
 import { type AppTrack } from '../../Tracks';
-import { styles } from '../styles';
+import { PlayerSheet } from './player-sheet';
 
 interface QualityModalProps {
   visible: boolean;
@@ -29,15 +29,12 @@ export function QualityModal({
   colors,
 }: QualityModalProps) {
   return (
-    <SwipeBottomSheet
+    <PlayerSheet
       visible={visible}
       onClose={onClose}
-      backgroundColor={colors.card}
+      title={playerMode === 'video' ? 'Video Quality' : 'Audio Quality'}
+      colors={colors}
     >
-      <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 15 }]}>
-        {playerMode === 'video' ? 'Video Quality' : 'Audio Quality'}
-      </Text>
-
       <BottomSheetScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
         {isLive ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
@@ -107,6 +104,6 @@ export function QualityModal({
           }
         })()}
       </BottomSheetScrollView>
-    </SwipeBottomSheet>
+    </PlayerSheet>
   );
 }

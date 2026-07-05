@@ -15,7 +15,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { VideoView } from 'expo-video';
-import { BottomSheetBackdrop, BottomSheetModal } from '@gorhom/bottom-sheet';
 import Reanimated, {
   Easing as ReEasing,
   runOnJS,
@@ -174,20 +173,6 @@ export function TrackContent({
   const [showQualityModal, setShowQualityModal] = useState(false);
   const [activeDevice, setActiveDevice] = useState('Phone Speakers');
   const router = useRouter();
-  const deviceSheetRef = useRef<BottomSheetModal>(null);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
 
   const { isDownloaded, startDownload, removeDownload, downloadingIds } = useDownloads();
 
@@ -606,7 +591,6 @@ export function TrackContent({
               <Pressable
                 onPress={() => {
                   setShowDeviceModal(true);
-                  deviceSheetRef.current?.present();
                 }}
                 style={styles.utilityBtn}
               >
@@ -627,14 +611,13 @@ export function TrackContent({
       </SafeAreaView>
 
       <DeviceModal
-        deviceSheetRef={deviceSheetRef}
+        visible={showDeviceModal}
+        onClose={() => setShowDeviceModal(false)}
         activeDevice={activeDevice}
         realDevices={realDevices}
         playerMode={playerMode}
         track={track}
         colors={colors}
-        renderBackdrop={renderBackdrop}
-        onDismiss={() => setShowDeviceModal(false)}
       />
 
       <MoreMenu

@@ -1,48 +1,38 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
-import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
+import { PlayerSheet } from './player-sheet';
 
 interface DeviceModalProps {
-  deviceSheetRef: React.RefObject<BottomSheetModal | null>;
+  visible: boolean;
+  onClose: () => void;
   activeDevice: string;
   realDevices: any[];
   playerMode: 'audio' | 'video';
   track: AppTrack;
   colors: any;
-  renderBackdrop: (props: any) => React.ReactNode;
-  onDismiss: () => void;
 }
 
 export function DeviceModal({
-  deviceSheetRef,
+  visible,
+  onClose,
   activeDevice,
   realDevices,
   playerMode,
   track,
   colors,
-  renderBackdrop,
-  onDismiss,
 }: DeviceModalProps) {
-  const { colors: themeColors } = useAppTheme();
-
   return (
-    <BottomSheetModal
-      ref={deviceSheetRef}
-      snapPoints={['60%']}
-      enablePanDownToClose={true}
-      onDismiss={onDismiss}
-      backgroundStyle={{ backgroundColor: colors.background }}
-      handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
-      backdropComponent={renderBackdrop}
+    <PlayerSheet
+      visible={visible}
+      onClose={onClose}
+      title="Audio Status"
+      colors={colors}
     >
-      <BottomSheetView style={styles.content}>
-        <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 16 }]}>Audio Status</Text>
-
+      <View style={styles.content}>
         <View style={[
           styles.deviceCard,
           {
@@ -121,20 +111,14 @@ export function DeviceModal({
             </Text>
           </View>
         </View>
-      </BottomSheetView>
-    </BottomSheetModal>
+      </View>
+    </PlayerSheet>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
+    paddingBottom: 10,
   },
   deviceCard: {
     flexDirection: 'row',

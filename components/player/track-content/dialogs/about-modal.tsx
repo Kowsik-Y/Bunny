@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Image, TouchableOpacity, Linking } from 'react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
-import { BottomSheetScrollView, SwipeBottomSheet } from '../../SwipeBottomSheet';
+import { BottomSheetScrollView } from '../../SwipeBottomSheet';
 import { type AppTrack } from '../../Tracks';
+import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
 
 interface AboutModalProps {
@@ -24,13 +25,12 @@ export function AboutModal({
   colors,
 }: AboutModalProps) {
   return (
-    <SwipeBottomSheet
+    <PlayerSheet
       visible={visible}
       onClose={onClose}
-      backgroundColor={colors.card}
+      title="Song Info"
+      colors={colors}
     >
-      <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 15 }]}>Song Info</Text>
-
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         {isLive && track.artwork && (
           <View style={{ alignItems: 'center', marginBottom: 16 }}>
@@ -93,6 +93,6 @@ export function AboutModal({
           )}
         </View>
       </BottomSheetScrollView>
-    </SwipeBottomSheet>
+    </PlayerSheet>
   );
 }
