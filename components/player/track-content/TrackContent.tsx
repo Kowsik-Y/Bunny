@@ -642,7 +642,7 @@ export function TrackContent({
         onSelectPlaylist={handleAddToPlaylist}
         onCreateNewPlaylist={() => {
           setShowPlaylistSelectModal(false);
-          setTimeout(() => setShowCreatePlaylistModal(true), 250);
+          setTimeout(() => setShowCreatePlaylistModal(true), 400);
         }}
       />
 

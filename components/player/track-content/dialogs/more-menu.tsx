@@ -84,7 +84,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowPlaylistSelectModal(true), 250);
+          setTimeout(() => setShowPlaylistSelectModal(true), 400);
         }}
         android_ripple={{ color: colors.border }}
         style={styles.moreActionRow}
@@ -131,7 +131,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowAboutModal(true), 250);
+          setTimeout(() => setShowAboutModal(true), 400);
         }}
         style={styles.moreActionRow}
         android_ripple={{ color: colors.border }}
@@ -143,7 +143,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowQualityModal(true), 250);
+          setTimeout(() => setShowQualityModal(true), 400);
         }}
         style={styles.moreActionRow}
         android_ripple={{ color: colors.border }}
