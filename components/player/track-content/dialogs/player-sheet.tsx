@@ -39,14 +39,14 @@ export function PlayerSheet({
     }
   }, [visible]);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     wasPresented.current = false;
     if (visible) {
       onClose();
     }
-  };
+  }, [visible, onClose]);
 
-  const snapPoints = useMemo(() => ['80%'], []);
+  const snapPoints = useMemo(() => ['70%'], []);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -67,6 +67,11 @@ export function PlayerSheet({
       snapPoints={snapPoints}
       enablePanDownToClose={true}
       onDismiss={handleDismiss}
+      onChange={(index) => {
+        if (index === -1) {
+          handleDismiss();
+        }
+      }}
       backgroundStyle={{ backgroundColor: colors.card }}
       handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
       backdropComponent={renderBackdrop}

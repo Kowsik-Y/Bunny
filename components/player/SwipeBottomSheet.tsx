@@ -31,7 +31,7 @@ export function SwipeBottomSheet({
   useEffect(() => {
     if (visible) {
       wasPresented.current = true;
-      let raf = requestAnimationFrame(() => {
+      const raf = requestAnimationFrame(() => {
         bottomSheetModalRef.current?.present();
       });
       return () => cancelAnimationFrame(raf);
@@ -41,12 +41,12 @@ export function SwipeBottomSheet({
     }
   }, [visible]);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     wasPresented.current = false;
     if (visible) {
       onClose();
     }
-  };
+  }, [visible, onClose]);
 
   const bg = backgroundColor || colors.card;
   const snapPoints = useMemo(() => ['80%'], []);
@@ -70,6 +70,11 @@ export function SwipeBottomSheet({
       snapPoints={snapPoints}
       enablePanDownToClose={true}
       onDismiss={handleDismiss}
+      onChange={(index) => {
+        if (index === -1) {
+          handleDismiss();
+        }
+      }}
       backgroundStyle={{ backgroundColor: bg }}
       handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
       backdropComponent={renderBackdrop}
