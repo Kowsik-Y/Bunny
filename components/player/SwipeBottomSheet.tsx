@@ -26,23 +26,18 @@ export function SwipeBottomSheet({
   const { colors } = useAppTheme();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
-  const wasPresented = useRef(false);
-
   useEffect(() => {
     if (visible) {
-      wasPresented.current = true;
       const raf = requestAnimationFrame(() => {
         bottomSheetModalRef.current?.present();
       });
       return () => cancelAnimationFrame(raf);
-    } else if (wasPresented.current) {
-      wasPresented.current = false;
+    } else {
       bottomSheetModalRef.current?.dismiss();
     }
   }, [visible]);
 
   const handleDismiss = useCallback(() => {
-    wasPresented.current = false;
     if (visible) {
       onClose();
     }
