@@ -20,7 +20,7 @@ import Reanimated, {
   useFrameCallback,
   useAnimatedReaction,
 } from 'react-native-reanimated';
-import { Feather } from '@expo/vector-icons';
+import { RefreshCw, Share2 } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { type LrcLine, fetchLyricsFromApis, LYRICS_CACHE } from '@/services';
@@ -33,20 +33,29 @@ const { width } = Dimensions.get('window');
 
 function useSmoothPosition(position: number, isPlaying: boolean) {
   const lastPosition = useSharedValue(position);
-  const lastUpdateTime = useSharedValue(Date.now());
+  const lastUpdateTime = useSharedValue(0);
   const smoothPosition = useSharedValue(position);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    lastUpdateTime.value = Date.now();
+  }, []);
 
   useEffect(() => {
     const now = Date.now();
     const diff = Math.abs(smoothPosition.value - position);
     if (diff > 0.15) {
+      // eslint-disable-next-line react-hooks/immutability
       smoothPosition.value = position;
     }
+    // eslint-disable-next-line react-hooks/immutability
     lastPosition.value = position;
+    // eslint-disable-next-line react-hooks/immutability
     lastUpdateTime.value = now;
   }, [position]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     lastUpdateTime.value = Date.now();
   }, [isPlaying]);
 
@@ -54,8 +63,10 @@ function useSmoothPosition(position: number, isPlaying: boolean) {
     const now = Date.now();
     if (isPlaying && lastUpdateTime.value > 0) {
       const elapsed = (now - lastUpdateTime.value) / 1000;
+      // eslint-disable-next-line react-hooks/immutability
       smoothPosition.value = lastPosition.value + elapsed;
     } else {
+      // eslint-disable-next-line react-hooks/immutability
       smoothPosition.value = lastPosition.value;
     }
   }, true);
@@ -122,12 +133,17 @@ export default function LyricsTab({
     [lyricsLines]
   );
 
+  const trackId = track?.id;
+  const trackTitle = track?.title;
+  const trackArtist = track?.artist;
+  const trackDuration = track?.duration;
+
   const fetchLyrics = useCallback((force = false) => {
-    if (!track?.id || track.id === 'no-track') return;
+    if (!trackId || trackId === 'no-track') return;
 
     // Check global in-memory cache first
-    if (!force && LYRICS_CACHE.has(track.id)) {
-      const cached = LYRICS_CACHE.get(track.id);
+    if (!force && LYRICS_CACHE.has(trackId)) {
+      const cached = LYRICS_CACHE.get(trackId);
       if (cached) {
         setLyricsLines(cached);
         setLyricsLoading(false);
@@ -140,20 +156,20 @@ export default function LyricsTab({
     setActiveIndex(-1);
     lineLayouts.current = [];
 
-    fetchLyricsFromApis(track.title, track.artist, track.duration || 0, track.id, force)
+    fetchLyricsFromApis(trackTitle || '', trackArtist || '', trackDuration || 0, trackId, force)
       .then((lines) => {
-        LYRICS_CACHE.set(track.id, lines);
+        LYRICS_CACHE.set(trackId, lines);
         setLyricsLines(lines);
         setLyricsLoading(false);
       })
       .catch((err) => {
         console.warn('[LyricsTab] Failed to fetch lyrics:', err);
         const fallback = [{ time: -1, text: 'Lyrics not found' }];
-        LYRICS_CACHE.set(track.id, fallback);
+        LYRICS_CACHE.set(trackId, fallback);
         setLyricsLines(fallback);
         setLyricsLoading(false);
       });
-  }, [track?.id, track?.title, track?.artist, track?.duration]);
+  }, [trackId, trackTitle, trackArtist, trackDuration]);
 
   const fetched = useRef(false);
 
@@ -202,14 +218,14 @@ export default function LyricsTab({
             activeOpacity={0.7}
             style={{ padding: 8, marginRight: 2 }}
           >
-            <Feather name="refresh-cw" size={15} color="rgba(255,255,255,0.9)" />
+            <RefreshCw size={15} color="rgba(255,255,255,0.9)" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleShareLyrics}
             activeOpacity={0.7}
             style={{ padding: 8 }}
           >
-            <Feather name="share-2" size={15} color="rgba(255,255,255,0.9)" />
+            <Share2 size={15} color="rgba(255,255,255,0.9)" />
           </TouchableOpacity>
         </View>
       )}

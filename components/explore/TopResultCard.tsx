@@ -110,7 +110,7 @@ export function TopResultCard({
 
           {onAction && (
             <Button
-              variant="outline"
+              variant="secondary"
               onPress={onAction}
               style={{ flex: 1, marginLeft: 8, height: 44, borderRadius: 22 }}
               leftIcon={

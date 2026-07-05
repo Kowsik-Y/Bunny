@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View, Dimensions, Animated as RNAnimated } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Typography } from '@/components/ui/typography';
+import { useEffect, useState } from 'react';
+import { Dimensions, Animated as RNAnimated, StyleSheet, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { getColors } from 'react-native-image-colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { upgradeThumbQuality } from '@/services/ytmusic/utils';
+
+const AnimatedExpoImage = RNAnimated.createAnimatedComponent(ExpoImage);
 
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 300;
+const HEADER_HEIGHT = width;
 
 interface ArtistHeroProps {
   thumbnailUrl: string | undefined;
@@ -49,7 +53,7 @@ export function ArtistHero({
   subscribers,
   headerScale = 1,
   headerOpacity = 1,
-  height = 300,
+  height = width,
 }: ArtistHeroProps) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -66,9 +70,10 @@ export function ArtistHero({
     if (!thumbnailUrl) return;
     let cancelled = false;
 
-    getColors(thumbnailUrl, {
+    const targetUrl = upgradeThumbQuality(thumbnailUrl);
+    getColors(targetUrl, {
       cache: true,
-      key: thumbnailUrl,
+      key: targetUrl,
       fallback: isDark ? '#0a0a14' : '#f5f5f5',
       quality: 'low',
     })
@@ -84,7 +89,7 @@ export function ArtistHero({
         }
         if (picked) setDominantHex(picked);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => { cancelled = true; };
   }, [thumbnailUrl, isDark]);
@@ -93,59 +98,58 @@ export function ArtistHero({
   const base = dominantHex ?? (isDark ? '#0a0a14' : '#f0f0f0');
   const lum = luminance(base);
 
-  // For dark mode: rich saturated color fading into the dark screen
-  // For light mode: rich saturated color fading into the light screen
-  // Final stop is always the solid screen background so there's no sharp clip edge
-  const gradientColors: [string, string, string, string, string] = isDark
-    ? [
-        'transparent',
-        withAlpha(base, 0.22),
-        withAlpha(base, 0.62),
-        withAlpha(base, 0.90),
-        colors.background,
-      ]
-    : [
-        'transparent',
-        withAlpha(base, 0.14),
-        withAlpha(base, 0.44),
-        withAlpha(base, 0.78),
-        colors.background,
-      ];
-
-  const gradientLocations: [number, number, number, number, number] = [0.01, 0.1, 0.5, 0.87, 1];
-
   // Text should be white when gradient base is dark, dark when gradient base is light
   const useWhiteText = isDark || lum < 0.55;
-  const textColor = useWhiteText ? '#fff' : colors.text;
-  const textShadowColor = useWhiteText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.5)';
-  const pillBg = useWhiteText ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)';
+  const textColor = useWhiteText ? '#000' : colors.text;
+  const textShadowColor = useWhiteText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255)';
+  const pillBg = useWhiteText ? 'rgba(0,0,0)' : 'rgba(0,0,0,0.12)';
 
   return (
     <View style={[styles.heroContainer, { height }]}>
-      <RNAnimated.Image
-        source={{ uri: thumbnailUrl }}
-        style={[styles.heroImage, { height, transform: [{ scale: headerScale }] }]}
-        resizeMode="cover"
+      {/* Blurred background backdrop to fill empty space on sides */}
+
+
+      {/* Actual full image */}
+      <AnimatedExpoImage
+        source={{ uri: upgradeThumbQuality(thumbnailUrl) }}
+        style={[
+          styles.heroImage,
+          {
+            height: "100%",
+            transform: [
+              { scale: headerScale },
+              {
+                translateY: headerScale.interpolate({
+                  inputRange: [1, 1.3],
+                  outputRange: [0, height * 0.15],
+                }),
+              },
+            ],
+          },
+        ]}
+        contentFit="cover"
+        contentPosition="top"
       />
+
+      {/* Dynamic bottom gradient overlay so text is readable and it fades into content */}
       <LinearGradient
-        colors={gradientColors}
-        locations={gradientLocations}
+        colors={isDark ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', colors.background] : ['rgba(255,255,255,0)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0.1)', colors.background]}
         style={StyleSheet.absoluteFill}
       />
+
       <RNAnimated.View style={[styles.heroContent, { opacity: headerOpacity, paddingTop: contentPaddingTop }]}>
         <View style={styles.heroMeta}>
           <Typography style={[
             styles.artistName,
             {
               fontSize: nameFontSize,
-              lineHeight: nameLineHeight,
+              lineHeight: nameLineHeight + 8,
               color: textColor,
-              textShadowColor,
             }
           ]}>{name}</Typography>
           {subscribers && !isSmallHeader && (
             <View style={[styles.subPill, { backgroundColor: pillBg }]}>
-              <Typography style={[styles.subPillText, { color: textColor }]}>{subscribers}</Typography>
+              <Typography style={[styles.subPillText, { color: "#fff" }]}>{subscribers}</Typography>
             </View>
           )}
         </View>
@@ -156,12 +160,12 @@ export function ArtistHero({
 
 const styles = StyleSheet.create({
   heroContainer: {
-    height: HEADER_HEIGHT,
+    height: "100%",
     overflow: 'hidden',
   },
   heroImage: {
-    width,
-    height: HEADER_HEIGHT,
+    width: "100%",
+    height: "100%",
   },
   heroContent: {
     ...StyleSheet.absoluteFill,

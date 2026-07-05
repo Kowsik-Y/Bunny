@@ -146,7 +146,8 @@ export function parseResponsiveListItem(renderer: any, filter: string): any {
   }
 
   let duration: number | null = null;
-  const fixedColumnText = renderer.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+  const fixedColumnText = renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text ??
+                          renderer.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
   if (fixedColumnText) {
     duration = parseDuration(fixedColumnText);
   }

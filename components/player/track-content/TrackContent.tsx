@@ -32,11 +32,13 @@ import {
   SkipBack,
   SkipForward,
   Square,
+  Maximize,
+  Quote,
+  Cast,
+  ListMusic,
 } from 'lucide-react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import SeekSlider from '@/components/SliderSeek';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { toast, useDownloads, useFavorites, usePlaylists, useQueue } from '@/services';
@@ -54,10 +56,12 @@ import { PlaylistSelect } from './dialogs/playlist-select';
 import { AboutModal } from './dialogs/about-modal';
 import { QualityModal } from './dialogs/quality-modal';
 import { ArtistSheet } from './dialogs/artist-sheet';
+import { StatsModal } from './dialogs/stats-modal';
 import { TrackContentProps } from './types';
 import { styles } from './styles';
+import { useTrackOptionsState } from '@/contexts/track-options/use-track-options-state';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 let globalPrevColors: string[] = ['#121212', '#000000'];
 let globalCurrentColors: string[] = ['#121212', '#000000'];
@@ -79,6 +83,14 @@ export function TrackContent({
   onCollapse,
   onVideoModeChange,
 }: TrackContentProps) {
+  const trackOptionsState = useTrackOptionsState();
+
+  useEffect(() => {
+    if (track && track.id !== 'no-track') {
+      trackOptionsState.openTrackOptions(track);
+    }
+  }, [track]);
+
   const headerGesture = panGesture?.header || panGesture;
   const isLive = !!(track.id?.startsWith('radiogarden-') || track.album === 'Radio Garden');
   const artworkGesture = panGesture?.artwork || panGesture;
@@ -133,6 +145,7 @@ export function TrackContent({
     currentColorsRef.current = nextColors;
 
     // Reset opacity to 0 so previous gradient is visible, then fade in
+    // eslint-disable-next-line react-hooks/immutability
     transitionVal.value = 0;
     setPrevColors(snapshotPrev);
     setCurrentColors(nextColors);
@@ -140,6 +153,7 @@ export function TrackContent({
     let cancelled = false;
     animationCancelRef.current = () => { cancelled = true; };
 
+    // eslint-disable-next-line react-hooks/immutability
     transitionVal.value = withTiming(
       1,
       { duration: 900, easing: ReEasing.inOut(ReEasing.cubic) },
@@ -196,7 +210,6 @@ export function TrackContent({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
-  const [activeDevice, setActiveDevice] = useState('Phone Speakers');
   const router = useRouter();
 
   const { isDownloaded, startDownload, removeDownload, downloadingIds } = useDownloads();
@@ -211,7 +224,7 @@ export function TrackContent({
       toast.info(`Downloading "${track.title}"...`);
       const success = await startDownload(track);
       if (success) {
-        toast.success(`"${track.title}" downloaded offline!`);
+        toast.success(`"${track.title}" added to downloads`);
       } else {
         toast.error(`Failed to download "${track.title}"`);
       }
@@ -219,14 +232,18 @@ export function TrackContent({
   };
 
   const handleArtistPress = () => {
-    onCollapse();
     if (track.artists && track.artists.length > 1) {
       setArtistOptions(track.artists);
       setShowArtistSheet(true);
-    } else if (track.artistId) {
-      router.push(`/artist/${track.artistId}` as any);
     } else {
-      router.push({ pathname: '/(tabs)/explore', params: { query: track.artist } } as any);
+      onCollapse();
+      if (track.artists && track.artists.length === 1 && track.artists[0].id) {
+        router.push(`/artist/${track.artists[0].id}` as any);
+      } else if (track.artistId) {
+        router.push(`/artist/${track.artistId}` as any);
+      } else {
+        router.push({ pathname: '/(tabs)/explore', params: { query: track.artist } } as any);
+      }
     }
   };
 
@@ -240,37 +257,13 @@ export function TrackContent({
     changeVideoQuality,
   } = usePlayerSync(track, position, isPlaying, onPlayPause, onVideoModeChange);
 
-  const [realDevices, setRealDevices] = useState<{ name: string; type: string; id: number }[]>([]);
 
-  const refreshAudioRouting = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const devices: any[] = [];
-        if (Array.isArray(devices) && devices.length > 0) {
-          const seen = new Set<string>();
-          const unique = devices.filter((d) => {
-            if (!d || !d.name || seen.has(d.name)) return false;
-            seen.add(d.name);
-            return true;
-          });
-          setRealDevices(unique);
-        }
-      } catch (e) {
-        console.warn('[AudioRouting] Failed to refresh:', e);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshAudioRouting();
-    const interval = setInterval(refreshAudioRouting, 3000);
-    return () => clearInterval(interval);
-  }, [refreshAudioRouting, showDeviceModal]);
 
   const { playlists, addTrackToPlaylist } = usePlaylists();
   const [showPlaylistSelectModal, setShowPlaylistSelectModal] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showArtistSheet, setShowArtistSheet] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [artistOptions, setArtistOptions] = useState<Array<{ name: string; id: string }>>([]);
 
   const handleAddToPlaylist = async (playlistId: string, playlistName: string) => {
@@ -375,6 +368,7 @@ export function TrackContent({
               activePlaying={playerMode === 'video' ? isVideoPlaying : isPlaying}
               onSeek={(time) => {
                 if (playerMode === 'video') {
+                  // eslint-disable-next-line react-hooks/immutability
                   videoPlayer.currentTime = time;
                 } else {
                   onSeek(time);
@@ -419,10 +413,10 @@ export function TrackContent({
                     <View style={styles.videoTopBar}>
                       <Pressable
                         android_ripple={{ foreground: true, color: '#ffffff40', radius: 16 }}
-                        onPress={() => {}}
+                        onPress={() => { }}
                         style={styles.fullscreenBtn}
                       >
-                        <Feather name="maximize" size={15} color="#fff" />
+                        <Maximize size={15} color="#fff" />
                       </Pressable>
                     </View>
                   </View>
@@ -452,7 +446,7 @@ export function TrackContent({
           <View style={styles.bottomSheet}>
             <View style={styles.metadataRow}>
               <View style={styles.metadataInfo}>
-                <MarqueeText speed ={40} style={styles.titleText}>
+                <MarqueeText speed={15} style={styles.titleText}>
                   {track.title}
                 </MarqueeText>
                 <Pressable
@@ -464,7 +458,7 @@ export function TrackContent({
                   disabled={isLive}
                   style={{ width: '100%' }}
                 >
-                  <MarqueeText style={styles.artistText}>
+                  <MarqueeText speed={15} style={styles.artistText}>
                     {track.artist}
                   </MarqueeText>
                 </Pressable>
@@ -507,6 +501,7 @@ export function TrackContent({
                   buffered={buffered}
                   onSeek={(time) => {
                     if (playerMode === 'video') {
+                      // eslint-disable-next-line react-hooks/immutability
                       videoPlayer.currentTime = time;
                     } else {
                       onSeek(time);
@@ -611,10 +606,10 @@ export function TrackContent({
                   backgroundColor: activeView === 'lyrics' ? 'rgba(255,255,255,0.2)' : 'transparent',
                 }}
               >
-                <IconSymbol
-                  name="quote.bubble"
+                <Quote
                   size={22}
-                  color={activeView === 'lyrics' ? 'rgba(255,255,255)' : 'rgba(255,255,255,0.6)'}
+                  fill={activeView === 'lyrics' ? 'rgba(255,255,255)' : 'rgba(255,255,255,0.6)'}
+                  strokeWidth={0}
                 />
               </Pressable>
               <Pressable
@@ -623,7 +618,7 @@ export function TrackContent({
                 }}
                 style={styles.utilityBtn}
               >
-                <IconSymbol name="airplayaudio" size={22} color="rgba(255,255,255,0.6)" />
+                <Cast size={22} color="rgba(255,255,255,0.6)" />
               </Pressable>
               <Pressable
                 onPress={() => setActiveView(activeView === 'queue' ? 'artwork' : 'queue')}
@@ -632,7 +627,7 @@ export function TrackContent({
                   backgroundColor: activeView === 'queue' ? 'rgba(255,255,255,0.2)' : 'transparent',
                 }}
               >
-                <List size={21} color={activeView === 'queue' ? 'rgba(255,255,255)' : 'rgba(255,255,255,0.6)'} />
+                <ListMusic size={22} fill={activeView === 'queue' ? 'rgba(255,255,255)' : 'rgba(255,255,255,0.6)'} color={activeView === 'queue' ? 'rgba(255,255,255)' : 'rgba(255,255,255,0.6)'} />
               </Pressable>
             </View>
           </View>
@@ -642,10 +637,14 @@ export function TrackContent({
       <DeviceModal
         visible={showDeviceModal}
         onClose={() => setShowDeviceModal(false)}
-        activeDevice={activeDevice}
-        realDevices={realDevices}
         playerMode={playerMode}
         track={track}
+        onQualityPress={() => {
+          setShowDeviceModal(false);
+          setTimeout(() => {
+            setShowQualityModal(true);
+          }, 300);
+        }}
       />
 
       <MoreMenu
@@ -662,6 +661,8 @@ export function TrackContent({
         setShowPlaylistSelectModal={setShowPlaylistSelectModal}
         setShowAboutModal={setShowAboutModal}
         setShowQualityModal={setShowQualityModal}
+        setShowStatsModal={setShowStatsModal}
+        trackOptionsState={trackOptionsState}
       />
 
       <PlaylistSelect
@@ -708,8 +709,15 @@ export function TrackContent({
         onClose={() => setShowArtistSheet(false)}
         artistOptions={artistOptions}
         onSelectArtist={(artistId) => {
+          onCollapse();
           router.push(`/artist/${artistId}` as any);
         }}
+      />
+
+      <StatsModal
+        visible={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        track={track}
       />
     </View>
   );

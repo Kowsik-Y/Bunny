@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { Feather } from '@expo/vector-icons';
+import { ThumbsUp, Folder, Trash2, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
@@ -42,13 +42,13 @@ export function PlaylistRowCard({
           colors={['#8E2DE2', '#4A00E0']}
           style={styles.likedIconContainer}
         >
-          <Feather name="thumbs-up" size={18} color="#ffffff" />
+          <ThumbsUp size={18} color="#ffffff" />
         </LinearGradient>
       ) : artwork && artwork.trim() !== '' ? (
         <Image source={{ uri: artwork }} style={styles.rowArtwork} />
       ) : (
         <View style={[styles.folderIconContainer, { backgroundColor: colors.card }]}>
-          <Feather name="folder" size={24} color={colors.primary} />
+          <Folder size={24} color={colors.primary} />
         </View>
       )}
 
@@ -60,17 +60,16 @@ export function PlaylistRowCard({
           {isLikedMusic ? 'Auto playlist' : 'Playlist'} · {songCount} {songCount === 1 ? 'song' : 'songs'}
         </Muted>
       </View>
-
       {onDeletePress ? (
         <Pressable
           onPress={onDeletePress}
           style={styles.deleteBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="trash-2" size={16} color="#FF3B30" />
+          <Trash2 size={16} color="#FF3B30" />
         </Pressable>
       ) : (
-        <Feather name="chevron-right" size={18} color={colors.mutedForeground} style={styles.chevron} />
+        <ChevronRight size={18} color={colors.mutedForeground} style={styles.chevron} />
       )}
     </Pressable>
   );

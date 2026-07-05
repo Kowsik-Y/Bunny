@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, Animated, DeviceEventEmitter } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { TOAST_EVENT, type ToastPayload } from '@/services/toast';
 
 export function ToastContainer() {
   const [currentToast, setCurrentToast] = useState<ToastPayload | null>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(-40)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(-40));
   const timerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -55,21 +55,6 @@ export function ToastContainer() {
 
   if (!currentToast) return null;
 
-  const getIconDetails = () => {
-    switch (currentToast.type) {
-      case 'success':
-        return { name: 'check-circle' as const, color: '#34C759' };
-      case 'error':
-        return { name: 'alert-circle' as const, color: '#FF3B30' };
-      case 'warning':
-        return { name: 'alert-triangle' as const, color: '#FFCC00' };
-      default:
-        return { name: 'info' as const, color: '#007AFF' };
-    }
-  };
-
-  const { name: iconName, color: iconColor } = getIconDetails();
-
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 10000 }]} pointerEvents="none">
       <Animated.View
@@ -83,7 +68,18 @@ export function ToastContainer() {
       >
         <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.content}>
-          <Feather name={iconName} size={18} color={iconColor} style={styles.icon} />
+          {(() => {
+            switch (currentToast.type) {
+              case 'success':
+                return <CheckCircle2 size={18} color="#34C759" style={styles.icon} />;
+              case 'error':
+                return <AlertCircle size={18} color="#FF3B30" style={styles.icon} />;
+              case 'warning':
+                return <AlertTriangle size={18} color="#FFCC00" style={styles.icon} />;
+              default:
+                return <Info size={18} color="#007AFF" style={styles.icon} />;
+            }
+          })()}
           <Text style={styles.text} numberOfLines={2}>
             {currentToast.message}
           </Text>

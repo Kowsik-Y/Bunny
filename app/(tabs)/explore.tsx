@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerActions } from '@/services/SetupService';
 import { useCurrentTrack, usePlayerState, toast } from '@/services';
 import { searchYtMusic, getSearchSuggestions, YtMusicSearchResult, CategorizedSearchResults } from '@/services/ytMusic';
-import TrackPlayer from 'react-native-track-player';
 import { pipedService } from '@/services/piped';
 import { SongCard, AlbumCard, AlbumRowCard, ArtistCard, PlaylistCard } from '@/components/cards';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,7 +67,7 @@ export default function ExploreScreen() {
   const bottomSpacing = useBottomTabSpacing();
   const currentTrack = useCurrentTrack();
   const { openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
-  const { isPlaying } = usePlayerState();
+  const { isPlaying, isBuffering } = usePlayerState();
   const { query } = useLocalSearchParams();
   const searchInputRef = useRef<TextInput>(null);
   const [search, setSearch] = useState('');
@@ -342,12 +341,15 @@ export default function ExploreScreen() {
           .sort(() => Math.random() - 0.5)
           .map((s) => ({
             id: s.id,
-            url: s.url || '',
+            url: `https://dummy.com/track-${s.id}.mp3`,
             title: s.title || '',
             artist: s.artist || '',
             album: s.album || 'Single',
             artwork: s.thumbnail || '',
             duration: s.duration || 0,
+            artistId: s.artistId,
+            albumId: s.albumId,
+            artists: s.artists,
           }));
         await PlayerActions.playCollection(shuffled as any);
       }
@@ -362,12 +364,15 @@ export default function ExploreScreen() {
       if (searchRes.songs.length > 0) {
         const mixQueue = searchRes.songs.map((s) => ({
           id: s.id,
-          url: s.url || '',
+          url: `https://dummy.com/track-${s.id}.mp3`,
           title: s.title || '',
           artist: s.artist || '',
           album: s.album || 'Single',
           artwork: s.thumbnail || '',
           duration: s.duration || 0,
+          artistId: s.artistId,
+          albumId: s.albumId,
+          artists: s.artists,
         }));
         await PlayerActions.playCollection(mixQueue as any);
       }
@@ -415,7 +420,11 @@ export default function ExploreScreen() {
     }
 
     const trackId = ((item as any).videoId || item.id) as string;
-    const isActive = !!(currentTrack?.id === trackId || (currentTrack?.id && currentTrack.id.includes(trackId)));
+    const isActive = !!(currentTrack && (
+      currentTrack.id === trackId ||
+      (currentTrack.id && currentTrack.id.includes(trackId)) ||
+      (trackId && trackId.includes(currentTrack.id))
+    ));
     return (
       <SongCard
         title={item.title || item.name || ''}
@@ -423,8 +432,9 @@ export default function ExploreScreen() {
         artwork={item.thumbnail || ''}
         rightIcon="play"
         isActive={isActive}
-        isPlaying={isPlaying}
+        isPlaying={isPlaying || isBuffering}
         onPress={() => PlayerActions.skipToTrackFromYt(item)}
+        onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
         track={{
           id: trackId,
           title: item.title || item.name || '',
@@ -509,7 +519,7 @@ export default function ExploreScreen() {
                 availableTabs={['All', 'Songs', 'Artists', 'Albums', 'Playlists']}
                 activeTab={activeFilter === 'all' ? 'All' : activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
                 onTabChange={(tab) => setActiveFilter(tab.toLowerCase() as any)}
-                containerStyle={{ marginHorizontal: 0, marginVertical: 14 }}
+                containerStyle={{ marginHorizontal: 0, marginVertical: 0 }}
               />
 
               {loading ? (
@@ -544,7 +554,7 @@ export default function ExploreScreen() {
                           item={topResult.item}
                           recommendedSong={topResult.type === 'artist' && results.songs.length > 0 ? results.songs[0] : null}
                           isActive={isTopResultActive}
-                          isPlaying={isPlaying}
+                          isPlaying={isPlaying || isBuffering}
                           onPress={() => {
                             if (topResult.type === 'artist') {
                               router.push(`/artist/${topResult.item.id}`);
@@ -554,7 +564,7 @@ export default function ExploreScreen() {
                               router.push(`/playlist/${topResult.item.id}`);
                             } else {
                               if (isTopResultActive) {
-                                PlayerActions.playPause(isPlaying);
+                                PlayerActions.playPause(isPlaying || isBuffering);
                               } else {
                                 PlayerActions.skipToTrackFromYt(topResult.item);
                               }
@@ -569,7 +579,7 @@ export default function ExploreScreen() {
                               router.push(`/playlist/${topResult.item.id}`);
                             } else {
                               if (isTopResultActive) {
-                                PlayerActions.playPause(isPlaying);
+                                PlayerActions.playPause(isPlaying || isBuffering);
                               } else {
                                 PlayerActions.skipToTrackFromYt(topResult.item);
                               }
@@ -780,29 +790,43 @@ export default function ExploreScreen() {
                       style={{ marginHorizontal: -20 }}
                       contentContainerStyle={{ paddingHorizontal: 20 }}
                     >
-                      {localHits.map((song) => (
-                        <AlbumCard
-                          key={song.id}
-                          title={song.title || ''}
-                          subtitle={song.artist || ''}
-                          artwork={song.thumbnail || ''}
-                          type="album"
-                          variant="carousel"
-                          onPress={() => PlayerActions.skipToTrackFromYt(song)}
-                          onLongPress={() => openTrackOptions({
-                            id: song.id,
-                            title: song.title || '',
-                            artist: song.artist || '',
-                            album: song.album || 'Single',
-                            artwork: song.thumbnail || '',
-                            url: song.url || `https://music.youtube.com/watch?v=${song.id}`,
-                            duration: song.duration || 0,
-                            artistId: song.artistId,
-                            albumId: song.albumId,
-                            artists: song.artists,
-                          })}
-                        />
-                      ))}
+                      {localHits.map((song) => {
+                        const songId = song.id;
+                        const isSongActive = !!(currentTrack && (
+                          currentTrack.id === songId ||
+                          (currentTrack.id && currentTrack.id.includes(songId)) ||
+                          (songId && songId.includes(currentTrack.id))
+                        ));
+                        return (
+                          <AlbumCard
+                            key={song.id}
+                            title={song.title || ''}
+                            subtitle={song.artist || ''}
+                            artwork={song.thumbnail || ''}
+                            type="album"
+                            variant="carousel"
+                            onPress={() => {
+                              if (isSongActive) {
+                                PlayerActions.playPause(isPlaying);
+                              } else {
+                                PlayerActions.skipToTrackFromYt(song);
+                              }
+                            }}
+                            onLongPress={() => openTrackOptions({
+                              id: song.id,
+                              title: song.title || '',
+                              artist: song.artist || '',
+                              album: song.album || 'Single',
+                              artwork: song.thumbnail || '',
+                              url: song.url || `https://music.youtube.com/watch?v=${song.id}`,
+                              duration: song.duration || 0,
+                              artistId: song.artistId,
+                              albumId: song.albumId,
+                              artists: song.artists,
+                            })}
+                          />
+                        );
+                      })}
                     </ScrollView>
                   </View>
                 )

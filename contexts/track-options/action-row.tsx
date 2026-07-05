@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View, Text, StyleSheet } from 'react-native';
+import { Pressable, View, Text } from 'react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { styles } from './styles';
 
@@ -23,7 +23,10 @@ export const ActionRow = ({
       android_ripple={{ color: colors.border }}
       style={[
         styles.actionRow,
-        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.05)' },
+        !last && {
+          borderBottomWidth: 0.5,
+          borderBottomColor: colors.border
+        },
       ]}
     >
       <View style={styles.actionIcon}>{icon}</View>

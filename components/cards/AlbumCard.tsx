@@ -33,9 +33,6 @@ export function AlbumCard({
         onPress={onPress}
         onLongPress={onLongPress || onPress}
         delayLongPress={250}
-        android_ripple={{
-          color: colors.accent,
-        }}
       >
         <Image
           source={artwork && artwork.trim() !== '' ? { uri: artwork } : require('@/assets/images/icon.png')}
@@ -64,9 +61,6 @@ export function AlbumCard({
         onPress={onPress}
         onLongPress={onLongPress || onPress}
         delayLongPress={250}
-        android_ripple={{
-          color: colors.accent,
-        }}
       >
         <Image
           source={{ uri: artwork || 'https://picsum.photos/150/150' }}
@@ -93,7 +87,6 @@ const styles = StyleSheet.create({
   carouselCard: {
     width: 140,
     marginRight: 16,
-    borderRadius: 16,
     overflow: 'hidden',
   },
   carouselArtwork: {
@@ -112,7 +105,6 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: '100%',
-    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
   },

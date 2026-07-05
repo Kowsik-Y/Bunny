@@ -53,14 +53,14 @@ export async function getPlaylistDetails(id: string): Promise<any> {
       return {
         id: videoId,
         title: stream.title,
-        artist: data.uploader || 'Unknown Artist',
-        album: data.name || 'Playlist',
+        artist: stream.uploaderName || data.uploader || 'Unknown Artist',
+        album: stream.albumName || data.name || 'Playlist',
         artwork: data.thumbnailUrl || '',
         duration: stream.duration || 0,
         url: `https://music.youtube.com/watch?v=${videoId}`,
-        artistId: data.artistId,
-        albumId: id,
-        artists: data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined,
+        artistId: stream.artistId || data.artistId,
+        albumId: stream.albumId || id,
+        artists: stream.artists || (data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined),
       };
     });
 

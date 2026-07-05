@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { ChevronLeft } from 'lucide-react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
@@ -22,14 +22,14 @@ export function PlayerSheet({
   onBack,
   children,
 }: PlayerSheetProps) {
-  const { colors } = useAppTheme();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
     if (visible) {
       if (!mounted) {
-        setMounted(true);
+        Promise.resolve().then(() => setMounted(true));
       } else {
         const timer = setTimeout(() => {
           bottomSheetModalRef.current?.present();
@@ -71,7 +71,7 @@ export function PlayerSheet({
       snapPoints={snapPoints}
       enablePanDownToClose={true}
       onDismiss={handleDismiss}
-      backgroundStyle={{ backgroundColor: colors.card }}
+      backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
       handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
       backdropComponent={renderBackdrop}
     >
@@ -80,7 +80,7 @@ export function PlayerSheet({
           <View style={styles.header}>
             {showBack && (
               <Pressable onPress={onBack} style={styles.backBtn}>
-                <Feather name="chevron-left" size={22} color={colors.text} />
+                <ChevronLeft size={22} color={colors.text} />
               </Pressable>
             )}
             <Text style={[styles.title, { color: colors.text }]}>{title}</Text>

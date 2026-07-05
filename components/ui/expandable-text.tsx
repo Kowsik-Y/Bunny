@@ -32,7 +32,8 @@ export function ExpandableText({
   const { colors } = useAppTheme();
   const [expanded, setExpanded] = useState(false);
 
-  const hasMore = text.length > limit;
+  const cleanText = typeof text === 'string' ? text : '';
+  const hasMore = cleanText.length > limit;
 
   const content = (
     <View style={containerStyle}>
@@ -50,7 +51,7 @@ export function ExpandableText({
         numberOfLines={expanded ? undefined : numberOfLines}
         style={[styles.text, { color: colors.text }, style]}
       >
-        {text}
+        {cleanText}
       </Typography>
       {hasMore && (
         <Button

@@ -2,11 +2,12 @@ import { type AppTrack } from '@/components/player/Tracks';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
-import { ChevronRight, Pause, Play } from 'lucide-react-native';
+import { ChevronRight, Pause, Play, CheckCircle2, Loader2 } from 'lucide-react-native';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
-import { PlayerActions } from '@/services';
+import { PlayerActions, useDownloads } from '@/services';
+
 
 export interface SongCardProps {
   title: string;
@@ -48,6 +49,11 @@ export function SongCard({
 }: SongCardProps) {
   const { colors } = useAppTheme();
   const { openTrackOptions } = useTrackOptions();
+  const { isDownloaded, downloadingIds } = useDownloads();
+  const trackId = track?.id || (title + artist);
+  const isDl = isDownloaded(trackId);
+  const dlProgress = downloadingIds[trackId];
+  const isDling = dlProgress !== undefined;
 
   const handleLongPress = () => {
     if (onLongPress) {
@@ -73,7 +79,9 @@ export function SongCard({
   );
 
   React.useEffect(() => {
-    setImageUri(artwork && artwork.trim() !== '' ? artwork : null);
+    Promise.resolve().then(() => {
+      setImageUri(artwork && artwork.trim() !== '' ? artwork : null);
+    });
   }, [artwork]);
 
   const handleImageError = () => {
@@ -139,9 +147,26 @@ export function SongCard({
         >
           {title}
         </Typography>
-        <Muted numberOfLines={1}>
-          {artist}{album ? ` • ${album}` : ''}
-        </Muted>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          {isDl && (
+            <CheckCircle2
+              size={12}
+              color="#34C759"
+              style={{ marginRight: 4 }}
+            />
+          )}
+          {isDling && (
+            <Loader2
+              size={12}
+              color={colors.primary}
+              style={{ marginRight: 4 }}
+            />
+          )}
+          <Muted numberOfLines={1} style={{ flex: 1 }}>
+            {isDling ? `Downloading (${Math.round(dlProgress * 100)}%) • ` : ''}
+            {artist}{album ? ` • ${album}` : ''}
+          </Muted>
+        </View>
       </View>
 
       {rightIcon === 'play' && (

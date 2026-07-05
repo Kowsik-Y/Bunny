@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Animated as RNAnimated, LayoutChangeEvent, Pressable } from 'react-native';
+import { StyleSheet, View, Animated as RNAnimated, LayoutChangeEvent, Pressable, ScrollView, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Typography } from '@/components/ui/typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
@@ -39,9 +41,12 @@ export function SegmentedControl<T extends string>({
 
   const startX = useRef(0);
   const lastTargetIndex = useRef(-1);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const optionValues = options.map((opt) => opt.value);
   const optionsString = optionValues.join(',');
+
+  const isScrollable = options.length > 4;
 
   useEffect(() => {
     tabLayouts.current = {};
@@ -75,6 +80,16 @@ export function SegmentedControl<T extends string>({
     ]).start();
   };
 
+  const autoScrollToTab = (val: T) => {
+    if (!isScrollable) return;
+    const layout = tabLayouts.current[val];
+    if (!layout) return;
+
+    const containerWidth = screenWidth - 32; // capsule width approx (padding/margin accounted for)
+    const targetX = layout.x - (containerWidth / 2) + (layout.width / 2);
+    scrollViewRef.current?.scrollTo({ x: Math.max(0, targetX), animated: true });
+  };
+
   const onTabLayout = (val: T, e: LayoutChangeEvent) => {
     if (tabLayouts.current[val]) return;
 
@@ -86,6 +101,7 @@ export function SegmentedControl<T extends string>({
       setReady(true);
       setTimeout(() => {
         slideTo(selectedValue, false);
+        autoScrollToTab(selectedValue);
       }, 0);
     }
   };
@@ -93,10 +109,13 @@ export function SegmentedControl<T extends string>({
   useEffect(() => {
     if (ready) {
       slideTo(selectedValue);
+      autoScrollToTab(selectedValue);
     }
   }, [selectedValue, ready]);
 
+  // Gestures with activeOffsetX so simple taps do not get intercepted
   const tabPanGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
     .runOnJS(true)
     .onStart(() => {
       const activeLayout = tabLayouts.current[selectedValue];
@@ -180,6 +199,7 @@ export function SegmentedControl<T extends string>({
       if (closestVal !== selectedValue) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         onChange(closestVal);
+        autoScrollToTab(closestVal);
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         const layout = tabLayouts.current[selectedValue];
@@ -205,96 +225,120 @@ export function SegmentedControl<T extends string>({
 
   if (options.length === 0) return null;
 
-  return (
-    <View style={[styles.tabBarWrapper, { backgroundColor: colors.background }, style]}>
-      <GestureDetector gesture={tabPanGesture}>
-        <View
-          style={[
-            styles.capsuleContainer,
-            {
-              shadowColor: '#000',
-              shadowOpacity: isDark ? 0.25 : 0.08,
-            },
-          ]}
+  const renderContent = () => (
+    <View
+      style={[
+        styles.capsuleContainer,
+        {
+          shadowColor: '#000',
+          shadowOpacity: isDark ? 0.25 : 0.08,
+          marginHorizontal: isScrollable ? 16 : 16,
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={outerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.capsuleOuter}
+      >
+        <LinearGradient
+          colors={innerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.capsuleInner}
         >
-          <LinearGradient
-            colors={outerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.capsuleOuter}
-          >
-            <LinearGradient
-              colors={innerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.capsuleInner}
-            >
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <BlurView
-                  intensity={isDark ? 30 : 65}
-                  tint={isDark ? 'dark' : 'light'}
-                  style={StyleSheet.absoluteFill}
-                />
-              </View>
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <BlurView
+              intensity={isDark ? 30 : 65}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
 
-              <View style={styles.tabsContainer}>
-                {ready && (
-                  <RNAnimated.View
-                    pointerEvents="none"
+          <View style={styles.tabsContainer}>
+            {ready && (
+              <RNAnimated.View
+                pointerEvents="none"
+                style={[
+                  styles.slidingPill,
+                  {
+                    left: pillX,
+                    width: pillW,
+                    transform: [{ scale: pillScale }],
+                  },
+                ]}
+              >
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, borderRadius: 20 }]} />
+                <LinearGradient
+                  colors={isDark ? ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'] : ['rgba(255,255,255,0.22)', 'rgba(0,0,0,0.15)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+                />
+                <LinearGradient
+                  colors={isDark ? ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.07)'] : ['rgba(0,0,0,0.10)', 'rgba(255,255,255,0.12)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: 19 }]}
+                />
+              </RNAnimated.View>
+            )}
+
+            {options.map((opt) => {
+              const isActive = selectedValue === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => {
+                    onChange(opt.value);
+                    autoScrollToTab(opt.value);
+                  }}
+                  onLayout={(e) => onTabLayout(opt.value, e)}
+                  style={[
+                    styles.tabBtn,
+                    isScrollable && { flex: 0, paddingHorizontal: 16, minWidth: 80 }
+                  ]}
+                >
+                  <Typography
+                    numberOfLines={1}
                     style={[
-                      styles.slidingPill,
+                      styles.tabLabel,
                       {
-                        left: pillX,
-                        width: pillW,
-                        transform: [{ scale: pillScale }],
+                        color: isActive ? colors.primaryForeground : colors.mutedForeground,
+                        fontWeight: isActive ? '700' : '600',
                       },
                     ]}
                   >
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, borderRadius: 20 }]} />
-                    <LinearGradient
-                      colors={isDark ? ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'] : ['rgba(255,255,255,0.22)', 'rgba(0,0,0,0.15)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
-                    />
-                    <LinearGradient
-                      colors={isDark ? ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.07)'] : ['rgba(0,0,0,0.10)', 'rgba(255,255,255,0.12)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: 19 }]}
-                    />
-                  </RNAnimated.View>
-                )}
+                    {opt.label}
+                    {opt.badge !== undefined && ` (${opt.badge})`}
+                  </Typography>
+                </Pressable>
+              );
+            })}
+          </View>
+        </LinearGradient>
+      </LinearGradient>
+    </View>
+  );
 
-                {options.map((opt) => {
-                  const isActive = selectedValue === opt.value;
-                  return (
-                    <Pressable
-                      key={opt.value}
-                      onPress={() => onChange(opt.value)}
-                      onLayout={(e) => onTabLayout(opt.value, e)}
-                      style={styles.tabBtn}
-                    >
-                      <Typography
-                        style={[
-                          styles.tabLabel,
-                          {
-                            color: isActive ? colors.primaryForeground : colors.mutedForeground,
-                            fontWeight: isActive ? '700' : '600',
-                          },
-                        ]}
-                      >
-                        {opt.label}
-                        {opt.badge !== undefined && ` (${opt.badge})`}
-                      </Typography>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </LinearGradient>
-          </LinearGradient>
-        </View>
-      </GestureDetector>
+  return (
+    <View style={[styles.tabBarWrapper, { backgroundColor: colors.background }, style]}>
+      {isScrollable ? (
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+        >
+          {renderContent()}
+        </ScrollView>
+      ) : (
+        <GestureDetector gesture={tabPanGesture}>
+          {renderContent()}
+        </GestureDetector>
+      )}
     </View>
   );
 }
@@ -303,8 +347,13 @@ const styles = StyleSheet.create({
   tabBarWrapper: {
     paddingBottom: 8,
   },
+  scrollView: {
+    width: '100%',
+  },
+  scrollViewContent: {
+    paddingRight: 16,
+  },
   capsuleContainer: {
-    marginHorizontal: 16,
     marginVertical: 4,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
@@ -338,6 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
+    paddingHorizontal: 16,
   },
   tabLabel: {
     fontSize: 13,

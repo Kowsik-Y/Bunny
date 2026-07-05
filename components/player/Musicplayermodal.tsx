@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Dimensions,
@@ -13,6 +13,7 @@ import Animated, {
     Extrapolate,
     interpolate,
     runOnJS,
+    runOnUI,
     useAnimatedReaction,
     useAnimatedStyle,
     useSharedValue,
@@ -103,9 +104,9 @@ const MusicPlayerModal = ({
         []
     );
 
-    // On first mount and any track change, snap to collapsed position.
-    // We use a small timeout to let BottomTabBar's useEffect set bottomOffset first.
+    // On first mount and any real track change, snap to collapsed position.
     useEffect(() => {
+        if (!track) return; // ignore undefined flashes during track resolution swap
         const snap = () => {
             const currentHeight = Dimensions.get('window').height;
             const newSnap = currentHeight - MINI_PLAYER_HEIGHT - bottomOffset.value;
@@ -113,7 +114,6 @@ const MusicPlayerModal = ({
             if (!isExpanded.value) {
                 translateY.value = withSpring(newSnap, SPRING_CONFIG);
             }
-            console.log('[MusicPlayerModal] Mounted with track:', track?.title, 'by', track?.artist);
         };
 
         // Try immediately (works on reload when bottomOffset is already set)
@@ -147,13 +147,19 @@ const MusicPlayerModal = ({
 
     const expand = useCallback(() => {
         contextExpand();
-        isExpanded.value = true;
+        runOnUI(() => {
+            'worklet';
+            isExpanded.value = true;
+        })();
         setIsExpandedJS(true);
     }, [contextExpand]);
 
     const collapse = useCallback(() => {
         contextCollapse();
-        isExpanded.value = false;
+        runOnUI(() => {
+            'worklet';
+            isExpanded.value = false;
+        })();
         setIsExpandedJS(false);
     }, [contextCollapse]);
 
@@ -178,7 +184,7 @@ const MusicPlayerModal = ({
     // ─── Gesture handler ───────────────────────────────────────────────
     const startY = useSharedValue(0);
 
-    const createPanGesture = () => Gesture.Pan()
+    const createPanGesture = useCallback(() => Gesture.Pan()
         .activeOffsetY([-15, 15])
         .onStart(() => {
             startY.value = translateY.value;
@@ -214,12 +220,12 @@ const MusicPlayerModal = ({
                     runOnJS(setIsExpandedJS)(true);
                 }
             }
-        });
+        }), []);
 
-    const headerPanGesture = createPanGesture();
-    const artworkPanGesture = createPanGesture();
-    const controlsPanGesture = createPanGesture();
-    const miniPanGesture = createPanGesture();
+    const headerPanGesture = useMemo(() => createPanGesture(), []);
+    const artworkPanGesture = useMemo(() => createPanGesture(), []);
+    const controlsPanGesture = useMemo(() => createPanGesture(), []);
+    const miniPanGesture = useMemo(() => createPanGesture(), []);
 
     // ─── Animated styles ──────────────────────────────────────────────
     const sheetStyle = useAnimatedStyle(() => ({

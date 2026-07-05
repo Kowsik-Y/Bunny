@@ -39,9 +39,6 @@ export function AlbumRowCard({
 
   return (
     <Pressable
-      android_ripple={{
-        color: colors.border,
-      }}
       onPress={onPress}
       onLongPress={onLongPress || onPress}
       delayLongPress={250}

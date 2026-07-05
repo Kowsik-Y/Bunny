@@ -44,8 +44,8 @@ export default function MiniPlayerControls({
       >
         <Image source={track.artwork && (track.artwork as string).trim() !== '' ? { uri: track.artwork as string } : require('@/assets/images/icon.png')} style={styles.artwork} />
         <View style={styles.info}>
-          <MarqueeText speed ={40} style={[styles.title, { color: colors.text }]}>{track.title}</MarqueeText>
-          <MarqueeText speed ={40} style={[styles.artist, { color: colors.mutedForeground }]}>
+          <MarqueeText speed ={15} style={[styles.title, { color: colors.text }]}>{track.title}</MarqueeText>
+          <MarqueeText speed ={15} style={[styles.artist, { color: colors.mutedForeground }]}>
             {`${track.artist}${track.album ? ` • ${track.album}` : ''}`}
           </MarqueeText>
         </View>

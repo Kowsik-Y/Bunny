@@ -5,6 +5,7 @@ import { type AppTrack } from '@/components/player/Tracks';
 import { toast } from '@/services';
 import { getAlbumDetails, getPlaylistDetails } from '@/services/ytMusic';
 import { SelectedItemState } from '../types';
+import { getLocalPlaylists, createLocalPlaylist, addTrackToLocalPlaylist } from '@/services/playlists/storage';
 
 interface CollectionActionsParams {
   selectedItem: SelectedItemState | null;
@@ -103,7 +104,9 @@ export function useCollectionActions({
     toast.info('Downloading collection...');
     try {
       let tracksData: AppTrack[] = [];
+      let collectionName = '';
       if (selectedItem.type === 'album') {
+        collectionName = selectedItem.title;
         const albumDetails = await getAlbumDetails(selectedItem.id);
         tracksData = (albumDetails.tracks || []).map((t: any) => ({
           id: t.videoId,
@@ -117,14 +120,25 @@ export function useCollectionActions({
           albumId: selectedItem.id,
         }));
       } else if (selectedItem.type === 'playlist') {
+        collectionName = selectedItem.title;
         const playlistDetails = await getPlaylistDetails(selectedItem.id);
         tracksData = playlistDetails.tracks;
       }
 
       if (tracksData.length > 0) {
+        // Create local playlist matching collection name
+        const playlists = await getLocalPlaylists();
+        let playlist = playlists.find(p => p.name.toLowerCase() === collectionName.toLowerCase());
+        if (!playlist) {
+          playlist = await createLocalPlaylist(collectionName);
+        }
+
         toast.info(`Queued ${tracksData.length} downloads...`);
         for (const track of tracksData) {
           startDownload(track);
+          if (playlist) {
+            await addTrackToLocalPlaylist(playlist.id, track);
+          }
         }
       } else {
         toast.info('No tracks found to download');

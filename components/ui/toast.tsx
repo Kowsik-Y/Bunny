@@ -3,7 +3,7 @@ import { View, StyleSheet, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Typography } from './typography';
-import { Info, AlertCircle, CircleCheck } from 'lucide-react-native';
+import { Info, AlertCircle, Check } from 'lucide-react-native';
 
 type ToastType = 'default' | 'success' | 'error' | 'info';
 
@@ -80,7 +80,7 @@ function ToastItem({ toast }: { toast: Toast; onDismiss: () => void }) {
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
-        return <CircleCheck size={18} color={colors.primary} />;
+        return <Check size={18} color={colors.primary} />;
       case 'error':
         return <AlertCircle size={18} color={colors.destructive} />;
       case 'info':

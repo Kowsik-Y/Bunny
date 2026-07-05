@@ -1,10 +1,11 @@
 import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBottomSheet';
 import { Alert } from '@/components/ui/alert';
-import { Feather } from '@expo/vector-icons';
+
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -23,7 +24,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 
-import { PlaylistCard, PlaylistRowCard } from '@/components/cards';
+import { PlaylistCard } from '@/components/cards';
 import { type AppTrack } from '@/components/player/Tracks';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +36,8 @@ import {
   usePlaylists,
   useQueue,
 } from '@/services';
-import { Cog } from 'lucide-react-native';
+import { Cog, Plus, Play, Pause, XCircle, Download } from 'lucide-react-native';
+import { addAlpha } from '@/constants/theme';
 
 type Tab = 'playlists' | 'downloads';
 
@@ -57,7 +59,7 @@ export default function ProfileScreen() {
   const { favorites, toggleFavorite } = useFavorites();
 
   // Playlists Hook
-  const { playlists, createPlaylist, deletePlaylist } = usePlaylists();
+  const { playlists } = usePlaylists();
 
   // Downloads Hook
   const {
@@ -89,8 +91,6 @@ export default function ProfileScreen() {
       console.warn('ProfileScreen track press error', e);
     }
   }, [queue]);
-
-
 
 
 
@@ -135,15 +135,19 @@ export default function ProfileScreen() {
             <View style={styles.listSection}>
               <View style={styles.playlistGrid}>
                 {/* Create Playlist card button */}
-                <TouchableOpacity
+                <Pressable
+                  android_ripple={{
+                    color: addAlpha(colors.border,0.6),
+                    foreground:true
+                  }}
                   onPress={() => setShowCreateModal(true)}
-                  style={[styles.createPlaylistCard, { backgroundColor: colors.card, borderColor: colors.border, width: '47%' }]}
+                  style={[styles.createPlaylistCard, { backgroundColor: colors.card, borderColor: colors.border, width: '47%',overflow:"hidden" }]}
                 >
-                  <Feather name="plus" size={32} color={colors.primary} />
+                  <Plus size={32} color={colors.primary} />
                   <Typography style={[styles.createPlaylistCardText, { color: colors.primary }]}>
                     Create Playlist
                   </Typography>
-                </TouchableOpacity>
+                </Pressable>
 
                 {/* Special Liked Music Auto Playlist Card */}
                 <PlaylistCard
@@ -170,6 +174,7 @@ export default function ProfileScreen() {
                     id={playlist.id}
                     name={playlist.name}
                     songCount={playlist.tracks.length}
+                    artwork={playlist.tracks[0]?.artwork}
                     onPress={() => router.push(`/playlist/${playlist.id}`)}
                     style={{ width: '47%', marginRight: 0 }}
                     onLongPress={() => {
@@ -216,10 +221,14 @@ export default function ProfileScreen() {
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 12 }}>
                       <TouchableOpacity onPress={() => isPaused ? startDownload(track) : pauseDownload(track.id)}>
-                        <Feather name={isPaused ? "play" : "pause"} size={18} color={colors.primary} />
+                        {isPaused ? (
+                          <Play size={18} color={colors.primary} />
+                        ) : (
+                          <Pause size={18} color={colors.primary} />
+                        )}
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => cancelDownload(track.id)}>
-                        <Feather name="x-circle" size={18} color="#FF3B30" />
+                        <XCircle size={18} color="#FF3B30" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -228,7 +237,7 @@ export default function ProfileScreen() {
 
               {downloadedTracks.length === 0 && Object.keys(downloadingIds).length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-                  <Feather name="download" size={48} color={colors.mutedForeground} style={{ marginBottom: 15, opacity: 0.5 }} />
+                  <Download size={48} color={colors.mutedForeground} style={{ marginBottom: 15, opacity: 0.5 }} />
                   <Typography style={{ fontWeight: '600', fontSize: 16 }}>No offline downloads</Typography>
                   <Muted style={{ marginTop: 6, textAlign: 'center', paddingHorizontal: 40 }}>
                     Songs you download will appear here so you can listen offline.

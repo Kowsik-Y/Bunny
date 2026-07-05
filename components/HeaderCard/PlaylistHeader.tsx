@@ -4,8 +4,8 @@ import { H1, Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Download, Heart, Pause, Play, Shuffle } from 'lucide-react-native';
-import { Dimensions, Image, StyleSheet, View } from 'react-native';
+import { Download, Heart, Pause, Play, Shuffle, Share2, Plus, User, Check } from 'lucide-react-native';
+import { Dimensions, Image, StyleSheet, View, ScrollView } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
@@ -18,6 +18,9 @@ interface PlaylistHeaderProps {
   onShufflePress: () => void;
   onDownloadPress?: () => void;
   isPlaying?: boolean;
+  onSharePress?: () => void;
+  onSavePlaylistPress?: () => void;
+  onGoToArtistPress?: () => void;
 
   // --- playlist mode ---
   tracks?: AppTrack[];
@@ -29,6 +32,8 @@ interface PlaylistHeaderProps {
   artistName?: string;
   onHeartPress?: () => void;   // shows heart button when provided
   isLikedMusic?: boolean;
+  downloadStatus?: 'default' | 'downloading' | 'downloaded';
+  downloadProgress?: number;
 }
 
 export function PlaylistHeader({
@@ -45,6 +50,11 @@ export function PlaylistHeader({
   artistName,
   onHeartPress,
   isLikedMusic = false,
+  onSharePress,
+  onSavePlaylistPress,
+  onGoToArtistPress,
+  downloadStatus = 'default',
+  downloadProgress = 0,
 }: PlaylistHeaderProps) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -52,6 +62,32 @@ export function PlaylistHeader({
   return (
     <>
       <View style={styles.header}>
+        {/* Apple Music Style Ambient Background Glow */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          {isLikedMusic ? (
+            <LinearGradient
+              colors={['#8E2DE2', '#4A00E0']}
+              style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.28 : 0.16 }]}
+            />
+          ) : artworkUrl && artworkUrl.trim() !== '' ? (
+            <Image
+              source={{ uri: artworkUrl }}
+              style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.35 : 0.24 }]}
+              blurRadius={65}
+            />
+          ) : tracks.length > 0 && tracks[0].artwork ? (
+            <Image
+              source={{ uri: tracks[0].artwork }}
+              style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.35 : 0.24 }]}
+              blurRadius={65}
+            />
+          ) : null}
+          <LinearGradient
+            colors={['transparent', colors.background]}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+
         {/* Artwork — glass frame matching bottom nav bar */}
         <Animated.View entering={FadeInUp.duration(600)} style={styles.artworkWrapper}>
           {/* Outer bevel rim gradient */}
@@ -135,12 +171,17 @@ export function PlaylistHeader({
             <Muted style={styles.stats}>{subtitle}</Muted>
           ) : totalDuration !== undefined ? (
             <Muted style={styles.stats}>
-              {tracks.length} tracks, {Math.floor(totalDuration / 60)} min
+              {tracks.length} tracks • {Math.floor(totalDuration / 60)} min
             </Muted>
           ) : null}
 
-          {/* Action row */}
-          <View style={styles.actionRow}>
+          {/* Action row wrapped in a horizontal ScrollView to support premium action rows without wrap/overflow */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.actionRowContainer}
+            style={styles.actionRowScrollView}
+          >
             <Button variant="default" style={styles.mainAction} onPress={onPlayPress}>
               {isPlaying ? (
                 <Pause size={20} color={colors.background} fill={colors.background} />
@@ -162,12 +203,43 @@ export function PlaylistHeader({
               </Button>
             )}
 
-            {onDownloadPress && (
-              <Button variant="secondary" size="icon" onPress={onDownloadPress}>
-                <Download size={20} color={colors.primary} />
+            {onSavePlaylistPress && (
+              <Button variant="secondary" size="icon" onPress={onSavePlaylistPress}>
+                <Plus size={20} color={colors.primary} />
               </Button>
             )}
-          </View>
+
+            {onDownloadPress && (
+              <Button
+                variant="secondary"
+                size="icon"
+                onPress={onDownloadPress}
+                disabled={downloadStatus !== 'default'}
+              >
+                {downloadStatus === 'downloaded' ? (
+                  <Check size={20} color={colors.primary} />
+                ) : downloadStatus === 'downloading' ? (
+                  <Typography style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+                    {Math.round(downloadProgress * 100)}%
+                  </Typography>
+                ) : (
+                  <Download size={20} color={colors.primary} />
+                )}
+              </Button>
+            )}
+
+            {onSharePress && (
+              <Button variant="secondary" size="icon" onPress={onSharePress}>
+                <Share2 size={20} color={colors.primary} />
+              </Button>
+            )}
+
+            {onGoToArtistPress && (
+              <Button variant="secondary" size="icon" onPress={onGoToArtistPress}>
+                <User size={20} color={colors.primary} />
+              </Button>
+            )}
+          </ScrollView>
         </View>
       </View>
     </>
@@ -178,8 +250,8 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 30,
-    paddingTop: 60,
+    paddingBottom: 20,
+    paddingTop: 150,
   },
   artworkWrapper: {
     width: width * 0.65,
@@ -236,14 +308,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  actionRow: {
-    flexDirection: 'row',
+  actionRowScrollView: {
+    width: '100%',
     marginTop: 20,
+  },
+  actionRowContainer: {
+    flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   mainAction: {
     height: 48,
     borderRadius: 24,
+    paddingHorizontal: 20,
   },
 });

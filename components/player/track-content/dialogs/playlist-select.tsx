@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { PlusCircle, Folder } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
@@ -36,7 +36,7 @@ export function PlaylistSelect({
           onPress={onCreateNewPlaylist}
           style={[styles.deviceRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' }]}
         >
-          <Feather name="plus-circle" size={20} color={colors.mutedForeground} style={{ marginRight: 15 }} />
+          <PlusCircle size={20} color={colors.mutedForeground} style={{ marginRight: 15 }} />
           <Text style={[styles.deviceText, { color: colors.mutedForeground, fontWeight: '700' }]}>Create New Playlist...</Text>
         </Pressable>
 
@@ -52,7 +52,7 @@ export function PlaylistSelect({
               onPress={() => onSelectPlaylist(pl.id, pl.name)}
               style={styles.deviceRow}
             >
-              <Feather name="folder" size={20} color={colors.text} style={{ marginRight: 15 }} />
+              <Folder size={20} color={colors.text} style={{ marginRight: 15 }} />
               <Text style={[styles.deviceText, { color: colors.text }]}>{pl.name}</Text>
             </Pressable>
           ))

@@ -5,12 +5,13 @@ import { Typography } from '@/components/ui/typography';
 import { SwipeBottomSheet, BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
-import { Feather } from '@expo/vector-icons';
+import { Edit3 } from 'lucide-react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { styles } from './styles';
 import { TrackOptionsContext } from './context';
 import { useTrackOptionsState } from './use-track-options-state';
 import { SheetsContent } from './sheets-content';
+import { Button } from '@/components/ui/button';
 
 
 export function TrackOptionsProvider({ children }: { children: React.ReactNode }) {
@@ -62,7 +63,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
       >
         <Text style={[styles.newPlaylistTitle, { color: colors.text }]}>New Playlist</Text>
         <View style={[styles.inputRow, { borderColor: addAlpha(colors.text, 0.12) }]}>
-          <Feather name="edit-3" size={18} color={colors.mutedForeground} style={{ marginRight: 10 }} />
+          <Edit3 size={18} color={colors.mutedForeground} style={{ marginRight: 10 }} />
           <BottomSheetTextInput
             value={newPlaylistName}
             onChangeText={setNewPlaylistName}
@@ -72,12 +73,13 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
             autoFocus
           />
         </View>
-        <Pressable
+        <Button
+          variant='default'
           onPress={handleCreateNewPlaylist}
-          style={[styles.createBtn, { backgroundColor: colors.primary }]}
+          style={{ width: '100%' }}
         >
-          <Text style={styles.createBtnText}>Create & Save</Text>
-        </Pressable>
+          <Text style={[styles.createBtnText]}>Create & Save</Text>
+        </Button>
       </SwipeBottomSheet>
 
       <SwipeBottomSheet

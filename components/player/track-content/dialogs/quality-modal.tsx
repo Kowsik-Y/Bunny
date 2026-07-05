@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { AudioLines, Check } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
@@ -38,7 +38,7 @@ export function QualityModal({
       <BottomSheetScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
         {isLive ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-            <MaterialCommunityIcons name="waveform" size={32} color={colors.primary} style={{ marginBottom: 8 }} />
+            <AudioLines size={32} color={colors.primary} style={{ marginBottom: 8 }} />
             <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>Live Stream Active</Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 4, textAlign: 'center' }}>
               Broadcasting Live • 128 kbps (MP3)
@@ -88,7 +88,7 @@ export function QualityModal({
                     {label}
                   </Text>
                   {isSelected && (
-                    <Feather name="check" size={16} color={colors.primary} />
+                    <Check size={16} color={colors.primary} />
                   )}
                 </Pressable>
               );

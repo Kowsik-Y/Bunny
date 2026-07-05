@@ -349,6 +349,8 @@ class PipedService {
                 title: item.title,
                 artist: item.uploaderName || name,
                 thumbnail: item.thumbnail,
+                artistId: item.artistId || channelId,
+                artists: item.artists || [{ name: item.uploaderName || name, id: item.artistId || channelId }],
               });
             }
           }
@@ -435,17 +437,67 @@ class PipedService {
         if (!videoId) continue;
 
         let duration = 0;
-        const fixedColumnText = renderer.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        if (fixedColumnText) {
-          const parsed = parseDuration(fixedColumnText);
+        const lengthText = renderer.lengthText?.runs?.[0]?.text ?? renderer.lengthText?.simpleText;
+        if (lengthText) {
+          const parsed = parseDuration(lengthText);
           if (parsed !== null) duration = parsed;
         } else {
-          const runs = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
-          if (runs.length > 0) {
-            const lastRunText = runs[runs.length - 1].text;
-            if (/^\d+:\d+(:\d+)?$/.test(lastRunText)) {
-              const parsed = parseDuration(lastRunText);
-              if (parsed !== null) duration = parsed;
+          const fixedColumnText = renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text ??
+                                  renderer.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+          if (fixedColumnText && fixedColumnText.includes(':')) {
+            const parsed = parseDuration(fixedColumnText);
+            if (parsed !== null) duration = parsed;
+          } else {
+            const runs = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
+            if (runs.length > 0) {
+              const lastRunText = runs[runs.length - 1].text;
+              if (lastRunText && lastRunText.includes(':') && /^\d+:\d+(:\d+)?$/.test(lastRunText)) {
+                const parsed = parseDuration(lastRunText);
+                if (parsed !== null) duration = parsed;
+              }
+            }
+          }
+        }
+
+        // Parse actual artist, album, and other metadata from flexColumns[1]
+        let artistName = 'Unknown Artist';
+        let artistId: string | undefined;
+        let artistsList: { name: string; id: string }[] = [];
+        let albumName: string | undefined;
+        let albumId: string | undefined;
+
+        const metadataRuns = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
+        if (metadataRuns.length > 0) {
+          const groups: any[][] = [[]];
+          for (const run of metadataRuns) {
+            if (run.text === ' • ' || run.text?.trim() === '•') {
+              groups.push([]);
+            } else {
+              groups[groups.length - 1].push(run);
+            }
+          }
+
+          const artistRuns = groups[0] ?? [];
+          if (artistRuns.length > 0) {
+            artistName = artistRuns.map((r: any) => r.text).join('') || 'Unknown Artist';
+            artistId = artistRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
+            artistRuns.forEach((r: any) => {
+              const aId = r.navigationEndpoint?.browseEndpoint?.browseId;
+              const aName = r.text?.trim();
+              if (aId && aName && aName !== ',') {
+                artistsList.push({ name: aName, id: aId });
+              }
+            });
+          }
+
+          const albumRuns = groups[1] ?? [];
+          if (albumRuns.length > 0) {
+            const group1Text = albumRuns.map((r: any) => r.text).join('').trim();
+            const isDuration = group1Text && /^\d+:\d+(:\d+)?$/.test(group1Text);
+            const isViewsOrYear = group1Text && (/^\d+(?:\.\d+)?[KMB]? views$/i.test(group1Text) || /^\d{4}$/.test(group1Text));
+            if (group1Text && !isDuration && !isViewsOrYear) {
+              albumName = group1Text;
+              albumId = albumRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
             }
           }
         }
@@ -454,6 +506,11 @@ class PipedService {
           url: `watch?v=${videoId}`,
           title,
           duration,
+          uploaderName: artistName,
+          artistId,
+          artists: artistsList.length > 0 ? artistsList : undefined,
+          albumName,
+          albumId,
         });
       }
 

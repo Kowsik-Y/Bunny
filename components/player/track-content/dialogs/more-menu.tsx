@@ -1,11 +1,12 @@
 import { View, Image, Pressable, ActivityIndicator } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
-import { Heart } from 'lucide-react-native';
+import { Heart, ListMusic, AudioLines, Disc, User, CheckCircle2, Download, Share2, Info, BarChart2, ListX } from 'lucide-react-native';
+import { BottomSheetScrollView } from '../../SwipeBottomSheet';
 
 interface MoreMenuProps {
   visible: boolean;
@@ -21,6 +22,8 @@ interface MoreMenuProps {
   setShowPlaylistSelectModal: (val: boolean) => void;
   setShowAboutModal: (val: boolean) => void;
   setShowQualityModal: (val: boolean) => void;
+  setShowStatsModal: (val: boolean) => void;
+  trackOptionsState: any;
 }
 
 export function MoreMenu({
@@ -37,11 +40,27 @@ export function MoreMenu({
   setShowPlaylistSelectModal,
   setShowAboutModal,
   setShowQualityModal,
+  setShowStatsModal,
+  trackOptionsState,
 }: MoreMenuProps) {
   const { colors } = useAppTheme();
+
+  const {
+    handlePlayNext,
+    handleAddToQueue,
+    handleToggleLike,
+    handleRemoveFromQueue,
+    handleGoToAlbum,
+    handleGoToArtist,
+    handleDismissQueue,
+    isFavorite,
+  } = trackOptionsState;
+
+  const isLiked = track ? isFavorite(track.id) : false;
+
   return (
     <PlayerSheet visible={visible} onClose={onClose}>
-      <View style={styles.moreHeader}>
+      <View style={{...styles.moreHeader,borderColor:colors.border}}>
         <Image
           source={
             track.artwork && (track.artwork as string).trim() !== ''
@@ -56,95 +75,145 @@ export function MoreMenu({
           </Text>
           <Text style={{ color: colors.mutedForeground }} numberOfLines={1}>
             {track.artist}
-            {track.description && ` • ${track.description}`}
+            {track.album && ` • ${track.album}`}
           </Text>
         </View>
       </View>
 
-      <Pressable
-        onPress={() => {
-          toggleFavorite(track);
-          onClose();
-        }}
-        android_ripple={{ color: colors.border }}
-        style={styles.moreActionRow}
-      >
-        <Heart size={18} color={isFav ? '#FF3B30' : colors.text} />
-        <Text style={[styles.moreActionText, { color: colors.text }]}>
-          {isFav ? 'Remove from Favorites' : 'Add to Favorites'}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => {
-          onClose();
-          setTimeout(() => setShowPlaylistSelectModal(true), 250);
-        }}
-        android_ripple={{ color: colors.border }}
-        style={styles.moreActionRow}
-      >
-        <Feather name="plus-circle" size={18} color={colors.text} />
-        <Text style={[styles.moreActionText, { color: colors.text }]}>Add to Playlist</Text>
-      </Pressable>
-
-      {!isLive && (
         <Pressable
-          onPress={handleDownloadClick}
-          style={styles.moreActionRow}
+          onPress={() => {
+            handleToggleLike();
+            onClose();
+          }}
           android_ripple={{ color: colors.border }}
-          disabled={downloadingIds[track.id] !== undefined}
+          style={styles.moreActionRow}
         >
-          {downloadingIds[track.id] !== undefined ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Feather
-              name={isDownloaded(track.id) ? 'check-circle' : 'download'}
-              size={18}
-              color={isDownloaded(track.id) ? '#34C759' : colors.text}
-            />
-          )}
-          <Text style={[styles.moreActionText, { color: isDownloaded(track.id) ? '#34C759' : colors.text }]}>
-            {downloadingIds[track.id] !== undefined
-              ? `Downloading (${Math.round(downloadingIds[track.id] * 100)}%)`
-              : isDownloaded(track.id)
-                ? 'Downloaded'
-                : 'Download Song'}
+          <Heart size={18} color={isLiked ? '#FF3B30' : colors.text} fill={isLiked ? '#FF3B30' : 'none'} />
+          <Text style={[styles.moreActionText, { color: isLiked ? '#FF3B30' : colors.text }]}>
+            {isLiked ? 'Remove from library' : 'Save to library'}
           </Text>
         </Pressable>
-      )}
 
-      <Pressable
-        onPress={handleShare}
-        style={styles.moreActionRow}
-        android_ripple={{ color: colors.border }}
-      >
-        <Feather name="share-2" size={18} color={colors.text} />
-        <Text style={[styles.moreActionText, { color: colors.text }]}>Share Song</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => setShowPlaylistSelectModal(true), 250);
+          }}
+          android_ripple={{ color: colors.border }}
+          style={styles.moreActionRow}
+        >
+          <ListMusic size={20} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Save to playlist</Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => {
-          onClose();
-          setTimeout(() => setShowAboutModal(true), 250);
-        }}
-        style={styles.moreActionRow}
-        android_ripple={{ color: colors.border }}
-      >
-        <Feather name="info" size={18} color={colors.text} />
-        <Text style={[styles.moreActionText, { color: colors.text }]}>Song Info</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => setShowQualityModal(true), 250);
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <AudioLines size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Audio Quality</Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => {
-          onClose();
-          setTimeout(() => setShowQualityModal(true), 250);
-        }}
-        style={styles.moreActionRow}
-        android_ripple={{ color: colors.border }}
-      >
-        <MaterialCommunityIcons name="waveform" size={18} color={colors.text} />
-        <Text style={[styles.moreActionText, { color: colors.text }]}>Audio Quality</Text>
-      </Pressable>
+        {track.albumId && (
+          <Pressable
+            onPress={() => {
+              handleGoToAlbum();
+              onClose();
+            }}
+            android_ripple={{ color: colors.border }}
+            style={styles.moreActionRow}
+          >
+            <Disc size={20} color={colors.text} />
+            <Text style={[styles.moreActionText, { color: colors.text }]}>Go to album</Text>
+          </Pressable>
+        )}
+
+        {track.artistId && (
+          <Pressable
+            onPress={() => {
+              handleGoToArtist();
+              onClose();
+            }}
+            android_ripple={{ color: colors.border }}
+            style={styles.moreActionRow}
+          >
+            <User size={20} color={colors.text} />
+            <Text style={[styles.moreActionText, { color: colors.text }]}>Go to artist</Text>
+          </Pressable>
+        )}
+
+        {!isLive && (
+          <Pressable
+            onPress={handleDownloadClick}
+            style={styles.moreActionRow}
+            android_ripple={{ color: colors.border }}
+            disabled={downloadingIds[track.id] !== undefined}
+          >
+            {downloadingIds[track.id] !== undefined ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : isDownloaded(track.id) ? (
+              <CheckCircle2 size={18} color="#34C759" />
+            ) : (
+              <Download size={18} color={colors.text} />
+            )}
+            <Text style={[styles.moreActionText, { color: isDownloaded(track.id) ? '#34C759' : colors.text }]}>
+              {downloadingIds[track.id] !== undefined
+                ? `Downloading (${Math.round(downloadingIds[track.id] * 100)}%)`
+                : isDownloaded(track.id)
+                  ? 'Downloaded'
+                  : 'Download Song'}
+            </Text>
+          </Pressable>
+        )}
+
+        <Pressable
+          onPress={handleShare}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <Share2 size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Share Song</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => setShowAboutModal(true), 250);
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <Info size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>View song credits</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => setShowStatsModal(true), 250);
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <BarChart2 size={20} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Stats for nerds</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            handleDismissQueue();
+            onClose();
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <ListX size={20} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Dismiss queue</Text>
+        </Pressable>
     </PlayerSheet>
   );
 }

@@ -120,6 +120,7 @@ export function ArtistTabBar({
   }, [activeTab, ready]);
 
   const tabPanGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
     .runOnJS(true)
     .onStart(() => {
       const activeLayout = tabLayouts.current[activeTab];
@@ -343,7 +344,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   capsuleContainer: {
-    marginHorizontal: 16,
+    alignSelf: 'center',
     marginVertical: 4,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
@@ -371,12 +372,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   tabBtn: {
-    flex: 1,
     height: 38,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
+    paddingHorizontal: 16,
   },
   tabLabel: {
     fontSize: 13,

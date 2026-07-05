@@ -8,13 +8,15 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 import { PlayerActions, toast, useCurrentTrack, useDownloads, useFavorites, usePlayerState } from '@/services';
 import { getLocalPlaylists } from '@/services/playlists';
+import { createLocalPlaylist, addTrackToLocalPlaylist } from '@/services/playlists/storage';
 import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTrackOptions } from '@/contexts/track-options-context';
 
 
 
@@ -23,28 +25,19 @@ export default function PlaylistScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { favorites } = useFavorites();
-  const { startDownload } = useDownloads();
+  const { startDownload, isDownloaded, downloadingIds } = useDownloads();
   const currentTrack = useCurrentTrack();
-  const { isPlaying } = usePlayerState();
+  const { openPlaylistOptions } = useTrackOptions();
+  const { isPlaying, isBuffering } = usePlayerState();
   const bottomSpacing = useBottomTabSpacing();
 
   const [playlistName, setPlaylistName] = useState<string>(typeof id === 'string' ? id : 'Playlist');
   const [playlistTracks, setPlaylistTracks] = useState<AppTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const listRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (id === 'liked') {
-      setPlaylistName('Liked Music');
-      setPlaylistTracks(favorites);
-      setArtworkUrl(favorites.length > 0 ? favorites[0].artwork : null);
-      setLoading(false);
-    } else if (id) {
-      loadPlaylistDetails();
-    }
-  }, [id, favorites]);
-
-  const loadPlaylistDetails = async () => {
+  const loadPlaylistDetails = useCallback(async () => {
     try {
       setLoading(true);
       const isLocal = typeof id === 'string' && id.startsWith('local-');
@@ -97,13 +90,54 @@ export default function PlaylistScreen() {
     } finally {
       setLoading(false);
     }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+    if (id === 'liked') {
+      Promise.resolve().then(() => {
+        setPlaylistName('Liked Music');
+        setPlaylistTracks(favorites);
+        setArtworkUrl(favorites.length > 0 ? favorites[0].artwork : null);
+        setLoading(false);
+      });
+    } else if (id) {
+      Promise.resolve().then(() => {
+        loadPlaylistDetails();
+      });
+    }
+  }, [id, favorites, loadPlaylistDetails]);
+
+  const totalDuration = playlistTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+
+  const handleSharePress = async () => {
+    try {
+      await Share.share({
+        message: `Check out this playlist "${playlistName}": https://music.youtube.com/playlist?list=${id}`,
+      });
+    } catch (e) {
+      console.warn(e);
+    }
   };
 
-  const totalDuration = playlistTracks.reduce((acc, t) => acc + t.duration, 0);
+  const handleSavePlaylistPress = () => {
+    openPlaylistOptions({
+      id: id as string,
+      name: playlistName,
+      songCount: playlistTracks.length,
+      artwork: artworkUrl || undefined,
+    });
+  };
 
   const renderTrackItem = ({ item, index }: { item: AppTrack; index: number }) => {
     const trackId = item.id;
-    const isActive = !!(currentTrack?.id === trackId || (currentTrack?.id && currentTrack.id.includes(trackId)));
+    const isActive = !!(currentTrack && (
+      currentTrack.id === trackId ||
+      (currentTrack.id && currentTrack.id.includes(trackId)) ||
+      (trackId && trackId.includes(currentTrack.id))
+    ));
     return (
       <SongCard
         title={item.title}
@@ -112,7 +146,7 @@ export default function PlaylistScreen() {
         artwork={item.artwork}
         rightIcon="play"
         isActive={isActive}
-        isPlaying={isPlaying}
+        isPlaying={isPlaying || isBuffering}
         index={index}
         showRank={true}
         onPress={() => PlayerActions.skipToTrackFromYt({
@@ -127,7 +161,7 @@ export default function PlaylistScreen() {
           artistId: item.artistId,
           albumId: item.albumId,
         })}
-        onTogglePress={() => PlayerActions.playPause(isPlaying)}
+        onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
         track={item}
       />
     );
@@ -149,7 +183,7 @@ export default function PlaylistScreen() {
   const handlePlayPress = () => {
     // If this playlist is already active, just toggle play/pause
     if (isPlaylistActive) {
-      PlayerActions.playPause(isPlaying);
+      PlayerActions.playPause(isPlaying || isBuffering);
       return;
     }
     if (playlistTracks[0]) {
@@ -180,13 +214,28 @@ export default function PlaylistScreen() {
 
     toast.info(`Downloading ${playlistTracks.length} tracks...`);
 
-    let success = 0;
-    for (const track of playlistTracks) {
-      const ok = await startDownload(track);
-      if (ok) success++;
-    }
+    try {
+      const playlists = await getLocalPlaylists();
+      let playlist = playlists.find(p => p.name.toLowerCase() === playlistName.toLowerCase());
+      if (!playlist) {
+        playlist = await createLocalPlaylist(playlistName);
+      }
 
-    toast.success(`Offline download complete! Saved ${success}/${playlistTracks.length} tracks.`);
+      let success = 0;
+      for (const track of playlistTracks) {
+        const ok = await startDownload(track);
+        if (ok) {
+          success++;
+          if (playlist) {
+            await addTrackToLocalPlaylist(playlist.id, track);
+          }
+        }
+      }
+      toast.success(`Queued ${success}/${playlistTracks.length} downloads`);
+    } catch (e) {
+      console.warn('Playlist download error', e);
+      toast.error('Failed to start playlist downloads');
+    }
   };
 
   return (
@@ -209,21 +258,61 @@ export default function PlaylistScreen() {
       </SafeAreaView>
 
       <FlatList
+        ref={listRef}
         data={playlistTracks}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id + '-' + index}
         renderItem={renderTrackItem}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={
-          <PlaylistHeader
-            name={playlistName}
-            tracks={playlistTracks}
-            artworkUrl={artworkUrl}
-            totalDuration={totalDuration}
-            isPlaying={isPlaylistActive && isPlaying}
-            onPlayPress={handlePlayPress}
-            onShufflePress={handleShufflePress}
-            onDownloadPress={handleDownloadPress}
-            isLikedMusic={id === 'liked'}
-          />
+          (() => {
+            const durationMin = Math.floor(totalDuration / 60);
+            const subtitle = `Playlist • ${playlistTracks.length} tracks${durationMin > 0 ? ` • ${durationMin} min` : ''}`;
+
+            const totalTracksCount = playlistTracks.length;
+            const downloadedTracksCount = playlistTracks.filter(t => isDownloaded(t.id)).length;
+            const isAllDownloaded = totalTracksCount > 0 && downloadedTracksCount === totalTracksCount;
+
+            const downloadingTracksList = playlistTracks.filter(t => downloadingIds[t.id] !== undefined);
+            const isDownloading = downloadingTracksList.length > 0;
+
+            let overallProgress = 0;
+            if (totalTracksCount > 0) {
+              const sumProgress = playlistTracks.reduce((sum, t) => {
+                if (isDownloaded(t.id)) return sum + 1;
+                const prog = downloadingIds[t.id];
+                return sum + (prog !== undefined ? prog : 0);
+              }, 0);
+              overallProgress = sumProgress / totalTracksCount;
+            }
+
+            const downloadStatus = isAllDownloaded
+              ? 'downloaded'
+              : isDownloading
+                ? 'downloading'
+                : 'default';
+
+            return (
+              <PlaylistHeader
+                name={playlistName}
+                tracks={playlistTracks}
+                artworkUrl={artworkUrl}
+                totalDuration={totalDuration}
+                subtitle={subtitle}
+                isPlaying={isPlaylistActive && (isPlaying || isBuffering)}
+                onPlayPress={handlePlayPress}
+                onShufflePress={handleShufflePress}
+                onDownloadPress={handleDownloadPress}
+                isLikedMusic={id === 'liked'}
+                onSharePress={handleSharePress}
+                onSavePlaylistPress={id !== 'liked' ? handleSavePlaylistPress : undefined}
+                downloadStatus={downloadStatus}
+                downloadProgress={overallProgress}
+              />
+            );
+          })()
         }
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -269,7 +358,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingTop: 90,
     paddingBottom: 180,
   },
   stickyBackContainer: {

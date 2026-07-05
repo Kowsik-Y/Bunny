@@ -7,14 +7,16 @@ import { Muted } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
-import { toast, useCurrentTrack, useDownloads, usePlayerState } from '@/services';
+import { toast, useCurrentTrack, useDownloads, usePlayerState, useFavorites } from '@/services';
 import { PlayerActions } from '@/services/SetupService';
+import { getLocalPlaylists, createLocalPlaylist, addTrackToLocalPlaylist } from '@/services/playlists/storage';
 import { getAlbumDetails } from '@/services/ytMusic';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Share } from 'react-native';
+import { useTrackOptions } from '@/contexts/track-options-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -25,20 +27,17 @@ export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { startDownload } = useDownloads();
+  const { startDownload, isDownloaded, downloadingIds } = useDownloads();
   const currentTrack = useCurrentTrack();
-  const { isPlaying } = usePlayerState();
+  const { toggleFavorite } = useFavorites();
+  const { openAlbumOptions } = useTrackOptions();
+  const { isPlaying, isBuffering } = usePlayerState();
   const [albumData, setAlbumData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const bottomSpacing = useBottomTabSpacing();
+  const listRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (id) {
-      loadAlbum();
-    }
-  }, [id]);
-
-  const loadAlbum = async () => {
+  const loadAlbum = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAlbumDetails(id as string);
@@ -48,11 +47,24 @@ export default function AlbumScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      Promise.resolve().then(() => {
+        loadAlbum();
+      });
+    }
+  }, [id, loadAlbum]);
 
   const renderTrackItem = ({ item, index }: { item: any; index: number }) => {
     const trackId = item.videoId || item.id;
-    const isActive = !!(currentTrack?.id === trackId || (currentTrack?.id && currentTrack.id.includes(trackId)));
+    const isActive = !!(currentTrack && (
+      currentTrack.id === trackId ||
+      (currentTrack.id && currentTrack.id.includes(trackId)) ||
+      (trackId && trackId.includes(currentTrack.id))
+    ));
     return (
       <SongCard
         title={item.name}
@@ -61,7 +73,7 @@ export default function AlbumScreen() {
         showIndex={true}
         rightIcon="play"
         isActive={isActive}
-        isPlaying={isPlaying}
+        isPlaying={isPlaying || isBuffering}
         onPress={() => PlayerActions.skipToTrackFromYt({
           id: item.videoId,
           title: item.name,
@@ -75,7 +87,7 @@ export default function AlbumScreen() {
           albumId: id as string,
           artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
         })}
-        onTogglePress={() => PlayerActions.playPause(isPlaying)}
+        onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
         track={{
           id: item.videoId,
           title: item.name,
@@ -117,7 +129,7 @@ export default function AlbumScreen() {
 
   const handlePlayPress = () => {
     if (isAlbumActive) {
-      PlayerActions.playPause(isPlaying);
+      PlayerActions.playPause(isPlaying || isBuffering);
       return;
     }
     if (albumData.tracks?.[0]) {
@@ -141,19 +153,10 @@ export default function AlbumScreen() {
     // Shuffle logic if needed
   };
 
-  const handleHeartPress = () => {
-    // Like logic if needed
-  };
-
-  const handleDownloadPress = async () => {
-    if (!albumData.tracks || albumData.tracks.length === 0) {
-      toast.info('This album has no tracks.');
-      return;
-    }
-
-    toast.info(`Queued ${albumData.tracks.length} tracks for download.`);
-
-    for (const item of albumData.tracks) {
+  const handleHeartPress = async () => {
+    toast.info('Saving album tracks to library...');
+    let likedCount = 0;
+    for (const item of albumData.tracks || []) {
       const track: AppTrack = {
         id: item.videoId,
         title: item.name,
@@ -164,9 +167,75 @@ export default function AlbumScreen() {
         duration: item.duration / 1000,
         artistId: albumData.artistId,
         albumId: id as string,
-        artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
       };
-      startDownload(track);
+      await toggleFavorite(track);
+      likedCount++;
+    }
+    toast.success(`Updated ${likedCount} tracks in library`);
+  };
+
+  const handleSharePress = async () => {
+    try {
+      await Share.share({
+        message: `Check out this album "${albumData.name}": https://music.youtube.com/playlist?list=${id}`,
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const handleSavePlaylistPress = () => {
+    openAlbumOptions({
+      id: id as string,
+      title: albumData.name,
+      artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
+      artwork: albumData.thumbnails?.[0]?.url,
+      artistId: albumData.artistId,
+    });
+  };
+
+  const handleGoToArtistPress = () => {
+    if (albumData.artistId) {
+      router.push(`/artist/${albumData.artistId}`);
+    }
+  };
+
+  const handleDownloadPress = async () => {
+    if (!albumData.tracks || albumData.tracks.length === 0) {
+      toast.info('This album has no tracks.');
+      return;
+    }
+
+    toast.info(`Queued ${albumData.tracks.length} tracks for download.`);
+
+    try {
+      const playlists = await getLocalPlaylists();
+      let playlist = playlists.find(p => p.name.toLowerCase() === albumData.name.toLowerCase());
+      if (!playlist) {
+        playlist = await createLocalPlaylist(albumData.name);
+      }
+
+      for (const item of albumData.tracks) {
+        const track: AppTrack = {
+          id: item.videoId,
+          title: item.name,
+          artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
+          album: albumData.name,
+          artwork: albumData.thumbnails?.[0]?.url || '',
+          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          duration: item.duration / 1000,
+          artistId: albumData.artistId,
+          albumId: id as string,
+          artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
+        };
+        const ok = await startDownload(track);
+        if (ok && playlist) {
+          await addTrackToLocalPlaylist(playlist.id, track);
+        }
+      }
+    } catch (e) {
+      console.warn('Album download error', e);
+      toast.error('Failed to start album downloads');
     }
   };
 
@@ -190,28 +259,71 @@ export default function AlbumScreen() {
       </SafeAreaView>
 
       <FlatList
+        ref={listRef}
         data={albumData.tracks || []}
         keyExtractor={(item, index) => item.videoId || String(index)}
         renderItem={renderTrackItem}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={
-          <PlaylistHeader
-            name={albumData.name}
-            artworkUrl={albumData.thumbnails?.[albumData.thumbnails.length - 1]?.url}
-            artistName={typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name}
-            onArtistPress={() => {
-              if (albumData.artistId) {
-                router.push(`/artist/${albumData.artistId}`);
-              } else {
-                router.push({ pathname: '/(tabs)/explore', params: { query: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name } } as any);
-              }
-            }}
-            subtitle={`Album • ${albumData.tracks?.length || 0} tracks • ${albumData.year || 'Unknown'}`}
-            isPlaying={isAlbumActive && isPlaying}
-            onPlayPress={handlePlayPress}
-            onShufflePress={handleShufflePress}
-            onHeartPress={handleHeartPress}
-            onDownloadPress={handleDownloadPress}
-          />
+          (() => {
+            const totalDuration = (albumData.tracks || []).reduce((acc: number, t: any) => acc + (t.duration / 1000 || 0), 0);
+            const durationMin = Math.floor(totalDuration / 60);
+            const subtitle = `Album • ${albumData.tracks?.length || 0} tracks • ${durationMin > 0 ? `${durationMin} min • ` : ''}${albumData.year || 'Unknown'}`;
+
+            const albumTracks = albumData.tracks || [];
+            const totalTracksCount = albumTracks.length;
+            const downloadedTracksCount = albumTracks.filter((t: any) => isDownloaded(t.videoId || t.id)).length;
+            const isAllDownloaded = totalTracksCount > 0 && downloadedTracksCount === totalTracksCount;
+
+            const downloadingTracksList = albumTracks.filter((t: any) => downloadingIds[t.videoId || t.id] !== undefined);
+            const isDownloading = downloadingTracksList.length > 0;
+
+            let overallProgress = 0;
+            if (totalTracksCount > 0) {
+              const sumProgress = albumTracks.reduce((sum: number, t: any) => {
+                const trackId = t.videoId || t.id;
+                if (isDownloaded(trackId)) return sum + 1;
+                const prog = downloadingIds[trackId];
+                return sum + (prog !== undefined ? prog : 0);
+              }, 0);
+              overallProgress = sumProgress / totalTracksCount;
+            }
+
+            const downloadStatus = isAllDownloaded
+              ? 'downloaded'
+              : isDownloading
+                ? 'downloading'
+                : 'default';
+
+            return (
+              <PlaylistHeader
+                name={albumData.name}
+                artworkUrl={albumData.thumbnails?.[albumData.thumbnails.length - 1]?.url}
+                artistName={typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name}
+                onArtistPress={() => {
+                  if (albumData.artistId) {
+                    router.push(`/artist/${albumData.artistId}`);
+                  } else {
+                    router.push({ pathname: '/(tabs)/explore', params: { query: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name } } as any);
+                  }
+                }}
+                subtitle={subtitle}
+                isPlaying={isAlbumActive && (isPlaying || isBuffering)}
+                onPlayPress={handlePlayPress}
+                onShufflePress={handleShufflePress}
+                onHeartPress={handleHeartPress}
+                onDownloadPress={handleDownloadPress}
+                onSharePress={handleSharePress}
+                onSavePlaylistPress={handleSavePlaylistPress}
+                onGoToArtistPress={albumData.artistId ? handleGoToArtistPress : undefined}
+                downloadStatus={downloadStatus}
+                downloadProgress={overallProgress}
+              />
+            );
+          })()
         }
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -257,7 +369,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingTop: 80,
     paddingBottom: 180,
   },
   stickyBackContainer: {

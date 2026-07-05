@@ -3,7 +3,7 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SongCard, AlbumCard } from '@/components/cards';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
-import { useCurrentTrack, usePlayerState } from '@/services';
+import { useCurrentTrack, usePlayerState, PlayerActions } from '@/services';
 import { Typography, Muted } from '@/components/ui/typography';
 import { useTrackOptions } from '@/contexts/track-options-context';
 import { ExpandableText } from '@/components/ui/expandable-text';
@@ -26,11 +26,15 @@ export function ArtistTabContent({
   const { colors } = useAppTheme();
   const { openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
   const currentTrack = useCurrentTrack();
-  const { isPlaying } = usePlayerState();
+  const { isPlaying, isBuffering } = usePlayerState();
 
   const renderSong = (item: any, index: number) => {
     const trackId = item.videoId || item.id;
-    const isActive = !!(currentTrack?.id === trackId || (currentTrack?.id && currentTrack.id.includes(trackId)));
+    const isActive = !!(currentTrack && (
+      currentTrack.id === trackId ||
+      (currentTrack.id && currentTrack.id.includes(trackId)) ||
+      (trackId && trackId.includes(currentTrack.id))
+    ));
     return (
       <Animated.View key={item.id || index} entering={FadeInDown.delay(index * 40).springify()}>
         <SongCard
@@ -41,8 +45,9 @@ export function ArtistTabContent({
           showRank={true}
           rightIcon="play"
           isActive={isActive}
-          isPlaying={isPlaying}
+          isPlaying={isPlaying || isBuffering}
           onPress={() => onSongPress(item)}
+          onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
           track={{
             id: trackId,
             title: item.title,
@@ -63,7 +68,7 @@ export function ArtistTabContent({
     <View key={sIdx} style={styles.carouselSection}>
       <Typography style={[styles.carouselTitle, { color: colors.text }]}>{section.title}</Typography>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselScroll}>
-        {section.items.map((item: any, idx: number) => (
+        {(section.items || []).map((item: any, idx: number) => (
           <Animated.View key={idx} entering={FadeInRight.delay(idx * 60)}>
             <AlbumCard
               title={item.title || item.name}
@@ -92,7 +97,7 @@ export function ArtistTabContent({
     <View key={sIdx} style={styles.gridSection}>
       <Typography style={[styles.carouselTitle, { color: colors.text, paddingHorizontal: 0 }]}>{section.title}</Typography>
       <View style={styles.gridContainer}>
-        {section.items.map((item: any, idx: number) => (
+        {(section.items || []).map((item: any, idx: number) => (
           <Animated.View key={idx} entering={FadeInDown.delay(idx * 40)} style={styles.gridItem}>
             <AlbumCard
               title={item.title || item.name}
@@ -118,20 +123,18 @@ export function ArtistTabContent({
   );
 
   const renderAbout = (section: any, sIdx: number) => {
-    const about = section.items[0];
+    const about = (section.items || [])[0];
     if (!about) return null;
     return (
       <View style={{ paddingHorizontal: 10 }}>
-
         <ExpandableText
           key={sIdx}
-          text={about.description}
+          text={about.description || ''}
           asCard={true}
           title="Biography"
           badge={about.views}
         />
       </View>
-
     );
   };
 
@@ -147,10 +150,11 @@ export function ArtistTabContent({
   return (
     <View style={styles.tabContent}>
       {sections.map((sec, sIdx) => {
+        if (!sec) return null;
         if (sec.type === 'list') {
           return (
             <View key={sIdx}>
-              {sec.items.slice(0, 15).map((item: any, i: number) => renderSong(item, i))}
+              {(sec.items || []).slice(0, 15).map((item: any, i: number) => renderSong(item, i))}
             </View>
           );
         }

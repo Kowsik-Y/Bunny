@@ -4,8 +4,6 @@ export const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: 16,
   },
   artwork: {
@@ -90,6 +88,5 @@ export const styles = StyleSheet.create({
   createBtnText: {
     fontWeight: '700',
     fontSize: 15,
-    color: '#fff',
   },
 });

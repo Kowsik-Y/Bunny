@@ -13,7 +13,7 @@ import { getArtistDetails, searchYtMusic } from '@/services/ytMusic';
 import { addAlpha } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
-import { ChevronDown, ChevronLeft } from 'lucide-react-native';
+import {  ChevronLeft } from 'lucide-react-native';
 
 
 import { ArtistHero } from '@/components/artist/ArtistHero';
@@ -23,8 +23,8 @@ import { Button } from '@/components/ui/button';
 import { ThemedView } from '@/components/themed-view';
 
 
-const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 300;
+const { width: screenWidth } = Dimensions.get('window');
+const HEADER_HEIGHT = screenWidth;
 
 const TABS = ['Top Songs', 'Albums', 'Singles & EPs', 'About'] as const;
 type TabKey = typeof TABS[number];
@@ -53,7 +53,15 @@ export default function ArtistScreen() {
   const isFirstRender = useRef(true);
   const scrollYVal = useRef(0);
 
-  useEffect(() => { if (id) loadArtist(); }, [id]);
+  useEffect(() => {
+    if (id) {
+      scrollY.setValue(0);
+      scrollYVal.current = 0;
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      setActiveTab('Top Songs');
+      loadArtist();
+    }
+  }, [id]);
 
   useEffect(() => {
     const animId = scrollY.addListener(({ value }) => {
@@ -98,7 +106,7 @@ export default function ArtistScreen() {
       if (searchRes.songs.length > 0) {
         const shuffled = [...searchRes.songs]
           .sort(() => Math.random() - 0.5)
-          .map((s: any) => ({ id: s.id, url: 'https://dummy.com', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+          .map((s: any) => ({ id: s.id, url: `https://dummy.com/track-${s.id}.mp3`, title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0, artistId: s.artistId, albumId: s.albumId, artists: s.artists }));
         await PlayerActions.playCollection(shuffled as any);
       }
     } catch (err) { console.error(err); }
@@ -108,7 +116,7 @@ export default function ArtistScreen() {
     try {
       const searchRes = await searchYtMusic((artistData.name ?? '') + ' songs');
       if (searchRes.songs.length > 0) {
-        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: 'https://dummy.com', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: `https://dummy.com/track-${s.id}.mp3`, title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0, artistId: s.artistId, albumId: s.albumId, artists: s.artists }));
         await PlayerActions.playCollection(mix as any);
       }
     } catch (err) { console.error(err); }
@@ -144,7 +152,6 @@ export default function ArtistScreen() {
 
   const navTitleStart = Math.max(0, HEADER_HEIGHT - 100);
   const navTitleEnd = Math.max(navTitleStart + 1, HEADER_HEIGHT - 40);
-  const navTitleOpacity = scrollY.interpolate({ inputRange: [navTitleStart, navTitleEnd], outputRange: [0, 1], extrapolate: 'clamp' });
 
   const stickyOffset = insets.top;
   const stickyThreshold = HEADER_HEIGHT - stickyOffset;

@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import TrackPlayer, { State, useActiveTrack, usePlaybackState } from 'react-native-track-player';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 import { type AppTrack } from '@/components/player/Tracks';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MapPin, Search, X, Radio, Map as MapIcon, AudioLines, Globe, Pause, Play } from 'lucide-react-native';
 import { toast } from '@/services';
 import { addAlpha } from '@/constants/theme';
 
@@ -60,12 +60,7 @@ export default function RadioScreen() {
   const playback = usePlaybackState();
   const isPlaying = playback.state === State.Playing;
 
-  // Detect location and load stations on mount
-  useEffect(() => {
-    detectLocationAndLoad();
-  }, []);
-
-  const detectLocationAndLoad = async () => {
+  async function detectLocationAndLoad() {
     setLocationLoading(true);
     setStationsLoading(true);
     try {
@@ -115,14 +110,14 @@ export default function RadioScreen() {
     }
   };
 
-  const loadDefaultCity = async () => {
+  async function loadDefaultCity() {
     setCurrentCity('Tamil Nadu');
     setCurrentCountry('IN');
     setPlaceId('jKelPaRC');
     await loadStations('jKelPaRC');
   };
 
-  const loadStations = async (id: string) => {
+  async function loadStations(id: string) {
     setStationsLoading(true);
     try {
       // 1. Fetch place detail page to find nearby places dynamically
@@ -187,7 +182,14 @@ export default function RadioScreen() {
     } finally {
       setStationsLoading(false);
     }
-  };
+  }
+
+  // Detect location and load stations on mount
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      detectLocationAndLoad();
+    });
+  }, []);
 
   const handleSearch = async (text: string) => {
     setSearchQuery(text);
@@ -383,7 +385,7 @@ export default function RadioScreen() {
               {locationLoading ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Ionicons name="location" size={18} color={colors.primary} />
+                <MapPin size={18} color={colors.primary} />
               )}
             </TouchableOpacity>
           </View>
@@ -392,7 +394,7 @@ export default function RadioScreen() {
         {/* Search Input */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+            <Search size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
             <TextInput
               value={searchQuery}
               onChangeText={handleSearch}
@@ -402,7 +404,7 @@ export default function RadioScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => handleSearch('')}>
-                <Feather name="x" size={18} color={colors.mutedForeground} />
+                <X size={18} color={colors.mutedForeground} />
               </TouchableOpacity>
             )}
           </View>
@@ -436,12 +438,19 @@ export default function RadioScreen() {
                     onPress={() => selectSearchResult(item)}
                     style={[styles.searchResultItem, { borderBottomColor: colors.border }]}
                   >
-                    <Ionicons
-                      name={item.type === 'channel' ? 'radio-outline' : 'map-outline'}
-                      size={16}
-                      color={colors.primary}
-                      style={{ marginRight: 10 }}
-                    />
+                    {item.type === 'channel' ? (
+                      <Radio
+                        size={16}
+                        color={colors.primary}
+                        style={{ marginRight: 10 }}
+                      />
+                    ) : (
+                      <MapIcon
+                        size={16}
+                        color={colors.primary}
+                        style={{ marginRight: 10 }}
+                      />
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>{item.title}</Text>
                       <Text style={{ color: colors.mutedForeground, fontSize: 12 }} numberOfLines={1}>{item.subtitle}</Text>
@@ -451,7 +460,7 @@ export default function RadioScreen() {
               />
             ) : (
               <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: colors.mutedForeground }}>No results found matching "{searchQuery}"</Text>
+                <Text style={{ color: colors.mutedForeground }}>{`No results found matching "${searchQuery}"`}</Text>
               </View>
             )}
           </View>
@@ -553,9 +562,9 @@ export default function RadioScreen() {
                   >
                     <View style={[styles.stationIconContainer, { backgroundColor: isSelected ? addAlpha(colors.primary, 0.1) : addAlpha(colors.text, 0.05) }]}>
                       {isCurrentPlaying ? (
-                        <MaterialCommunityIcons name="waveform" size={24} color={colors.primary} />
+                        <AudioLines size={24} color={colors.primary} />
                       ) : (
-                        <Ionicons name="radio" size={24} color={isSelected ? colors.primary : colors.mutedForeground} />
+                        <Radio size={24} color={isSelected ? colors.primary : colors.mutedForeground} />
                       )}
                     </View>
 
@@ -580,7 +589,7 @@ export default function RadioScreen() {
                             padding: 6,
                           }}
                         >
-                          <Feather name="globe" size={16} color={colors.primary} />
+                          <Globe size={16} color={colors.primary} />
                         </TouchableOpacity>
                       )}
                       <View
@@ -589,11 +598,17 @@ export default function RadioScreen() {
                           { backgroundColor: isSelected ? colors.primary : addAlpha(colors.text, 0.1) }
                         ]}
                       >
-                        <Ionicons
-                          name={isCurrentPlaying ? 'pause' : 'play'}
-                          size={16}
-                          color={isSelected ? colors.background : colors.text}
-                        />
+                        {isCurrentPlaying ? (
+                          <Pause
+                            size={16}
+                            color={isSelected ? colors.background : colors.text}
+                          />
+                        ) : (
+                          <Play
+                            size={16}
+                            color={isSelected ? colors.background : colors.text}
+                          />
+                        )}
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -601,7 +616,7 @@ export default function RadioScreen() {
               })
             ) : (
               <View style={{ paddingVertical: 50, alignItems: 'center' }}>
-                <Feather name="radio" size={48} color={colors.mutedForeground} style={{ opacity: 0.5 }} />
+                <Radio size={48} color={colors.mutedForeground} style={{ opacity: 0.5 }} />
                 <Text style={{ color: colors.mutedForeground, marginTop: 12, textAlign: 'center' }}>
                   No live radio stations found in this location.{'\n'}Try selecting a preset city above or searching.
                 </Text>

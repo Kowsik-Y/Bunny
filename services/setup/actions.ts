@@ -7,7 +7,11 @@ export const PlayerActions = {
   playPause: async (isPlaying: boolean) => {
     try {
       const state = await TrackPlayer.getPlaybackState();
-      if (state.state === State.Playing) {
+      if (
+        state.state === State.Playing ||
+        state.state === State.Buffering ||
+        state.state === State.Loading
+      ) {
         await TrackPlayer.pause();
       } else {
         await TrackPlayer.play();

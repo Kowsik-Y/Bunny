@@ -16,7 +16,7 @@ type Props = {
 };
 
 const GAP = 40;
-const START_DELAY = 1500;
+const START_DELAY = 1500; // pause duration, applied at the start AND after every loop
 
 const marqueeStyles = StyleSheet.create({
   hidden: { opacity: 0 },
@@ -27,7 +27,7 @@ function MeasureElement({
   onLayout,
   children,
 }: {
-  onLayout: (width: number) => void;
+  onLayout: (width: number, height: number) => void;
   children: ReactNode;
 }) {
   return (
@@ -37,7 +37,14 @@ function MeasureElement({
       pointerEvents="none"
       scrollEnabled={false}
     >
-      <View onLayout={(ev) => onLayout(Math.ceil(ev.nativeEvent.layout.width))}>
+      <View
+        onLayout={(ev) =>
+          onLayout(
+            Math.ceil(ev.nativeEvent.layout.width),
+            Math.ceil(ev.nativeEvent.layout.height)
+          )
+        }
+      >
         {children}
       </View>
     </Animated.ScrollView>
@@ -71,6 +78,7 @@ function ChildrenScroller({
   parentWidth,
   gap,
   active,
+  holdMs,
   children,
 }: {
   duration: number;
@@ -78,17 +86,36 @@ function ChildrenScroller({
   parentWidth: number;
   gap: number;
   active: SharedValue<boolean>;
+  holdMs: number;
   children: ReactNode;
 }) {
   const offset = useSharedValue(0);
+  // Starts pre-loaded with a hold so we pause before the very first scroll.
+  const holdRemaining = useSharedValue(holdMs);
   const step = childrenWidth + gap;
 
   useFrameCallback((frame) => {
     'worklet';
     if (!active.value || step <= 0 || duration <= 0) return;
+
     const dt = frame.timeSincePreviousFrame ?? 16.67;
+
+    // While holding, just count down and don't move -- this is what
+    // creates the "stop a second at starting" pause, both on first
+    // mount and every time the loop returns to offset 0.
+    if (holdRemaining.value > 0) {
+      holdRemaining.value -= dt;
+      return;
+    }
+
     offset.value += (dt * step) / duration;
-    offset.value = offset.value % step;
+
+    if (offset.value >= step) {
+      offset.value = offset.value % step;
+      // Back at the start of a fresh cycle -- pause again before
+      // continuing to scroll.
+      holdRemaining.value = holdMs;
+    }
   }, true);
 
   const count = Math.ceil(parentWidth / step) + 2;
@@ -107,6 +134,7 @@ function ChildrenScroller({
 export default function MarqueeText({ children, style, speed = 40 }: Props) {
   const [parentWidth, setParentWidth] = useState(0);
   const [childrenWidth, setChildrenWidth] = useState(0);
+  const [childrenHeight, setChildrenHeight] = useState(0);
   const active = useSharedValue(false);
 
   const { font, fontFamily, headingFontFamily, semiBoldFontFamily } = useAppTheme();
@@ -157,16 +185,11 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [font, fontFamily, headingFontFamily, semiBoldFontFamily, textStyleKey]);
 
-  // Key that changes whenever the text/style actually changes -- used to
-  // force-remount the measuring + scrolling subtree below. This guarantees
-  // a fresh onLayout measurement every time, even if the new text happens
-  // to render at the exact same pixel width as the old one (onLayout does
-  // NOT fire again in that case on a component that stays mounted).
   const contentKey = `${children}::${textStyleKey}`;
 
   useEffect(() => {
     setChildrenWidth(0);
-    setParentWidth((w) => w); // parent width doesn't need reset
+    setChildrenHeight(0);
     active.value = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentKey]);
@@ -174,21 +197,20 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
   const overflow =
     parentWidth > 0 && childrenWidth > 0 && childrenWidth > parentWidth;
 
+  // Activate as soon as we know it should scroll -- the initial pause is
+  // now handled inside the frame callback (holdRemaining), so there's no
+  // need for a JS-side setTimeout delay here anymore.
   useEffect(() => {
-    if (!overflow) {
-      active.value = false;
-      return;
-    }
-    const timer = setTimeout(() => {
-      active.value = true;
-    }, START_DELAY);
-    return () => {
-      clearTimeout(timer);
-    };
+    active.value = overflow;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overflow, contentKey]);
 
   const duration = childrenWidth > 0 ? (childrenWidth / speed) * 1000 : 0;
+
+  const handleMeasure = (width: number, height: number) => {
+    setChildrenWidth(width);
+    setChildrenHeight((prev) => (height > prev ? height : prev));
+  };
 
   return (
     <View
@@ -196,12 +218,18 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
       onLayout={(e) => setParentWidth(Math.ceil(e.nativeEvent.layout.width))}
       pointerEvents="box-none"
     >
-      {/* key={contentKey} forces this whole subtree to fully unmount and
-          remount whenever the song/text changes, so measurement and the
-          scroller always start clean instead of possibly reusing a stale
-          layout/width from the previous song. */}
-      <View style={marqueeStyles.row} pointerEvents="box-none" key={contentKey}>
-        <MeasureElement onLayout={setChildrenWidth}>
+      <View
+        style={[
+          marqueeStyles.row,
+          {
+            width: parentWidth || '100%',
+            height: childrenHeight || undefined,
+          },
+        ]}
+        pointerEvents="box-none"
+        key={contentKey}
+      >
+        <MeasureElement onLayout={handleMeasure}>
           <Text numberOfLines={1} style={resolvedStyle}>
             {children}
           </Text>
@@ -211,7 +239,10 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
-            style={[resolvedStyle, { position: 'absolute', left: 0, top: 0 }]}
+            style={[
+              resolvedStyle,
+              { position: 'absolute', left: 0, top: 0, width: parentWidth || '100%' },
+            ]}
           >
             {children}
           </Text>
@@ -224,6 +255,7 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
               parentWidth={parentWidth}
               gap={GAP}
               active={active}
+              holdMs={START_DELAY}
             >
               <Text numberOfLines={1} style={resolvedStyle}>
                 {children}

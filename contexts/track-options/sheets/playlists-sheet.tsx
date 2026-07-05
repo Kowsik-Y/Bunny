@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, Text, Dimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { ChevronLeft, PlusCircle, Music } from 'lucide-react-native';
 import { BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { ActionRow } from '../action-row';
@@ -28,7 +28,7 @@ export function PlaylistsSheet({ state }: PlaylistsSheetProps) {
     <View>
       <View style={styles.subHeader}>
         <Pressable onPress={() => setSheetScreen('main')} style={styles.backBtn}>
-          <Feather name="chevron-left" size={22} color={colors.text} />
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
         <Text style={[styles.subHeaderTitle, { color: colors.text }]}>Save to Playlist</Text>
       </View>
@@ -37,7 +37,7 @@ export function PlaylistsSheet({ state }: PlaylistsSheetProps) {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         <ActionRow
-          icon={<Feather name="plus-circle" size={18} color={colors.primary} />}
+          icon={<PlusCircle size={18} color={colors.primary} />}
           label="Create new playlist"
           onPress={() => setNewPlaylistVisible(true)}
           color={colors.primary}
@@ -45,7 +45,7 @@ export function PlaylistsSheet({ state }: PlaylistsSheetProps) {
         {playlists.map((pl, i) => (
           <ActionRow
             key={pl.id}
-            icon={<Feather name="music" size={18} color={colors.text} />}
+            icon={<Music size={18} color={colors.text} />}
             label={pl.name}
             onPress={() => {
               if (selectedItem?.type === 'track') {

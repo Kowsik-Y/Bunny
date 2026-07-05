@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Pressable, Text, StyleSheet, Dimensions, PixelRatio } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import { View, Text, StyleSheet, Dimensions, PixelRatio } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { TrackOptionsState } from '../use-track-options-state';
-import { styles as optionStyles } from '../styles';
+import { type AppTrack } from '../../Tracks';
+import { PlayerSheet } from './player-sheet';
 
-interface StatsSheetProps {
-  state: TrackOptionsState;
+interface StatsModalProps {
+  visible: boolean;
+  onClose: () => void;
+  track: AppTrack;
 }
 
-export function StatsSheet({ state }: StatsSheetProps) {
+export function StatsModal({ visible, onClose, track }: StatsModalProps) {
   const { colors } = useAppTheme();
-  const { selectedTrack, setSheetScreen } = state;
 
   const [volume, setVolume] = useState(100);
   const [speed, setSpeed] = useState(26415);
@@ -21,7 +21,7 @@ export function StatsSheet({ state }: StatsSheetProps) {
 
   // Generate a stable sCPN based on video ID
   const sCPN = useMemo(() => {
-    const id = selectedTrack?.id || '';
+    const id = track.id || '';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let res = '';
     for (let i = 0; i < 16; i++) {
@@ -30,10 +30,11 @@ export function StatsSheet({ state }: StatsSheetProps) {
       res += chars[code % chars.length];
     }
     return res;
-  }, [selectedTrack?.id]);
+  }, [track.id]);
 
   useEffect(() => {
-    if (!selectedTrack) return;
+    if (!visible) return;
+
     // 1. Get volume
     TrackPlayer.getVolume().then((v) => setVolume(Math.round(v * 100)));
 
@@ -65,10 +66,10 @@ export function StatsSheet({ state }: StatsSheetProps) {
       clearInterval(speedInterval);
       clearInterval(dateInterval);
     };
-  }, [selectedTrack]);
+  }, [visible, track]);
 
   // Audio codec and itag mapping
-  const activeItag = selectedTrack?.activeItag || 140;
+  const activeItag = track.activeItag || 140;
   const isOpus = activeItag === 251 || activeItag === 249;
   const codecStr = isOpus ? 'opus (251)' : 'mp4a.40.2 (140)';
   
@@ -81,7 +82,7 @@ export function StatsSheet({ state }: StatsSheetProps) {
   const viewportStr = `${Math.round(width)}x${Math.round(height)}*${screenScale.toFixed(2)}`;
 
   const stats = [
-    { label: 'Video ID / sCPN', value: `${selectedTrack?.id} / ${sCPN}` },
+    { label: 'Video ID / sCPN', value: `${track.id} / ${sCPN}` },
     { label: 'Viewport / Frames', value: `${viewportStr} / 0 dropped` },
     { label: 'Current / Optimal Res', value: `${currentRes} / ${optimalRes}` },
     { label: 'Volume / Normalized', value: `${volume}% / ${volume}% (cont. 0.0dB)` },
@@ -103,17 +104,8 @@ export function StatsSheet({ state }: StatsSheetProps) {
     { label: 'Date', value: liveDate },
   ];
 
-  if (!selectedTrack) return null;
-
   return (
-    <View style={{ paddingBottom: 10 }}>
-      <View style={optionStyles.subHeader}>
-        <Pressable onPress={() => setSheetScreen('main')} style={optionStyles.backBtn}>
-          <ChevronLeft size={22} color={colors.text} />
-        </Pressable>
-        <Text style={[optionStyles.subHeaderTitle, { color: colors.text }]}>Stats for Nerds</Text>
-      </View>
-
+    <PlayerSheet visible={visible} onClose={onClose} title="Stats for Nerds">
       <View style={styles.consoleContainer}>
         {stats.map((row) => (
           <View key={row.label} style={styles.row}>
@@ -130,7 +122,7 @@ export function StatsSheet({ state }: StatsSheetProps) {
           </View>
         ))}
       </View>
-    </View>
+    </PlayerSheet>
   );
 }
 
@@ -139,9 +131,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F0F11',
     borderRadius: 12,
     padding: 16,
-    marginTop: 8,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 10,
   },
   row: {
     flexDirection: 'row',

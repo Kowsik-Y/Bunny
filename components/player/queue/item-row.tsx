@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image, Pressable, StyleSheet } from 'react-native';
 import { ScaleDecorator, ShadowDecorator } from 'react-native-draggable-flatlist';
-import { Trash2, Volume2 } from 'lucide-react-native';
+import { Trash2, Volume2, Ellipsis } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
+import { useTrackOptions } from '@/contexts/track-options-context';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import Reanimated, {
   useSharedValue,
@@ -30,6 +31,7 @@ export const QueueItemRow = React.memo(({
 }) => {
   const { item, originalIndex, isHistory, isNowPlaying } = trackRow;
   const canDrag = !isHistory && !isNowPlaying;
+  const { openTrackOptions } = useTrackOptions();
 
   const [isDeleting, setIsDeleting] = useState(false);
   const rowHeight = useSharedValue(62);
@@ -113,9 +115,21 @@ export const QueueItemRow = React.memo(({
                 </Text>
               </View>
 
-              {isNowPlaying && (
-                <Volume2 size={16} color="#fff" style={{ marginRight: 8 }} />
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {isNowPlaying && (
+                  <Volume2 size={16} color="#fff" style={{ marginRight: 8 }} />
+                )}
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openTrackOptions(item);
+                  }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{ padding: 8, marginLeft: 4 }}
+                >
+                  <Ellipsis size={18} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              </View>
             </Pressable>
           </Swipeable>
         </Reanimated.View>

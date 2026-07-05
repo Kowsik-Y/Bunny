@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Image, Text, Pressable, StyleSheet, Alert } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Heart, ListVideo, ListPlus, Bookmark, Loader2, CheckCircle2, Download, ListMusic, MinusCircle, Disc, User, Info, Share2, Pin, BarChart2, ListX, FolderPlus, Trash2, Shuffle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { searchYtMusic } from '@/services/ytMusic';
-import { PlayerActions, usePlaylists } from '@/services';
+import { PlayerActions, usePlaylists, useCurrentTrack } from '@/services';
 import { ActionRow } from '../action-row';
 import { TrackOptionsState } from '../use-track-options-state';
 import { styles } from '../styles';
@@ -17,6 +17,7 @@ interface MainSheetProps {
 export function MainSheet({ state }: MainSheetProps) {
   const { colors } = useAppTheme();
   const { deletePlaylist } = usePlaylists();
+  const currentTrack = useCurrentTrack();
   const {
     selectedItem,
     selectedTrack,
@@ -43,17 +44,25 @@ export function MainSheet({ state }: MainSheetProps) {
 
   if (!selectedItem) return null;
 
+  const isCurrentTrackActive = !!(
+    currentTrack &&
+    selectedTrack &&
+    (currentTrack.id === selectedTrack.id ||
+      (currentTrack.id && currentTrack.id.includes(selectedTrack.id)) ||
+      (selectedTrack.id && selectedTrack.id.includes(currentTrack.id)))
+  );
+
   const isLiked = selectedTrack ? isFavorite(selectedTrack.id) : false;
 
   return (
     <View>
-      <View style={[styles.header, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
+      <View style={[styles.header]}>
         {selectedItem.id === 'liked' ? (
           <LinearGradient
             colors={['#8E2DE2', '#4A00E0']}
             style={[styles.artwork, { alignItems: 'center', justifyContent: 'center' }]}
           >
-            <Feather name="heart" size={24} color="#ffffff" />
+            <Heart size={24} color="#ffffff" />
           </LinearGradient>
         ) : (
           <Image
@@ -82,18 +91,22 @@ export function MainSheet({ state }: MainSheetProps) {
       >
         {selectedItem.type === 'track' && selectedTrack && (
           <>
+            {!isCurrentTrackActive && (
+              <>
+                <ActionRow
+                  icon={<ListVideo size={20} color={colors.text} />}
+                  label="Play next"
+                  onPress={handlePlayNext}
+                />
+                <ActionRow
+                  icon={<ListPlus size={20} color={colors.text} />}
+                  label="Add to queue"
+                  onPress={handleAddToQueue}
+                />
+              </>
+            )}
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-play" size={20} color={colors.text} />}
-              label="Play next"
-              onPress={handlePlayNext}
-            />
-            <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-plus" size={20} color={colors.text} />}
-              label="Add to queue"
-              onPress={handleAddToQueue}
-            />
-            <ActionRow
-              icon={<Feather name="bookmark" size={18} color={isLiked ? '#FF3B30' : colors.text} />}
+              icon={<Bookmark size={18} color={isLiked ? '#FF3B30' : colors.text} />}
               label={isLiked ? 'Remove from library' : 'Save to library'}
               onPress={handleToggleLike}
               color={isLiked ? '#FF3B30' : undefined}
@@ -105,11 +118,11 @@ export function MainSheet({ state }: MainSheetProps) {
               const isInProgress = dlProgress !== undefined;
 
               const iconEl = isInProgress ? (
-                <MaterialCommunityIcons name="progress-download" size={20} color={colors.primary} />
+                <Loader2 size={20} color={colors.primary} />
               ) : dlDone ? (
-                <Feather name="check-circle" size={18} color="#34C759" />
+                <CheckCircle2 size={18} color="#34C759" />
               ) : (
-                <Feather name="download" size={18} color={colors.text} />
+                <Download size={18} color={colors.text} />
               );
 
               const labelEl = isInProgress
@@ -140,94 +153,99 @@ export function MainSheet({ state }: MainSheetProps) {
               );
             })()}
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-music" size={20} color={colors.text} />}
+              icon={<ListMusic size={20} color={colors.text} />}
               label="Save to playlist"
               onPress={() => setSheetScreen('playlists')}
             />
-            <ActionRow
-              icon={<Feather name="minus-circle" size={18} color={colors.text} />}
-              label="Remove from queue"
-              onPress={handleRemoveFromQueue}
-            />
+            {!isCurrentTrackActive && (
+              <ActionRow
+                icon={<MinusCircle size={18} color={colors.text} />}
+                label="Remove from queue"
+                onPress={handleRemoveFromQueue}
+              />
+            )}
             {selectedTrack.albumId && (
               <ActionRow
-                icon={<MaterialCommunityIcons name="album" size={20} color={colors.text} />}
+                icon={<Disc size={20} color={colors.text} />}
                 label="Go to album"
                 onPress={handleGoToAlbum}
               />
             )}
             {selectedTrack.artistId && (
               <ActionRow
-                icon={<MaterialCommunityIcons name="account-music" size={20} color={colors.text} />}
+                icon={<User size={20} color={colors.text} />}
                 label="Go to artist"
                 onPress={handleGoToArtist}
               />
             )}
             <ActionRow
-              icon={<Feather name="info" size={18} color={colors.text} />}
+              icon={<Info size={18} color={colors.text} />}
               label="View song credits"
               onPress={() => setSheetScreen('credits')}
             />
             <ActionRow
-              icon={<Feather name="share-2" size={18} color={colors.text} />}
+              icon={<Share2 size={18} color={colors.text} />}
               label="Share"
               onPress={handleShare}
             />
             <ActionRow
-              icon={<MaterialCommunityIcons name="pin" size={20} color={colors.text} />}
+              icon={<Pin size={20} color={colors.text} />}
               label="Pin to Listen again"
               onPress={state.handlePinListenAgain}
             />
             <ActionRow
-              icon={<MaterialCommunityIcons name="chart-bar" size={20} color={colors.text} />}
+              icon={<BarChart2 size={20} color={colors.text} />}
               label="Stats for nerds"
               onPress={() => setSheetScreen('stats')}
+              last={!isCurrentTrackActive}
             />
-            <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-remove" size={20} color={colors.text} />}
-              label="Dismiss queue"
-              onPress={handleDismissQueue}
-              last
-            />
+            {isCurrentTrackActive && (
+              <ActionRow
+                icon={<ListX size={20} color={colors.text} />}
+                label="Dismiss queue"
+                onPress={handleDismissQueue}
+                last
+              />
+            )}
           </>
         )}
 
         {selectedItem.type === 'album' && (
           <>
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-play" size={20} color={colors.text} />}
+              icon={<ListVideo size={20} color={colors.text} />}
               label="Play next"
               onPress={handlePlayNextCollection}
             />
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-plus" size={20} color={colors.text} />}
+              icon={<ListPlus size={20} color={colors.text} />}
               label="Add to queue"
               onPress={handleAddToQueueCollection}
             />
             <ActionRow
-              icon={<Feather name="bookmark" size={18} color={colors.text} />}
+              icon={<Bookmark size={18} color={colors.text} />}
               label="Save album to library"
               onPress={handleSaveAlbumToLibrary}
             />
             <ActionRow
-              icon={<Feather name="download" size={18} color={colors.text} />}
+              icon={<Download size={18} color={colors.text} />}
               label="Download all tracks"
               onPress={handleDownloadCollection}
             />
             <ActionRow
-              icon={<Feather name="folder-plus" size={18} color={colors.text} />}
+              icon={<FolderPlus size={18} color={colors.text} />}
               label="Save to playlist"
               onPress={() => setSheetScreen('playlists')}
             />
             {selectedItem.artistId && (
               <ActionRow
-                icon={<Feather name="user" size={18} color={colors.text} />}
+                icon={<User size={18} color={colors.text} />}
                 label="Go to artist"
                 onPress={handleGoToArtistFromCollection}
               />
             )}
             <ActionRow
-              icon={<Feather name="share-2" size={18} color={colors.text} />}
+              icon={<Share2 size={18} color={colors.text} />}
               label="Share album"
               onPress={handleShareCollection}
             />
@@ -237,28 +255,28 @@ export function MainSheet({ state }: MainSheetProps) {
         {selectedItem.type === 'playlist' && (
           <>
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-play" size={20} color={colors.text} />}
+              icon={<ListVideo size={20} color={colors.text} />}
               label="Play next"
               onPress={handlePlayNextCollection}
             />
             <ActionRow
-              icon={<MaterialCommunityIcons name="playlist-plus" size={20} color={colors.text} />}
+              icon={<ListPlus size={20} color={colors.text} />}
               label="Add to queue"
               onPress={handleAddToQueueCollection}
             />
             <ActionRow
-              icon={<Feather name="download" size={18} color={colors.text} />}
+              icon={<Download size={18} color={colors.text} />}
               label="Download all tracks"
               onPress={handleDownloadCollection}
             />
             <ActionRow
-              icon={<Feather name="share-2" size={18} color={colors.text} />}
+              icon={<Share2 size={18} color={colors.text} />}
               label="Share playlist"
               onPress={handleShareCollection}
             />
             {selectedItem.id.startsWith('local-') && (
               <ActionRow
-                icon={<Feather name="trash-2" size={18} color="#FF3B30" />}
+                icon={<Trash2 size={18} color="#FF3B30" />}
                 label="Delete playlist"
                 onPress={() => {
                   state.setVisible(false);
@@ -280,7 +298,7 @@ export function MainSheet({ state }: MainSheetProps) {
         {selectedItem.type === 'artist' && (
           <>
             <ActionRow
-              icon={<Feather name="user" size={18} color={colors.text} />}
+              icon={<User size={18} color={colors.text} />}
               label="Go to artist page"
               onPress={() => {
                 state.setVisible(false);
@@ -288,7 +306,7 @@ export function MainSheet({ state }: MainSheetProps) {
               }}
             />
             <ActionRow
-              icon={<Feather name="shuffle" size={18} color={colors.text} />}
+              icon={<Shuffle size={18} color={colors.text} />}
               label="Shuffle play artist"
               onPress={async () => {
                 state.setVisible(false);
@@ -317,7 +335,7 @@ export function MainSheet({ state }: MainSheetProps) {
               }}
             />
             <ActionRow
-              icon={<Feather name="share-2" size={18} color={colors.text} />}
+              icon={<Share2 size={18} color={colors.text} />}
               label="Share artist"
               onPress={handleShareCollection}
             />

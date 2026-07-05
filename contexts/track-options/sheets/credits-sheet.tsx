@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { ChevronLeft } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { TrackOptionsState } from '../use-track-options-state';
 import { styles } from '../styles';
@@ -19,7 +19,7 @@ export function CreditsSheet({ state }: CreditsSheetProps) {
     <View>
       <View style={styles.subHeader}>
         <Pressable onPress={() => setSheetScreen('main')} style={styles.backBtn}>
-          <Feather name="chevron-left" size={22} color={colors.text} />
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
         <Text style={[styles.subHeaderTitle, { color: colors.text }]}>Song Credits</Text>
       </View>

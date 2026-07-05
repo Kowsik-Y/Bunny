@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { type AppTrack } from '@/components/player/Tracks';
@@ -32,25 +32,43 @@ export function useDownloads() {
   const [pausedDownloadingIdsState, setPausedDownloadingIdsState] = useState<Record<string, boolean>>({});
   const [downloadLocation, setDownloadLocationState] = useState<'internal' | 'cache'>('internal');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const list = await getDownloadedTracks();
-    setDownloadedTracks(list);
-    const loc = await getDownloadLocation();
-    setDownloadLocationState(loc);
-    
-    const mergedTracks = { ...activeDownloadingTracks, ...queuedDownloadingTracks };
-    const mergedIds = { ...activeDownloadingIds };
-    Object.keys(queuedDownloadingTracks).forEach(id => {
-      if (mergedIds[id] === undefined) {
-        mergedIds[id] = 0;
-      }
-    });
+  const isPendingRef = useRef(false);
+  const nextLoadRef = useRef<(() => void) | null>(null);
 
-    setDownloadingIds(mergedIds);
-    setDownloadingTracks(mergedTracks);
-    setPausedDownloadingIdsState({ ...pausedDownloadingIds });
-    setLoading(false);
+  const load = useCallback(async () => {
+    if (isPendingRef.current) {
+      nextLoadRef.current = load;
+      return;
+    }
+    isPendingRef.current = true;
+
+    try {
+      setLoading(true);
+      const list = await getDownloadedTracks();
+      setDownloadedTracks(list);
+      const loc = await getDownloadLocation();
+      setDownloadLocationState(loc);
+      
+      const mergedTracks = { ...activeDownloadingTracks, ...queuedDownloadingTracks };
+      const mergedIds = { ...activeDownloadingIds };
+      Object.keys(queuedDownloadingTracks).forEach(id => {
+        if (mergedIds[id] === undefined) {
+          mergedIds[id] = 0;
+        }
+      });
+
+      setDownloadingIds(mergedIds);
+      setDownloadingTracks(mergedTracks);
+      setPausedDownloadingIdsState({ ...pausedDownloadingIds });
+      setLoading(false);
+    } finally {
+      isPendingRef.current = false;
+      if (nextLoadRef.current) {
+        const next = nextLoadRef.current;
+        nextLoadRef.current = null;
+        setTimeout(next, 150); // throttle progress updates to 150ms
+      }
+    }
   }, []);
 
   useEffect(() => {

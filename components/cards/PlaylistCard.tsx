@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { Feather } from '@expo/vector-icons';
+import { ThumbsUp, Folder } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
@@ -42,13 +42,13 @@ export function PlaylistCard({
           colors={['#8E2DE2', '#4A00E0']}
           style={styles.cardArtwork}
         >
-          <Feather name="thumbs-up" size={36} color="#ffffff" />
+          <ThumbsUp size={36} color="#ffffff" />
         </LinearGradient>
       ) : artwork && artwork.trim() !== '' ? (
         <Image source={{ uri: artwork }} style={styles.cardArtwork} />
       ) : (
         <View style={[styles.cardArtwork, styles.cardPlaceholder, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Feather name="folder" size={36} color={colors.primary} />
+          <Folder size={36} color={colors.primary} />
         </View>
       )}
 
@@ -72,7 +72,6 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: 140,
     marginRight: 16,
-    borderRadius: 16,
     overflow: 'hidden',
   },
   cardArtwork: {
