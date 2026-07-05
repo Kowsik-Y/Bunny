@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
 
@@ -12,7 +13,6 @@ interface PlaylistSelectProps {
   playlists: any[];
   onSelectPlaylist: (playlistId: string, name: string) => void;
   onCreateNewPlaylist: () => void;
-  colors: any;
 }
 
 export function PlaylistSelect({
@@ -21,14 +21,14 @@ export function PlaylistSelect({
   playlists,
   onSelectPlaylist,
   onCreateNewPlaylist,
-  colors,
 }: PlaylistSelectProps) {
+  const { colors } = useAppTheme();
+
   return (
     <PlayerSheet
       visible={visible}
       onClose={onClose}
       title="Add to Playlist"
-      colors={colors}
     >
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         <Pressable

@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Typography as Text } from '@/components/ui/typography';
+import { useAppTheme } from '@/contexts/app-theme-context';
 
 interface PlayerSheetProps {
   visible: boolean;
@@ -10,14 +11,6 @@ interface PlayerSheetProps {
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
-  colors: {
-    text: string;
-    background: string;
-    card: string;
-    border: string;
-    mutedForeground: string;
-    primary: string;
-  };
   children: React.ReactNode;
 }
 
@@ -27,9 +20,9 @@ export function PlayerSheet({
   title,
   showBack,
   onBack,
-  colors,
   children,
 }: PlayerSheetProps) {
+  const { colors } = useAppTheme();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const wasPresented = useRef(false);
 

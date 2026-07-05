@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable } from 'react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerSheet } from './player-sheet';
 
 interface ArtistSheetProps {
@@ -9,7 +10,6 @@ interface ArtistSheetProps {
   onClose: () => void;
   artistOptions: Array<{ name: string; id: string }>;
   onSelectArtist: (id: string) => void;
-  colors: any;
 }
 
 export function ArtistSheet({
@@ -17,14 +17,14 @@ export function ArtistSheet({
   onClose,
   artistOptions,
   onSelectArtist,
-  colors,
 }: ArtistSheetProps) {
+  const { colors } = useAppTheme();
+
   return (
     <PlayerSheet
       visible={visible}
       onClose={onClose}
       title="Select Artist"
-      colors={colors}
     >
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         {artistOptions.map((art) => (

@@ -3,6 +3,7 @@ import { View, Image, Pressable, ActivityIndicator } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography as Text } from '@/components/ui/typography';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
@@ -21,7 +22,6 @@ interface MoreMenuProps {
   setShowPlaylistSelectModal: (val: boolean) => void;
   setShowAboutModal: (val: boolean) => void;
   setShowQualityModal: (val: boolean) => void;
-  colors: any;
 }
 
 export function MoreMenu({
@@ -38,10 +38,11 @@ export function MoreMenu({
   setShowPlaylistSelectModal,
   setShowAboutModal,
   setShowQualityModal,
-  colors,
 }: MoreMenuProps) {
+  const { colors } = useAppTheme();
+
   return (
-    <PlayerSheet visible={visible} onClose={onClose} colors={colors}>
+    <PlayerSheet visible={visible} onClose={onClose}>
       <View style={styles.moreHeader}>
         <Image
           source={

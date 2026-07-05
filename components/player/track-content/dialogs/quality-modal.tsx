@@ -4,6 +4,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 
@@ -15,7 +16,6 @@ interface QualityModalProps {
   isLive: boolean;
   changeAudioQuality: (url: string, itag: number) => void;
   changeVideoQuality: (url: string, itag: number) => void;
-  colors: any;
 }
 
 export function QualityModal({
@@ -26,14 +26,14 @@ export function QualityModal({
   isLive,
   changeAudioQuality,
   changeVideoQuality,
-  colors,
 }: QualityModalProps) {
+  const { colors } = useAppTheme();
+
   return (
     <PlayerSheet
       visible={visible}
       onClose={onClose}
       title={playerMode === 'video' ? 'Video Quality' : 'Audio Quality'}
-      colors={colors}
     >
       <BottomSheetScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
         {isLive ? (

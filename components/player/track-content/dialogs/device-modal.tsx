@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 
@@ -13,7 +14,6 @@ interface DeviceModalProps {
   realDevices: any[];
   playerMode: 'audio' | 'video';
   track: AppTrack;
-  colors: any;
 }
 
 export function DeviceModal({
@@ -23,20 +23,20 @@ export function DeviceModal({
   realDevices,
   playerMode,
   track,
-  colors,
 }: DeviceModalProps) {
+  const { colors } = useAppTheme();
+
   return (
     <PlayerSheet
       visible={visible}
       onClose={onClose}
       title="Audio Status"
-      colors={colors}
     >
       <View style={styles.content}>
         <View style={[
           styles.deviceCard,
           {
-            backgroundColor: colors.mutedForeground,
+            backgroundColor: colors.muted,
             borderColor: colors.border
           }
         ]}>

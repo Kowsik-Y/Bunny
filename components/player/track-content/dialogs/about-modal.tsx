@@ -3,6 +3,7 @@ import { View, Image, TouchableOpacity, Linking } from 'react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
@@ -13,7 +14,6 @@ interface AboutModalProps {
   track: AppTrack;
   isLive: boolean;
   handleArtistPress: () => void;
-  colors: any;
 }
 
 export function AboutModal({
@@ -22,14 +22,14 @@ export function AboutModal({
   track,
   isLive,
   handleArtistPress,
-  colors,
 }: AboutModalProps) {
+  const { colors } = useAppTheme();
+
   return (
     <PlayerSheet
       visible={visible}
       onClose={onClose}
       title="Song Info"
-      colors={colors}
     >
       <BottomSheetScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
         {isLive && track.artwork && (

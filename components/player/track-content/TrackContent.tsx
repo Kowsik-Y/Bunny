@@ -617,7 +617,6 @@ export function TrackContent({
         realDevices={realDevices}
         playerMode={playerMode}
         track={track}
-        colors={colors}
       />
 
       <MoreMenu
@@ -634,7 +633,6 @@ export function TrackContent({
         setShowPlaylistSelectModal={setShowPlaylistSelectModal}
         setShowAboutModal={setShowAboutModal}
         setShowQualityModal={setShowQualityModal}
-        colors={colors}
       />
 
       <PlaylistSelect
@@ -646,7 +644,6 @@ export function TrackContent({
           setShowPlaylistSelectModal(false);
           setTimeout(() => setShowCreatePlaylistModal(true), 250);
         }}
-        colors={colors}
       />
 
       <CreatePlaylistBottomSheet
@@ -665,7 +662,6 @@ export function TrackContent({
         track={track}
         isLive={isLive}
         handleArtistPress={handleArtistPress}
-        colors={colors}
       />
 
       <QualityModal
@@ -676,7 +672,6 @@ export function TrackContent({
         isLive={isLive}
         changeAudioQuality={changeAudioQuality}
         changeVideoQuality={changeVideoQuality}
-        colors={colors}
       />
 
       <ArtistSheet
@@ -686,7 +681,6 @@ export function TrackContent({
         onSelectArtist={(artistId) => {
           router.push(`/artist/${artistId}` as any);
         }}
-        colors={colors}
       />
     </View>
   );
