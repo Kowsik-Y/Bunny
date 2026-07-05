@@ -25,8 +25,14 @@ export function SwipeBottomSheet({
 }: Props) {
   const { colors } = useAppTheme();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (!visible) return;
+    }
+
     if (visible) {
       const raf = requestAnimationFrame(() => {
         bottomSheetModalRef.current?.present();
