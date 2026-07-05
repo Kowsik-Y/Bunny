@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { SongCard, AlbumCard } from '@/components/cards';
@@ -7,6 +6,7 @@ import { addAlpha } from '@/constants/theme';
 import { useCurrentTrack, usePlayerState } from '@/services';
 import { Typography, Muted } from '@/components/ui/typography';
 import { useTrackOptions } from '@/contexts/track-options-context';
+import { ExpandableText } from '@/components/ui/expandable-text';
 
 interface ArtistTabContentProps {
   activeTab: string;
@@ -121,14 +121,17 @@ export function ArtistTabContent({
     const about = section.items[0];
     if (!about) return null;
     return (
-      <View key={sIdx} style={styles.aboutSection}>
-        {about.views && (
-          <View style={[styles.viewsPill, { backgroundColor: addAlpha(colors.primary, 0.09) }]}>
-            <Typography style={[styles.viewsPillText, { color: colors.primary }]}>{about.views}</Typography>
-          </View>
-        )}
-        <Typography style={[styles.aboutText, { color: colors.text }]}>{about.description}</Typography>
+      <View style={{ paddingHorizontal: 10 }}>
+
+        <ExpandableText
+          key={sIdx}
+          text={about.description}
+          asCard={true}
+          title="Biography"
+          badge={about.views}
+        />
       </View>
+
     );
   };
 
@@ -166,16 +169,16 @@ export function ArtistTabContent({
 
 const styles = StyleSheet.create({
   tabContent: {
-    paddingHorizontal: 20,
+    paddingBottom: 40,
     paddingTop: 8,
   },
   emptyTab: {
     paddingVertical: 60,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   carouselSection: {
     marginBottom: 8,
-    marginHorizontal: -20,
   },
   carouselTitle: {
     fontSize: 18,
@@ -189,6 +192,7 @@ const styles = StyleSheet.create({
   },
   gridSection: {
     marginBottom: 8,
+    paddingHorizontal: 20,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -198,23 +202,5 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '48%',
-  },
-  aboutSection: {
-    paddingTop: 8,
-    gap: 14,
-  },
-  viewsPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  viewsPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  aboutText: {
-    fontSize: 15,
-    lineHeight: 24,
   },
 });

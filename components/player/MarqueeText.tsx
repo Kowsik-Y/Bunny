@@ -1,150 +1,237 @@
-/**
- * MarqueeText
- * Renders text that auto-scrolls horizontally when it overflows its container.
- * Stays still when the text fits. Pauses briefly at each end before reversing.
- */
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { Animated, Easing, StyleSheet, Text, View, type TextStyle, type StyleProp } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useFrameCallback,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { resolveFontStyles } from '@/components/ui/typography';
 
 type Props = {
   children: string;
   style?: StyleProp<TextStyle>;
-  /** pixels/second scroll speed, default 40 */
-  speed?: number;
-  /** ms pause at each end before reversing, default 1500 */
-  pauseMs?: number;
+  speed?: number; // px/sec
 };
 
-export default function MarqueeText({ children, style, speed = 40, pauseMs = 1500 }: Props) {
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [textWidth, setTextWidth] = useState(0);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+const GAP = 40;
+const START_DELAY = 1500;
+
+const marqueeStyles = StyleSheet.create({
+  hidden: { opacity: 0 },
+  row: { flexDirection: 'row', overflow: 'hidden' },
+});
+
+function MeasureElement({
+  onLayout,
+  children,
+}: {
+  onLayout: (width: number) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Animated.ScrollView
+      horizontal
+      style={marqueeStyles.hidden}
+      pointerEvents="none"
+      scrollEnabled={false}
+    >
+      <View onLayout={(ev) => onLayout(Math.ceil(ev.nativeEvent.layout.width))}>
+        {children}
+      </View>
+    </Animated.ScrollView>
+  );
+}
+
+function TranslatedElement({
+  index,
+  offset,
+  step,
+  children,
+}: {
+  index: number;
+  offset: SharedValue<number>;
+  step: number;
+  children: ReactNode;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    transform: [{ translateX: index * step - offset.value }],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+}
+
+function ChildrenScroller({
+  duration,
+  childrenWidth,
+  parentWidth,
+  gap,
+  active,
+  children,
+}: {
+  duration: number;
+  childrenWidth: number;
+  parentWidth: number;
+  gap: number;
+  active: SharedValue<boolean>;
+  children: ReactNode;
+}) {
+  const offset = useSharedValue(0);
+  const step = childrenWidth + gap;
+
+  useFrameCallback((frame) => {
+    'worklet';
+    if (!active.value || step <= 0 || duration <= 0) return;
+    const dt = frame.timeSincePreviousFrame ?? 16.67;
+    offset.value += (dt * step) / duration;
+    offset.value = offset.value % step;
+  }, true);
+
+  const count = Math.ceil(parentWidth / step) + 2;
+
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <TranslatedElement key={index} index={index} offset={offset} step={step}>
+          {children}
+        </TranslatedElement>
+      ))}
+    </>
+  );
+}
+
+export default function MarqueeText({ children, style, speed = 40 }: Props) {
+  const [parentWidth, setParentWidth] = useState(0);
+  const [childrenWidth, setChildrenWidth] = useState(0);
+  const active = useSharedValue(false);
 
   const { font, fontFamily, headingFontFamily, semiBoldFontFamily } = useAppTheme();
 
-  // Split layout properties onto the outer View and styling onto the inner Text
-  const outerStyle: any[] = [{ overflow: 'hidden' }];
-  const textStyle: any[] = [];
+  const outerStyle: any[] = [{}];
+  const innerStyle: any[] = [];
 
   if (style) {
     const flat = StyleSheet.flatten(style);
     const layoutProps = [
       'flex', 'flexGrow', 'flexShrink', 'flexBasis',
-      'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight',
-      'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical',
+      'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight',
+      'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight',
+      'marginHorizontal', 'marginVertical',
       'position', 'top', 'bottom', 'left', 'right', 'alignSelf',
     ];
-    
     const outer: any = {};
     const text: any = {};
-    
-    for (const key of Object.keys(flat)) {
-      if (layoutProps.includes(key)) {
-        outer[key] = (flat as any)[key];
-      } else {
-        text[key] = (flat as any)[key];
-      }
-    }
+    Object.keys(flat).forEach((key) => {
+      if (layoutProps.includes(key)) outer[key] = (flat as any)[key];
+      else text[key] = (flat as any)[key];
+    });
     outerStyle.push(outer);
-    textStyle.push(text);
+    innerStyle.push(text);
   }
 
-  // If no horizontal flex or width is specified, default to width: '100%' so it fills its container widthwise
-  const hasWidthLayout = outerStyle.some(
-    (s) => s.width !== undefined || s.flex !== undefined || s.flexGrow !== undefined
-  );
-  if (!hasWidthLayout) {
+  if (
+    !outerStyle.some(
+      (s) => s.width !== undefined || s.flex !== undefined || s.flexGrow !== undefined
+    )
+  ) {
     outerStyle.push({ width: '100%' });
   }
 
-  const resolvedTextStyle = useMemo(() => {
-    return resolveFontStyles(StyleSheet.flatten(textStyle), font, {
+  const textStyleKey = useMemo(
+    () => JSON.stringify(innerStyle),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(innerStyle)]
+  );
+
+  const resolvedStyle = useMemo(() => {
+    const base = resolveFontStyles(StyleSheet.flatten(innerStyle), font, {
       body: fontFamily,
       heading: headingFontFamily,
       semiBold: semiBoldFontFamily,
     });
-  }, [textStyle, font, fontFamily, headingFontFamily, semiBoldFontFamily]);
+    return [base, { textAlign: 'left' as const }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [font, fontFamily, headingFontFamily, semiBoldFontFamily, textStyleKey]);
 
-  const overflow = textWidth > containerWidth;
-  const distance = overflow ? textWidth - containerWidth + 10 : 0; // 8px extra gap
+  // Key that changes whenever the text/style actually changes -- used to
+  // force-remount the measuring + scrolling subtree below. This guarantees
+  // a fresh onLayout measurement every time, even if the new text happens
+  // to render at the exact same pixel width as the old one (onLayout does
+  // NOT fire again in that case on a component that stays mounted).
+  const contentKey = `${children}::${textStyleKey}`;
 
   useEffect(() => {
-    if (!overflow || distance <= 0) {
-      translateX.setValue(0);
+    setChildrenWidth(0);
+    setParentWidth((w) => w); // parent width doesn't need reset
+    active.value = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentKey]);
+
+  const overflow =
+    parentWidth > 0 && childrenWidth > 0 && childrenWidth > parentWidth;
+
+  useEffect(() => {
+    if (!overflow) {
+      active.value = false;
       return;
     }
-
-    const duration = (distance / speed) * 1000;
-
-    const slide = () => {
-      animRef.current = Animated.sequence([
-        Animated.delay(pauseMs),
-        Animated.timing(translateX, {
-          toValue: -distance,
-          duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.delay(pauseMs),
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      ]);
-      animRef.current.start(({ finished }) => {
-        if (finished) slide();
-      });
-    };
-
-    slide();
+    const timer = setTimeout(() => {
+      active.value = true;
+    }, START_DELAY);
     return () => {
-      animRef.current?.stop();
-      translateX.setValue(0);
+      clearTimeout(timer);
     };
-  }, [distance, overflow, speed, pauseMs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overflow, contentKey]);
+
+  const duration = childrenWidth > 0 ? (childrenWidth / speed) * 1000 : 0;
 
   return (
     <View
       style={outerStyle}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+      onLayout={(e) => setParentWidth(Math.ceil(e.nativeEvent.layout.width))}
+      pointerEvents="box-none"
     >
-      {/* Hidden text component to measure full untruncated width */}
-      <Text
-        style={[
-          resolvedTextStyle,
-          {
-            position: 'absolute',
-            opacity: 0,
-            left: -9999,
-            top: -9999,
-          }
-        ]}
-        numberOfLines={1}
-        ellipsizeMode="clip"
-        onLayout={(e) => {
-          const w = e.nativeEvent.layout.width;
-          if (w > 0 && w !== textWidth) {
-            setTextWidth(w);
-          }
-        }}
-      >
-        {children}
-      </Text>
+      {/* key={contentKey} forces this whole subtree to fully unmount and
+          remount whenever the song/text changes, so measurement and the
+          scroller always start clean instead of possibly reusing a stale
+          layout/width from the previous song. */}
+      <View style={marqueeStyles.row} pointerEvents="box-none" key={contentKey}>
+        <MeasureElement onLayout={setChildrenWidth}>
+          <Text numberOfLines={1} style={resolvedStyle}>
+            {children}
+          </Text>
+        </MeasureElement>
 
-      <Animated.View style={{ transform: [{ translateX }], width: textWidth ? textWidth + 20 : undefined }}>
-        <Text
-          style={resolvedTextStyle}
-          numberOfLines={1}
-          ellipsizeMode="clip"
-        >
-          {children}
-        </Text>
-      </Animated.View>
+        {!overflow ? (
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[resolvedStyle, { position: 'absolute', left: 0, top: 0 }]}
+          >
+            {children}
+          </Text>
+        ) : (
+          childrenWidth > 0 &&
+          parentWidth > 0 && (
+            <ChildrenScroller
+              duration={duration}
+              childrenWidth={childrenWidth}
+              parentWidth={parentWidth}
+              gap={GAP}
+              active={active}
+            >
+              <Text numberOfLines={1} style={resolvedStyle}>
+                {children}
+              </Text>
+            </ChildrenScroller>
+          )
+        )}
+      </View>
     </View>
   );
 }

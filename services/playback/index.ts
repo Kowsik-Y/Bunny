@@ -149,13 +149,13 @@ export async function PlaybackService() {
 
           if (
             isYtTrack &&
-            tracksLeft <= 2 &&
+            tracksLeft <= 0 &&
             !isFetchingRadio &&
             !radioFetchedForId.has(currentId)
           ) {
             isFetchingRadio = true;
             radioFetchedForId.add(currentId);
-            console.log(`[PlaybackService] Near end of queue (${tracksLeft} left). Fetching radio queue for: ${currentActiveTrack?.title}`);
+            console.log(`[PlaybackService] At last track of queue (${tracksLeft} left). Fetching radio queue for: ${currentActiveTrack?.title}`);
 
             const latestQueue = await TrackPlayer.getQueue();
             const lastRealTrack = [...latestQueue]
@@ -163,7 +163,7 @@ export async function PlaybackService() {
               .find((t) => t.id && String(t.id).length === 11 && !String(t.url).includes('dummy.com'));
             const seedId = lastRealTrack?.id ? String(lastRealTrack.id) : currentId;
 
-            getRadioQueue(seedId, 10)
+            getRadioQueue(seedId, 3)
               .then(async (tracksToAdd) => {
                 if (tracksToAdd.length > 0) {
                   const queueNow = await TrackPlayer.getQueue();

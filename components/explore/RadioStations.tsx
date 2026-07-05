@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Radio } from 'lucide-react-native';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppTheme } from '@/contexts/app-theme-context';
 
@@ -70,7 +70,7 @@ export function RadioStations({ stations, onStationPress, loading }: RadioStatio
                       {item.sub}
                     </Muted>
                   </View>
-                  <IconSymbol name="antenna.radiowaves.left.and.right" size={14} color={item.color} />
+                  <Radio size={14} color={item.color} />
                 </TouchableOpacity>
               </Animated.View>
             ))}

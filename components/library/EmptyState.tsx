@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Heart, List } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 
 interface EmptyStateProps {
@@ -13,11 +13,11 @@ export function EmptyState({ tab }: EmptyStateProps) {
 
   return (
     <View style={styles.emptyState}>
-      <IconSymbol
-        name={tab === 'queue' ? 'list.bullet' : 'heart'}
-        size={48}
-        color={colors.mutedForeground}
-      />
+      {tab === 'queue' ? (
+        <List size={48} color={colors.mutedForeground} />
+      ) : (
+        <Heart size={48} color={colors.mutedForeground} />
+      )}
       <Typography variant='large' style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
         {tab === 'queue' ? 'Queue is empty' : 'No saved tracks yet'}
       </Typography>

@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, ActivityIndicator, Dimensions } from 'rea
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { H2, Typography } from '@/components/ui/typography';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Radio } from 'lucide-react-native';
 import { LiveIndicator } from './LiveIndicator';
 
 const { width } = Dimensions.get('window');
@@ -48,7 +48,7 @@ export function FeaturedStations({
                   {loadingGenre === station.id ? (
                     <ActivityIndicator size="small" color={station.color} />
                   ) : (
-                    <IconSymbol name="antenna.radiowaves.left.and.right" size={24} color={station.color} active />
+                    <Radio size={24} color={station.color} />
                   )}
                 </View>
               </View>

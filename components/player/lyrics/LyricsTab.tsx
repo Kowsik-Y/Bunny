@@ -71,6 +71,7 @@ interface LyricsTabProps {
   activePlaying: boolean;
   onSeek: (time: number) => void;
   primaryColor: string;
+  isVisible: boolean;
 }
 
 export default function LyricsTab({
@@ -79,8 +80,9 @@ export default function LyricsTab({
   activePlaying,
   onSeek,
   primaryColor,
+  isVisible,
 }: LyricsTabProps) {
-  const { lyricsSize, lyricsSpacing } = useAppTheme();
+  const { lyricsSize, lyricsSpacing, lyricsPrefetch } = useAppTheme();
 
   const colors = useMemo(() => ({
     text: '#ffffff',
@@ -121,7 +123,7 @@ export default function LyricsTab({
   );
 
   const fetchLyrics = useCallback((force = false) => {
-    if (!track?.id) return;
+    if (!track?.id || track.id === 'no-track') return;
 
     // Check global in-memory cache first
     if (!force && LYRICS_CACHE.has(track.id)) {
@@ -153,9 +155,14 @@ export default function LyricsTab({
       });
   }, [track?.id, track?.title, track?.artist, track?.duration]);
 
+  const fetched = useRef(false);
+
   useEffect(() => {
-    fetchLyrics();
-  }, [track?.id, fetchLyrics]);
+    if ((isVisible || lyricsPrefetch) && !fetched.current) {
+      fetched.current = true;
+      fetchLyrics();
+    }
+  }, [isVisible, lyricsPrefetch, fetchLyrics]);
 
   useEffect(() => {
     if (activeIndex < 0) return;

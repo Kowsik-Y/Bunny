@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 // Keep BottomSheetContext legacy export just in case
@@ -25,29 +25,27 @@ export function SwipeBottomSheet({
 }: Props) {
   const { colors } = useAppTheme();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const isFirstRender = useRef(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      if (!visible) return;
-    }
-
     if (visible) {
-      const raf = requestAnimationFrame(() => {
-        bottomSheetModalRef.current?.present();
-      });
-      return () => cancelAnimationFrame(raf);
-    } else {
+      if (!mounted) {
+        setMounted(true);
+      } else {
+        const timer = setTimeout(() => {
+          bottomSheetModalRef.current?.present();
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    } else if (mounted) {
       bottomSheetModalRef.current?.dismiss();
     }
-  }, [visible]);
+  }, [visible, mounted]);
 
-  const handleDismiss = useCallback(() => {
-    if (visible) {
-      onClose();
-    }
-  }, [visible, onClose]);
+  const handleDismiss = () => {
+    setMounted(false);
+    onClose();
+  };
 
   const bg = backgroundColor || colors.card;
   const snapPoints = useMemo(() => ['80%'], []);
@@ -65,17 +63,16 @@ export function SwipeBottomSheet({
     []
   );
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
       snapPoints={snapPoints}
       enablePanDownToClose={true}
       onDismiss={handleDismiss}
-      onChange={(index) => {
-        if (index === -1) {
-          handleDismiss();
-        }
-      }}
       backgroundStyle={{ backgroundColor: bg }}
       handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
       backdropComponent={renderBackdrop}

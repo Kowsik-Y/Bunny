@@ -1,7 +1,6 @@
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { Feather } from '@expo/vector-icons';
+import { Clock, Search } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -72,15 +71,14 @@ export function SuggestionsOverlay({
               onPress={() => onSearch(sug)}
             >
               {isRecent ? (
-                <Feather
-                  name="clock"
+                <Clock
                   size={18}
                   color={colors.primary}
                   style={{ marginRight: 10 }}
                 />
               ) : (
-                <IconSymbol
-                  name="magnifyingglass"
+                <Search
+                  fill={colors.primary}
                   size={18}
                   color={colors.primary}
                   style={{ marginRight: 10 }}

@@ -176,10 +176,10 @@ export function Button({
         useBevel: true,
       };
     } else {
-      // Light mode: white top rim, soft shadow bottom, concave grey-to-white sheen
+      // Light mode: balanced bevel — visible rim highlight + concave sheen without washing out base color
       return {
-        rim: ['rgba(255,255,255,0.85)', 'rgba(0,0,0,0.10)'],
-        concave: ['rgba(0,0,0,0.06)', 'rgba(255,255,255,0.65)'],
+        rim: ['rgba(255,255,255,0.22)', 'rgba(0,0,0,0.15)'],
+        concave: ['rgba(0,0,0,0.10)', 'rgba(255,255,255,0.12)'],
         useBevel: true,
       };
     }

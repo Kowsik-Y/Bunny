@@ -1,56 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Animated as RNAnimated, LayoutChangeEvent, Pressable } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Shuffle, Radio } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Typography } from '@/components/ui/typography';
-import { Button } from '@/components/ui/button';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-interface ArtistActionButtonsProps {
-  onShuffle: () => void;
-  onMix: () => void;
+export interface SegmentedControlOption<T extends string> {
+  value: T;
+  label: string;
+  badge?: string | number;
 }
 
-export function ArtistActionButtons({ onShuffle, onMix }: ArtistActionButtonsProps) {
-  const { colors } = useAppTheme();
-
-  return (
-    <View style={[styles.actionRow, { backgroundColor: colors.background }]}>
-      <Button
-        variant="default"
-        onPress={onShuffle}
-        style={styles.actionBtn}
-        leftIcon={<Shuffle size={17} color={colors.primaryForeground} />}
-        label="Shuffle"
-      />
-
-      <Button
-        variant="secondary"
-        onPress={onMix}
-        style={styles.actionBtn}
-        leftIcon={<Radio size={17} color={colors.secondaryForeground} />}
-        label="Mix"
-      />
-    </View>
-  );
+interface SegmentedControlProps<T extends string> {
+  options: SegmentedControlOption<T>[];
+  selectedValue: T;
+  onChange: (value: T) => void;
+  style?: any;
 }
 
-interface ArtistTabBarProps {
-  availableTabs: string[];
-  activeTab: string;
-  onTabChange: (tab: any) => void;
-  containerStyle?: any;
-}
-
-export function ArtistTabBar({
-  availableTabs,
-  activeTab,
-  onTabChange,
-  containerStyle,
-}: ArtistTabBarProps) {
+export function SegmentedControl<T extends string>({
+  options,
+  selectedValue,
+  onChange,
+  style,
+}: SegmentedControlProps<T>) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
@@ -65,15 +40,17 @@ export function ArtistTabBar({
   const startX = useRef(0);
   const lastTargetIndex = useRef(-1);
 
-  const tabKeysString = availableTabs.join(',');
+  const optionValues = options.map((opt) => opt.value);
+  const optionsString = optionValues.join(',');
+
   useEffect(() => {
     tabLayouts.current = {};
     measuredCount.current = 0;
     setReady(false);
-  }, [tabKeysString]);
+  }, [optionsString]);
 
-  const slideTo = (tabName: string, animate = true) => {
-    const layout = tabLayouts.current[tabName];
+  const slideTo = (val: T, animate = true) => {
+    const layout = tabLayouts.current[val];
     if (!layout) return;
 
     if (!animate) {
@@ -98,35 +75,35 @@ export function ArtistTabBar({
     ]).start();
   };
 
-  const onTabLayout = (tabName: string, e: LayoutChangeEvent) => {
-    if (tabLayouts.current[tabName]) return;
+  const onTabLayout = (val: T, e: LayoutChangeEvent) => {
+    if (tabLayouts.current[val]) return;
 
     const { x, width } = e.nativeEvent.layout;
-    tabLayouts.current[tabName] = { x, width };
+    tabLayouts.current[val] = { x, width };
     measuredCount.current += 1;
 
-    if (measuredCount.current === availableTabs.length) {
+    if (measuredCount.current === options.length) {
       setReady(true);
       setTimeout(() => {
-        slideTo(activeTab, false);
+        slideTo(selectedValue, false);
       }, 0);
     }
   };
 
   useEffect(() => {
     if (ready) {
-      slideTo(activeTab);
+      slideTo(selectedValue);
     }
-  }, [activeTab, ready]);
+  }, [selectedValue, ready]);
 
   const tabPanGesture = Gesture.Pan()
     .runOnJS(true)
     .onStart(() => {
-      const activeLayout = tabLayouts.current[activeTab];
+      const activeLayout = tabLayouts.current[selectedValue];
       if (activeLayout) {
         startX.current = activeLayout.x;
       }
-      lastTargetIndex.current = availableTabs.indexOf(activeTab);
+      lastTargetIndex.current = optionValues.indexOf(selectedValue);
 
       RNAnimated.timing(pillScale, {
         toValue: 1.1,
@@ -137,13 +114,13 @@ export function ArtistTabBar({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     })
     .onUpdate((e) => {
-      const layout = tabLayouts.current[activeTab];
+      const layout = tabLayouts.current[selectedValue];
       if (layout) {
         let nextX = startX.current + e.translationX;
-        const firstTab = availableTabs[0];
-        const lastTab = availableTabs[availableTabs.length - 1];
-        const minLayout = tabLayouts.current[firstTab];
-        const maxLayout = tabLayouts.current[lastTab];
+        const firstVal = optionValues[0];
+        const lastVal = optionValues[optionValues.length - 1];
+        const minLayout = tabLayouts.current[firstVal];
+        const maxLayout = tabLayouts.current[lastVal];
 
         if (minLayout && maxLayout) {
           nextX = Math.max(minLayout.x, Math.min(maxLayout.x, nextX));
@@ -153,8 +130,8 @@ export function ArtistTabBar({
 
         let closestIndex = lastTargetIndex.current;
         let minDiff = Infinity;
-        availableTabs.forEach((tabName, idx) => {
-          const tabLayout = tabLayouts.current[tabName];
+        optionValues.forEach((val, idx) => {
+          const tabLayout = tabLayouts.current[val];
           if (tabLayout) {
             const diff = Math.abs(tabLayout.x - nextX);
             if (diff < minDiff) {
@@ -168,8 +145,8 @@ export function ArtistTabBar({
           lastTargetIndex.current = closestIndex;
           Haptics.selectionAsync().catch(() => {});
 
-          const targetTabName = availableTabs[closestIndex];
-          const targetLayout = tabLayouts.current[targetTabName];
+          const targetVal = optionValues[closestIndex];
+          const targetLayout = tabLayouts.current[targetVal];
           if (targetLayout) {
             RNAnimated.spring(pillW, {
               toValue: targetLayout.width,
@@ -188,24 +165,24 @@ export function ArtistTabBar({
       }).start();
 
       const finalX = startX.current + e.translationX;
-      let closestTab = activeTab;
+      let closestVal = selectedValue;
       let minDiff = Infinity;
 
-      Object.entries(tabLayouts.current).forEach(([tabName, layout]) => {
-        if (!availableTabs.includes(tabName)) return;
+      Object.entries(tabLayouts.current).forEach(([val, layout]) => {
+        if (!optionValues.includes(val as T)) return;
         const diff = Math.abs(layout.x - finalX);
         if (diff < minDiff) {
           minDiff = diff;
-          closestTab = tabName;
+          closestVal = val as T;
         }
       });
 
-      if (closestTab !== activeTab) {
+      if (closestVal !== selectedValue) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-        onTabChange(closestTab);
+        onChange(closestVal);
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        const layout = tabLayouts.current[activeTab];
+        const layout = tabLayouts.current[selectedValue];
         if (layout) {
           RNAnimated.spring(pillX, {
             toValue: layout.x,
@@ -226,10 +203,10 @@ export function ArtistTabBar({
     ? ['rgba(24, 24, 26, 0.82)', 'rgba(38, 38, 41, 0.82)']
     : ['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.8)'];
 
-  if (availableTabs.length === 0) return null;
+  if (options.length === 0) return null;
 
   return (
-    <View style={[styles.tabBarWrapper, { backgroundColor: colors.background }]}>
+    <View style={[styles.tabBarWrapper, { backgroundColor: colors.background }, style]}>
       <GestureDetector gesture={tabPanGesture}>
         <View
           style={[
@@ -238,7 +215,6 @@ export function ArtistTabBar({
               shadowColor: '#000',
               shadowOpacity: isDark ? 0.25 : 0.08,
             },
-            containerStyle,
           ]}
         >
           <LinearGradient
@@ -290,13 +266,13 @@ export function ArtistTabBar({
                   </RNAnimated.View>
                 )}
 
-                {availableTabs.map((tab) => {
-                  const isActive = activeTab === tab;
+                {options.map((opt) => {
+                  const isActive = selectedValue === opt.value;
                   return (
                     <Pressable
-                      key={tab}
-                      onPress={() => onTabChange(tab)}
-                      onLayout={(e) => onTabLayout(tab, e)}
+                      key={opt.value}
+                      onPress={() => onChange(opt.value)}
+                      onLayout={(e) => onTabLayout(opt.value, e)}
                       style={styles.tabBtn}
                     >
                       <Typography
@@ -308,7 +284,8 @@ export function ArtistTabBar({
                           },
                         ]}
                       >
-                        {tab}
+                        {opt.label}
+                        {opt.badge !== undefined && ` (${opt.badge})`}
                       </Typography>
                     </Pressable>
                   );
@@ -323,22 +300,6 @@ export function ArtistTabBar({
 }
 
 const styles = StyleSheet.create({
-  actionRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 4,
-    gap: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 23,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
   tabBarWrapper: {
     paddingBottom: 8,
   },

@@ -10,17 +10,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerActions } from '@/services/SetupService';
 import { getArtistDetails, searchYtMusic } from '@/services/ytMusic';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { addAlpha } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft } from 'lucide-react-native';
 
 
 import { ArtistHero } from '@/components/artist/ArtistHero';
 import { ArtistTabBar, ArtistActionButtons } from '@/components/artist/ArtistTabBar';
 import { ArtistTabContent } from '@/components/artist/ArtistTabContent';
 import { Button } from '@/components/ui/button';
+import { ThemedView } from '@/components/themed-view';
 
 
 const { width } = Dimensions.get('window');
@@ -48,10 +48,32 @@ export default function ArtistScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('Top Songs');
   const scrollY = useRef(new RNAnimated.Value(0)).current;
-  const tabScrollRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const bottomSpacing = useBottomTabSpacing();
+  const isFirstRender = useRef(true);
+  const scrollYVal = useRef(0);
 
   useEffect(() => { if (id) loadArtist(); }, [id]);
+
+  useEffect(() => {
+    const animId = scrollY.addListener(({ value }) => {
+      scrollYVal.current = value;
+    });
+    return () => scrollY.removeListener(animId);
+  }, []);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!artistData) return;
+
+    const targetY = HEADER_HEIGHT - stickyOffset;
+    if (scrollYVal.current > targetY) {
+      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+    }
+  }, [activeTab]);
 
   const loadArtist = async () => {
     if (!id || id === 'undefined') {
@@ -76,7 +98,7 @@ export default function ArtistScreen() {
       if (searchRes.songs.length > 0) {
         const shuffled = [...searchRes.songs]
           .sort(() => Math.random() - 0.5)
-          .map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+          .map((s: any) => ({ id: s.id, url: 'https://dummy.com', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
         await PlayerActions.playCollection(shuffled as any);
       }
     } catch (err) { console.error(err); }
@@ -86,7 +108,7 @@ export default function ArtistScreen() {
     try {
       const searchRes = await searchYtMusic((artistData.name ?? '') + ' songs');
       if (searchRes.songs.length > 0) {
-        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: s.url || '', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
+        const mix = searchRes.songs.map((s: any) => ({ id: s.id, url: 'https://dummy.com', title: s.title || '', artist: s.artist || '', album: s.album || 'Single', artwork: s.thumbnail || '', duration: s.duration || 0 }));
         await PlayerActions.playCollection(mix as any);
       }
     } catch (err) { console.error(err); }
@@ -114,10 +136,34 @@ export default function ArtistScreen() {
     }
   };
 
+
+
   // ── header animation ────────────────────────────────────────────────────
   const headerScale = scrollY.interpolate({ inputRange: [-100, 0], outputRange: [1.3, 1], extrapolate: 'clamp' });
-  const headerOpacity = scrollY.interpolate({ inputRange: [0, HEADER_HEIGHT - 80], outputRange: [1, 0], extrapolate: 'clamp' });
-  const navTitleOpacity = scrollY.interpolate({ inputRange: [HEADER_HEIGHT - 100, HEADER_HEIGHT - 40], outputRange: [0, 1], extrapolate: 'clamp' });
+  const headerOpacity = scrollY.interpolate({ inputRange: [0, Math.max(1, HEADER_HEIGHT - 80)], outputRange: [1, 0], extrapolate: 'clamp' });
+
+  const navTitleStart = Math.max(0, HEADER_HEIGHT - 100);
+  const navTitleEnd = Math.max(navTitleStart + 1, HEADER_HEIGHT - 40);
+  const navTitleOpacity = scrollY.interpolate({ inputRange: [navTitleStart, navTitleEnd], outputRange: [0, 1], extrapolate: 'clamp' });
+
+  const stickyOffset = insets.top;
+  const stickyThreshold = HEADER_HEIGHT - stickyOffset;
+
+  const th1 = 0;
+  const th2 = Math.max(th1 + 1, stickyThreshold);
+  const th3 = Math.max(th2 + 1, HEADER_HEIGHT);
+  const stickyTranslateY = scrollY.interpolate({
+    inputRange: [th1, th2, th3],
+    outputRange: [0, 0, stickyOffset],
+    extrapolate: 'clamp',
+  });
+
+  // Top gradient fades in only after the user scrolls past the hero
+  const topGradientOpacity = scrollY.interpolate({
+    inputRange: [Math.max(0, HEADER_HEIGHT - 120), HEADER_HEIGHT],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   // ── sections grouped by tab ─────────────────────────────────────────────
   const grouped = React.useMemo(() => {
@@ -148,20 +194,18 @@ export default function ArtistScreen() {
   // ── loading / error ─────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}>
+      <ThemedView style={[styles.screen, styles.center]}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </ThemedView>
     );
   }
 
   if (!artistData) {
     return (
-      <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.mutedForeground }}>Artist not found</Text>
-        <Pressable onPress={() => router.back()} style={[styles.backFallback, { backgroundColor: colors.primary }]}>
-          <Text style={{ color: colors.background, fontWeight: '700' }}>Go Back</Text>
-        </Pressable>
-      </View>
+      <ThemedView style={[styles.screen, styles.center]}>
+        <Text style={{ color: colors.mutedForeground, marginBottom: 16 }}>Artist not found</Text>
+        <Button onPress={() => router.back()} variant="default" label="Go Back" />
+      </ThemedView>
     );
   }
 
@@ -169,11 +213,12 @@ export default function ArtistScreen() {
 
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
         <Button
-        style={{
+          style={{
             padding: 5,
+            paddingHorizontal: 12,
             borderRadius: 50,
             backgroundColor: addAlpha(colors.background, 0.85),
             borderColor: colors.border,
@@ -185,44 +230,40 @@ export default function ArtistScreen() {
           variant="secondary" size="icon">
           <ChevronLeft size={20} color={colors.primary} />
         </Button>
-        <Pressable
-        >
-          <View style={{ transform: [{ rotate: '90deg' }] }}>
-            <IconSymbol name="chevron.down" size={24} color={colors.text} />
-          </View>
-        </Pressable>
       </SafeAreaView>
 
       <RNAnimated.ScrollView
-        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        ref={scrollViewRef as any}
+        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 140 }}
-        stickyHeaderIndices={[2]} // the tab bar is now index 2
+        stickyHeaderIndices={[1]}
       >
-        {/* ── Header Image (index 0) ── */}
+        {/* ── Header Image ── */}
         <ArtistHero
           thumbnailUrl={thumbnailUrl}
           name={artistData.name}
           subscribers={artistData.subscribers}
           headerScale={headerScale}
           headerOpacity={headerOpacity}
-          onBackPress={() => router.back()}
+          height={HEADER_HEIGHT}
         />
 
-        {/* ── Action Buttons (index 1 - non-sticky) ── */}
-        <ArtistActionButtons
-          onShuffle={handleArtistShuffle}
-          onMix={handleArtistMix}
-        />
-
-        {/* ── Tab Bar (index 2 - sticky) ── */}
-        <ArtistTabBar
-          availableTabs={availableTabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          tabScrollRef={tabScrollRef}
-        />
+        {/* ── Sticky Action Buttons & Tab Bar Wrapper ── */}
+        <View style={{ zIndex: 10 }}>
+          <RNAnimated.View style={{ transform: [{ translateY: stickyTranslateY }] }}>
+            <ArtistActionButtons
+              onShuffle={handleArtistShuffle}
+              onMix={handleArtistMix}
+            />
+            <ArtistTabBar
+              availableTabs={availableTabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </RNAnimated.View>
+        </View>
 
         {/* ── Tab Content ── */}
         <ArtistTabContent
@@ -234,19 +275,24 @@ export default function ArtistScreen() {
         />
       </RNAnimated.ScrollView>
 
-      {/* Top Fade Gradient */}
-      <LinearGradient
-        colors={[
-          colors.background,
-          addAlpha(colors.background, 0.9),
-          addAlpha(colors.background, 0.6),
-          addAlpha(colors.background, 0.3),
-          addAlpha(colors.background, 0.1),
-          'transparent'
-        ]}
-        style={styles.topGradient}
+      {/* Top Fade Gradient — fades in as hero scrolls out of view */}
+      <RNAnimated.View
+        style={[styles.topGradient, { height: insets.top + 60, opacity: topGradientOpacity }]}
         pointerEvents="none"
-      />
+      >
+        <LinearGradient
+          colors={[
+            colors.background,
+            addAlpha(colors.background, 1),
+            addAlpha(colors.background, 1),
+            addAlpha(colors.background, 0),
+            addAlpha(colors.background, 0),
+            'transparent',
+          ]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      </RNAnimated.View>
 
       {/* Bottom Fade Gradient */}
       <LinearGradient
@@ -261,7 +307,7 @@ export default function ArtistScreen() {
         style={[styles.bottomGradient, { height: bottomSpacing + 25 }]}
         pointerEvents="none"
       />
-    </View>
+    </ThemedView>
   );
 }
 

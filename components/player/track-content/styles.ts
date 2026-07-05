@@ -63,11 +63,14 @@ export const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: -0.5,
     marginBottom: 2,
+    lineHeight: 28,
+    paddingVertical: 2,
   },
   artistText: {
     fontSize: 17,
     color: 'rgba(255,255,255,0.5)',
     fontWeight: '400',
+    lineHeight: 22,
   },
   metadataActions: {
     flexDirection: 'row',

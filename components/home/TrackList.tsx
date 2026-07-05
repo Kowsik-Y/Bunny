@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Pause, Play } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type QuickTrack } from './TrendingCarousel';
@@ -138,11 +138,11 @@ export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTra
                           borderRadius: 10,
                         }
                       ]}>
-                        <IconSymbol
-                          name={isThisPlaying ? "pause.fill" : "play.fill"}
-                          size={16}
-                          color="#fff"
-                        />
+                        {isThisPlaying ? (
+                          <Pause size={16} color="#fff" fill="#fff" />
+                        ) : (
+                          <Play size={16} color="#fff" fill="#fff" />
+                        )}
                       </View>
                     )}
                   </View>

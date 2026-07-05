@@ -1,15 +1,15 @@
 import React from 'react';
 import { StyleSheet, View, FlatList } from 'react-native';
-import { H2 } from '@/components/ui/typography';
+import { Typography } from '@/components/ui/typography';
 import { CategoryCard } from '@/components/cards';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { IconSymbolName } from '@/components/ui/icon-symbol';
+import { useAppTheme } from '@/contexts/app-theme-context';
 
 interface CategoryItem {
   id: string;
   title: string;
   color: string;
-  icon: IconSymbolName;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
 }
 
 interface MoodsGenresProps {
@@ -18,9 +18,11 @@ interface MoodsGenresProps {
 }
 
 export function MoodsGenres({ categories, onCategoryPress }: MoodsGenresProps) {
+  const { colors } = useAppTheme();
+
   const renderCategory = ({ item, index }: { item: CategoryItem; index: number }) => (
     <Animated.View
-      entering={FadeInDown.delay(index * 50)}
+      entering={FadeInDown.delay(index * 40).duration(300)}
       style={styles.categoryCardContainer}
     >
       <CategoryCard
@@ -35,7 +37,9 @@ export function MoodsGenres({ categories, onCategoryPress }: MoodsGenresProps) {
   return (
     <View>
       <View style={styles.sectionHeader}>
-        <H2 style={styles.sectionTitle}>Moods & Genres</H2>
+        <Typography style={[styles.sectionTitle, { color: colors.text }]}>
+          Moods & Genres
+        </Typography>
       </View>
       <FlatList
         data={categories}
@@ -58,7 +62,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   gridContent: {
     paddingBottom: 100,

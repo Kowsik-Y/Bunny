@@ -1,22 +1,20 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
+  ChevronRight,
+  Database,
+  Download,
+  Info,
   Paintbrush,
   Play,
   Radio,
-  Download,
-  Database,
   RefreshCw,
-  Info,
-  ChevronRight,
 } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import {  Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
-import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
+import { Muted, Typography } from '@/components/ui/typography';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { Text } from 'react-native';
 
 export default function SettingsScreen() {
@@ -26,7 +24,7 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={styles.screen}>
       <Stack.Screen options={{ title: 'Settings' }} />
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >

@@ -7,11 +7,12 @@ import { Muted, Typography } from '../ui/typography';
 export interface PlaylistCardProps {
   id: string;
   name: string;
-  songCount: number;
+  songCount?: number;
   artwork?: string | null;
   isLikedMusic?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  style?: any;
 }
 
 export function PlaylistCard({
@@ -22,12 +23,13 @@ export function PlaylistCard({
   isLikedMusic = false,
   onPress,
   onLongPress,
+  style,
 }: PlaylistCardProps) {
   const { colors } = useAppTheme();
 
   return (
     <Pressable
-      style={styles.cardContainer}
+      style={[styles.cardContainer, style]}
       onPress={onPress}
       onLongPress={onLongPress || onPress}
       delayLongPress={250}
@@ -57,9 +59,11 @@ export function PlaylistCard({
       >
         {name}
       </Typography>
-      <Muted numberOfLines={1} style={styles.cardSub}>
-        {songCount} {songCount === 1 ? 'song' : 'songs'}
-      </Muted>
+      {typeof songCount === 'number' && (
+        <Muted numberOfLines={1} style={styles.cardSub}>
+          {songCount} {songCount === 1 ? 'song' : 'songs'}
+        </Muted>
+      )}
     </Pressable>
   );
 }
@@ -72,8 +76,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardArtwork: {
-    width: 140,
-    height: 140,
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 16,
     marginBottom: 8,
     alignItems: 'center',

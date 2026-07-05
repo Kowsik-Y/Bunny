@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TrackPlayer from 'react-native-track-player';
 
-import { setupPlayer, PlayerActions } from '@services/SetupService';
+import { setupPlayer } from '@services/SetupService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
@@ -18,23 +18,11 @@ import { addAlpha } from '@/constants/theme';
 
 import { GreetingHeader } from '@/components/home/GreetingHeader';
 import { TrendingCarousel, QuickTrack } from '@/components/home/TrendingCarousel';
-import { MoodMixesGrid } from '@/components/home/MoodMixesGrid';
 import { TrackList } from '@/components/home/TrackList';
 import { RadioStations } from '@/components/explore/RadioStations';
 import { useTrackOptions } from '@/contexts/track-options-context';
 
 
-
-
-// Static mood mixes shown immediately — no network needed
-const MOOD_MIXES = [
-  { id: 'jfKfPfyJRdk', title: 'Late Night Chill', color: '#A2D2FF', icon: 'moon.fill', desc: 'Lo-fi beats' },
-  { id: 'ktvTqknDobU', title: 'Pop Boost', color: '#FFC8DD', icon: 'forward.fill', desc: 'Top hits' },
-  { id: 'Dx5qFachd3A', title: 'Jazz Cafe', color: '#B5EAD7', icon: 'quote.bubble', desc: 'Smooth horns' },
-  { id: '5qap5aO4i9A', title: 'Electronic', color: '#D5AAFF', icon: 'gearshape.fill', desc: 'EDM & Synth' },
-  { id: 'f9X1N4bHYrI', title: 'Rock Classics', color: '#FF9AA2', icon: 'forward.fill', desc: 'Guitar-driven' },
-  { id: 'bEeaS6fuUoA', title: 'Hip-Hop', color: '#FFDAC1', icon: 'shuffle', desc: 'Bars & beats' },
-];
 
 async function fetchRadioTracks(seedId: string, limit = 12): Promise<QuickTrack[]> {
   const body = {
@@ -124,7 +112,7 @@ export default function HomeScreen() {
 
   const { openTrackOptions } = useTrackOptions();
 
-  const handleLongPressTrack = React.useCallback((track: QuickTrack) => {
+  const handleLongPressTrack = useCallback((track: QuickTrack) => {
     const appTrack: AppTrack = {
       id: track.id,
       title: track.title,
@@ -145,7 +133,7 @@ export default function HomeScreen() {
       const urlParts = station.url.split('/');
       const channelId = urlParts[urlParts.length - 1];
       const streamUrl = `https://radio.garden/api/ara/content/listen/${channelId}/channel.mp3`;
-      
+
       const trackObj: AppTrack = {
         id: `radiogarden-${channelId}`,
         url: streamUrl,
@@ -156,7 +144,7 @@ export default function HomeScreen() {
         artwork: 'https://radio.garden/icons/favicon.png',
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
       };
-      
+
       await TrackPlayer.reset();
       await TrackPlayer.add([trackObj]);
       await TrackPlayer.play();
@@ -176,45 +164,62 @@ export default function HomeScreen() {
     fetchedRef.current = true;
 
     const fetchLocationAndTracks = async () => {
-      let city = 'Chennai';
+      let city = 'Local';
       let country = 'India';
-      let searchSuffix = 'Tamil hits';
+      let searchSuffix = 'hits';
       let placeId = '';
-      
+
       try {
-        const geoRes = await fetch('http://radio.garden/api/geo');
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          if (geoData && geoData.title) {
-            city = geoData.title;
-            country = geoData.country || '';
-            placeId = geoData.id || '';
-            
-            if (geoData.code === 'IN') {
-              if (city.toLowerCase().includes('bengaluru') || city.toLowerCase().includes('bangalore')) {
-                searchSuffix = 'Kannada hits';
-              } else if (city.toLowerCase().includes('mumbai')) {
-                searchSuffix = 'Hindi trending';
-              } else if (city.toLowerCase().includes('hyderabad')) {
-                searchSuffix = 'Telugu hits';
-              } else if (city.toLowerCase().includes('delhi')) {
-                searchSuffix = 'Punjabi hindi hits';
-              } else {
+        const ipRes = await fetch('http://ip-api.com/json');
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          if (ipData && ipData.status === 'success') {
+            city = ipData.city || 'Local';
+            const region = ipData.regionName || '';
+            country = ipData.country || 'India';
+
+            if (ipData.countryCode === 'IN') {
+              if (region.toLowerCase().includes('tamil')) {
                 searchSuffix = 'Tamil hits';
+              } else if (region.toLowerCase().includes('karnataka')) {
+                searchSuffix = 'Kannada hits';
+              } else if (region.toLowerCase().includes('telangana') || region.toLowerCase().includes('andhra')) {
+                searchSuffix = 'Telugu hits';
+              } else if (region.toLowerCase().includes('kerala')) {
+                searchSuffix = 'Malayalam hits';
+              } else if (region.toLowerCase().includes('maharashtra')) {
+                searchSuffix = 'Marathi hits';
+              } else if (region.toLowerCase().includes('punjab')) {
+                searchSuffix = 'Punjabi hits';
+              } else if (region.toLowerCase().includes('bengal') || region.toLowerCase().includes('kolkata')) {
+                searchSuffix = 'Bengali hits';
+              } else {
+                searchSuffix = 'Hindi trending';
               }
-            } else if (geoData.code === 'US') {
-              searchSuffix = 'US pop hits';
-            } else if (geoData.code === 'GB') {
-              searchSuffix = 'UK billboard';
             } else {
-              searchSuffix = `${country} hits`;
+              searchSuffix = `${region || country} hits`;
             }
           }
         }
       } catch (err) {
-        console.warn('[Home] Failed to fetch geo location:', err);
+        console.warn('[Home] ip-api geolocation failed:', err);
       }
-      
+
+      try {
+        const geoRes = await fetch('http://radio.garden/api/geo');
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData && geoData.id) {
+            placeId = geoData.id;
+            if (city === 'Local' && geoData.title) {
+              city = geoData.title;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Home] Radio Garden geolocation failed:', err);
+      }
+
       setLocationName(city);
 
       try {
@@ -253,7 +258,7 @@ export default function HomeScreen() {
         setQuickPicks(trendingMapped.length > 0 ? trendingMapped : t4);
         setDiscover(t3);
         setFavoritesMix(t4);
-        
+
         // Fetch Radio Garden channels
         if (placeId) {
           try {
@@ -286,7 +291,7 @@ export default function HomeScreen() {
             console.warn('[Home] Failed to load local stations:', err);
           }
         }
-        
+
         setLoading(false);
       } catch (e) {
         console.warn('[Home] Failed to fetch tracks:', e);
@@ -297,16 +302,6 @@ export default function HomeScreen() {
     fetchLocationAndTracks();
   }, [ready]);
 
-  const handleMoodPress = async (mix: typeof MOOD_MIXES[0]) => {
-    try {
-      const tracks = await fetchRadioTracks(mix.id, 15);
-      if (tracks.length > 0) {
-        await playTracks(tracks, 0);
-      }
-    } catch (e) {
-      console.warn('[Home] handleMoodPress error', e);
-    }
-  };
 
   return (
     <ThemedView style={styles.screen}>
@@ -327,13 +322,6 @@ export default function HomeScreen() {
               onPlayTracks={playTracks}
               onLongPressTrack={handleLongPressTrack}
             />
-
-            {/* Vibe Check mood grid */}
-            <MoodMixesGrid
-              mixes={MOOD_MIXES}
-              onMixPress={handleMoodPress}
-            />
-
             {/* Numbered track list – local picks */}
             <TrackList
               title="Local Favorites"

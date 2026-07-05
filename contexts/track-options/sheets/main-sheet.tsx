@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Image, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Image, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { searchYtMusic } from '@/services/ytMusic';
-import { PlayerActions } from '@/services';
+import { PlayerActions, usePlaylists } from '@/services';
 import { ActionRow } from '../action-row';
 import { TrackOptionsState } from '../use-track-options-state';
 import { styles } from '../styles';
@@ -15,6 +16,7 @@ interface MainSheetProps {
 
 export function MainSheet({ state }: MainSheetProps) {
   const { colors } = useAppTheme();
+  const { deletePlaylist } = usePlaylists();
   const {
     selectedItem,
     selectedTrack,
@@ -46,14 +48,23 @@ export function MainSheet({ state }: MainSheetProps) {
   return (
     <View>
       <View style={[styles.header, { borderBottomColor: 'rgba(255,255,255,0.1)' }]}>
-        <Image
-          source={
-            selectedItem.artwork && (selectedItem.artwork as string).trim() !== ''
-              ? { uri: selectedItem.artwork as string }
-              : require('@/assets/images/icon.png')
-          }
-          style={styles.artwork}
-        />
+        {selectedItem.id === 'liked' ? (
+          <LinearGradient
+            colors={['#8E2DE2', '#4A00E0']}
+            style={[styles.artwork, { alignItems: 'center', justifyContent: 'center' }]}
+          >
+            <Feather name="heart" size={24} color="#ffffff" />
+          </LinearGradient>
+        ) : (
+          <Image
+            source={
+              selectedItem.artwork && (selectedItem.artwork as string).trim() !== ''
+                ? { uri: selectedItem.artwork as string }
+                : require('@/assets/images/icon.png')
+            }
+            style={styles.artwork}
+          />
+        )}
         <View style={styles.headerInfo}>
           <Text style={[styles.trackTitle, { color: colors.text }]} numberOfLines={1}>
             {selectedItem.title}
@@ -245,6 +256,24 @@ export function MainSheet({ state }: MainSheetProps) {
               label="Share playlist"
               onPress={handleShareCollection}
             />
+            {selectedItem.id.startsWith('local-') && (
+              <ActionRow
+                icon={<Feather name="trash-2" size={18} color="#FF3B30" />}
+                label="Delete playlist"
+                onPress={() => {
+                  state.setVisible(false);
+                  Alert.alert(
+                    'Delete Playlist',
+                    `Are you sure you want to delete "${selectedItem.title}"?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(selectedItem.id) }
+                    ]
+                  );
+                }}
+                color="#FF3B30"
+              />
+            )}
           </>
         )}
 

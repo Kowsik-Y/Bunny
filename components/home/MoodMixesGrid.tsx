@@ -1,7 +1,7 @@
 import { StyleSheet, View, Dimensions, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Moon, FastForward, MessageSquare, Settings, Shuffle, HelpCircle } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 
@@ -20,6 +20,14 @@ interface MoodMixesGridProps {
   mixes: MoodMixItem[];
   onMixPress: (mix: MoodMixItem) => void;
 }
+
+const iconMap: { [key: string]: React.ComponentType<any> } = {
+  'moon.fill': Moon,
+  'forward.fill': FastForward,
+  'quote.bubble': MessageSquare,
+  'gearshape.fill': Settings,
+  'shuffle': Shuffle,
+};
 
 export function MoodMixesGrid({ mixes, onMixPress }: MoodMixesGridProps) {
   const { colors } = useAppTheme();
@@ -52,12 +60,18 @@ export function MoodMixesGrid({ mixes, onMixPress }: MoodMixesGridProps) {
             >
               {/* Large ghost icon in corner */}
               <View style={styles.ghostIcon}>
-                <IconSymbol name={mix.icon as any} size={52} color="rgba(0,0,0,0.12)" />
+                {(() => {
+                  const Icon = iconMap[mix.icon] || HelpCircle;
+                  return <Icon size={52} color="rgba(0,0,0,0.12)" fill={mix.icon === 'moon.fill' ? 'rgba(0,0,0,0.12)' : 'none'} />;
+                })()}
               </View>
 
               {/* Small icon */}
               <View style={[styles.iconBadge, { backgroundColor: 'rgba(0,0,0,0.15)' }]}>
-                <IconSymbol name={mix.icon as any} size={18} color="#fff" />
+                {(() => {
+                  const Icon = iconMap[mix.icon] || HelpCircle;
+                  return <Icon size={18} color="#fff" fill={mix.icon === 'moon.fill' ? '#fff' : 'none'} />;
+                })()}
               </View>
 
               <View style={styles.tileInfo}>

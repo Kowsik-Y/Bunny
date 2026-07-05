@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -24,29 +24,27 @@ export function PlayerSheet({
 }: PlayerSheetProps) {
   const { colors } = useAppTheme();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const isFirstRender = useRef(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      if (!visible) return;
-    }
-
     if (visible) {
-      const raf = requestAnimationFrame(() => {
-        bottomSheetModalRef.current?.present();
-      });
-      return () => cancelAnimationFrame(raf);
-    } else {
+      if (!mounted) {
+        setMounted(true);
+      } else {
+        const timer = setTimeout(() => {
+          bottomSheetModalRef.current?.present();
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    } else if (mounted) {
       bottomSheetModalRef.current?.dismiss();
     }
-  }, [visible]);
+  }, [visible, mounted]);
 
-  const handleDismiss = useCallback(() => {
-    if (visible) {
-      onClose();
-    }
-  }, [visible, onClose]);
+  const handleDismiss = () => {
+    setMounted(false);
+    onClose();
+  };
 
   const snapPoints = useMemo(() => ['70%'], []);
 
@@ -63,17 +61,16 @@ export function PlayerSheet({
     []
   );
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
       snapPoints={snapPoints}
       enablePanDownToClose={true}
       onDismiss={handleDismiss}
-      onChange={(index) => {
-        if (index === -1) {
-          handleDismiss();
-        }
-      }}
       backgroundStyle={{ backgroundColor: colors.card }}
       handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
       backdropComponent={renderBackdrop}

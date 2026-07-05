@@ -11,18 +11,33 @@ export function useArtworkPalette(uri?: string, track?: AppTrack, queue?: AppTra
   const [palette, setPalette] = useState<Palette>(globalPalette);
 
   useEffect(() => {
-    if (!uri) return;
+    // No artwork: after a short delay fall back, but only if we don't have real
+    // colors from a previous track already showing.
+    if (!uri) {
+      const t = setTimeout(() => {
+        globalPalette = FALLBACK;
+        setPalette(FALLBACK);
+      }, 800);
+      return () => clearTimeout(t);
+    }
+
+    // Already cached — switch instantly (transition animation in TrackContent handles the fade)
     if (globalCache[uri]) {
       globalPalette = globalCache[uri];
       setPalette(globalCache[uri]);
       return;
     }
+
+    // Not cached yet: DO NOT reset palette here — keep whatever we're showing
+    // so there's no flash back to #121212 while the new image loads.
+    let active = true;
     ImageColors.getColors(uri, {
       fallback: FALLBACK[0],
       cache: true,
       key: uri,
     })
       .then((colors) => {
+        if (!active) return;
         let newPalette: Palette;
         if (colors.platform === 'android' || colors.platform === 'web') {
           const c0 = colors.vibrant ?? colors.lightVibrant;
@@ -46,6 +61,10 @@ export function useArtworkPalette(uri?: string, track?: AppTrack, queue?: AppTra
         setPalette(newPalette);
       })
       .catch((err) => console.log('[useArtworkPalette] fetch error:', err));
+
+    return () => {
+      active = false;
+    };
   }, [uri]);
 
   // Pre-fetching adjacent tracks

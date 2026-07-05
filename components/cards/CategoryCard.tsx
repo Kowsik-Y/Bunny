@@ -2,13 +2,13 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { BunnyCard } from '../ui/bunny-card';
-import { IconSymbol, IconSymbolName } from '../ui/icon-symbol';
 import { Typography } from '../ui/typography';
+import { Music } from 'lucide-react-native';
 
 export interface CategoryCardProps {
   title: string;
   color?: string; // background/tint accent color
-  icon?: IconSymbolName;
+  icon?: React.ComponentType<{ size?: number; color?: string }>;
   onPress?: () => void;
   onLongPress?: () => void;
 }
@@ -16,7 +16,7 @@ export interface CategoryCardProps {
 export function CategoryCard({
   title,
   color,
-  icon,
+  icon: Icon = Music,
   onPress,
   onLongPress,
 }: CategoryCardProps) {
@@ -30,7 +30,7 @@ export function CategoryCard({
       style={styles.categoryCard}
       contentContainerStyle={styles.categoryCardInner}
     >
-      <IconSymbol name={icon || 'music.note'} size={28} color={color || colors.primary} />
+      <Icon size={28} color={color || colors.primary} />
       <Typography variant="large" style={styles.categoryText}>{title}</Typography>
     </BunnyCard>
   );

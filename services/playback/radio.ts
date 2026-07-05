@@ -93,6 +93,7 @@ export async function getRadioQueue(videoId: string, limit = 10): Promise<AppTra
         artwork,
         artistId,
         albumId,
+        isAutoplay: true,
       });
 
       if (tracks.length >= limit) break;

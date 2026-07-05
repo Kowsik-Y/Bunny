@@ -2,7 +2,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { BunnyCard } from '../ui/bunny-card';
-import { IconSymbol } from '../ui/icon-symbol';
+import { Play } from 'lucide-react-native';
 import { Typography } from '../ui/typography';
 
 export interface FeaturedAlbumCardProps {
@@ -35,7 +35,7 @@ export function FeaturedAlbumCard({
         {artwork ? (
           <Image source={{ uri: artwork }} style={styles.cardImage} />
         ) : (
-          <IconSymbol name="play.fill" size={26} color={colors.primary} active />
+          <Play size={26} color={colors.primary} fill={colors.primary} />
         )}
       </View>
       <Typography variant="large" numberOfLines={1}>{title}</Typography>

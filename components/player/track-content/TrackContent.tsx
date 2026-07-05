@@ -1,14 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   Image,
-  NativeModules,
   Platform,
   Pressable,
   Share,
   StyleSheet,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -23,7 +21,6 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import TrackPlayer from 'react-native-track-player';
 import {
   Ellipsis,
   Film,
@@ -112,18 +109,46 @@ export function TrackContent({
     };
   });
 
+  const animationCancelRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const nextColors = [palette[0] || '#121212', palette[2] || '#000000'];
-    if (nextColors[0] === currentColorsRef.current[0] && nextColors[1] === currentColorsRef.current[1]) {
+    if (
+      nextColors[0] === currentColorsRef.current[0] &&
+      nextColors[1] === currentColorsRef.current[1]
+    ) {
       return;
     }
-    globalPrevColors = currentColorsRef.current;
+
+    // Cancel any in-progress transition
+    if (animationCancelRef.current) {
+      animationCancelRef.current();
+      animationCancelRef.current = null;
+    }
+
+    // Snapshot current as previous
+    const snapshotPrev = currentColorsRef.current;
+    globalPrevColors = snapshotPrev;
     globalCurrentColors = nextColors;
-    setPrevColors(currentColorsRef.current);
     currentColorsRef.current = nextColors;
-    setCurrentColors(nextColors);
+
+    // Reset opacity to 0 so previous gradient is visible, then fade in
     transitionVal.value = 0;
-    transitionVal.value = withTiming(1, { duration: 1000, easing: ReEasing.inOut(ReEasing.ease) });
+    setPrevColors(snapshotPrev);
+    setCurrentColors(nextColors);
+
+    let cancelled = false;
+    animationCancelRef.current = () => { cancelled = true; };
+
+    transitionVal.value = withTiming(
+      1,
+      { duration: 900, easing: ReEasing.inOut(ReEasing.cubic) },
+      () => {
+        if (!cancelled) {
+          animationCancelRef.current = null;
+        }
+      },
+    );
   }, [palette]);
 
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -344,6 +369,7 @@ export function TrackContent({
             style={[StyleSheet.absoluteFill, lyricsAnimStyle]}
           >
             <LyricsTab
+              key={track.id}
               track={track}
               activePosition={playerMode === 'video' ? videoTime : position}
               activePlaying={playerMode === 'video' ? isVideoPlaying : isPlaying}
@@ -355,6 +381,7 @@ export function TrackContent({
                 }
               }}
               primaryColor={colors.primary}
+              isVisible={activeView === 'lyrics'}
             />
           </Reanimated.View>
 
@@ -425,7 +452,7 @@ export function TrackContent({
           <View style={styles.bottomSheet}>
             <View style={styles.metadataRow}>
               <View style={styles.metadataInfo}>
-                <MarqueeText style={styles.titleText} speed={35} pauseMs={1200}>
+                <MarqueeText speed ={40} style={styles.titleText}>
                   {track.title}
                 </MarqueeText>
                 <Pressable
@@ -437,7 +464,7 @@ export function TrackContent({
                   disabled={isLive}
                   style={{ width: '100%' }}
                 >
-                  <MarqueeText style={styles.artistText} speed={30} pauseMs={1200}>
+                  <MarqueeText style={styles.artistText}>
                     {track.artist}
                   </MarqueeText>
                 </Pressable>
@@ -460,7 +487,9 @@ export function TrackContent({
                     foreground: true,
                   }}
                   hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                  onPress={() => setShowMoreMenu(true)}
+                  onPress={() => {
+                    setShowMoreMenu(true);
+                  }}
                   style={{ ...styles.metaCircleBtn, backgroundColor: 'rgba(255,255,255,0.1)' }}
                 >
                   <Ellipsis size={18} color="rgba(255,255,255,0.8)" />
@@ -642,7 +671,7 @@ export function TrackContent({
         onSelectPlaylist={handleAddToPlaylist}
         onCreateNewPlaylist={() => {
           setShowPlaylistSelectModal(false);
-          setTimeout(() => setShowCreatePlaylistModal(true), 400);
+          setTimeout(() => setShowCreatePlaylistModal(true), 250);
         }}
       />
 

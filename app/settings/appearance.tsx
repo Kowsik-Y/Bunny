@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { ThemedView } from '@/components/themed-view';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { H3, Muted, Typography } from '@/components/ui/typography';
+import { Muted, Typography } from '@/components/ui/typography';
 import { ThemeVariantOptions, getFontFamilies, type ThemeFontName, type ThemeMode } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 

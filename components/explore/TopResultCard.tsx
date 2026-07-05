@@ -1,9 +1,11 @@
 import React from 'react';
 import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
 import { Typography } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
+import { BunnyCard } from '@/components/ui/bunny-card';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, Play, Shuffle, Radio, List, Pause } from 'lucide-react-native';
 
 interface TopResultCardProps {
   type: 'song' | 'artist' | 'album' | 'playlist';
@@ -23,6 +25,8 @@ interface TopResultCardProps {
   onPlay: () => void;
   onAction?: () => void;
   onRecommendedSongPress?: (song: any) => void;
+  isActive?: boolean;
+  isPlaying?: boolean;
 }
 
 function formatDuration(sec: number): string {
@@ -39,6 +43,8 @@ export function TopResultCard({
   onPlay,
   onAction,
   onRecommendedSongPress,
+  isActive = false,
+  isPlaying = false,
 }: TopResultCardProps) {
   const { colors } = useAppTheme();
 
@@ -57,19 +63,17 @@ export function TopResultCard({
     ? `Playlist • ${item.artist || 'Unknown Artist'}`
     : `Album • ${item.artist || 'Unknown Artist'} ${item.year ? `• ${item.year}` : ''}`;
 
-  const primaryBtnLabel = isArtist ? 'Shuffle' : 'Play';
-  const primaryBtnIcon = isArtist ? 'shuffle' : 'play.fill';
-
+  const primaryBtnLabel = isArtist ? 'Shuffle' : (isActive && isPlaying) ? 'Pause' : 'Play';
   const secondaryBtnLabel = isArtist ? 'Mix' : isSong ? 'Radio' : 'Library';
-  const secondaryBtnIcon = isArtist ? 'antenna.radiowaves.left.and.right' : isSong ? 'antenna.radiowaves.left.and.right' : 'list.bullet';
 
   return (
     <View style={styles.topResultSection}>
       <Typography variant="small" style={styles.sectionLabel}>TOP RESULT</Typography>
-      <TouchableOpacity
-        activeOpacity={0.9}
+      <BunnyCard
         onPress={onPress}
-        style={[styles.topResultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        bouncy={false}
+        style={styles.topResultCard}
+        contentContainerStyle={styles.topResultCardInner}
       >
         <View style={styles.topResultHeader}>
           <Image
@@ -84,32 +88,42 @@ export function TopResultCard({
               {subtitle}
             </Typography>
           </View>
-          <IconSymbol name="chevron.right" size={20} color={addAlpha(colors.text, 0.32)} />
+          <ChevronRight size={20} color={addAlpha(colors.text, 0.32)} />
         </View>
 
         <View style={styles.topResultActions}>
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <Button
+            variant="default"
             onPress={onPlay}
-            style={[styles.actionButton, { backgroundColor: colors.text, flex: 1, marginRight: 8 }]}
-          >
-            <IconSymbol name={primaryBtnIcon as any} size={16} color={colors.background} />
-            <Typography style={[styles.actionButtonText, { color: colors.background, fontWeight: '600', marginLeft: 8 }]}>
-              {primaryBtnLabel}
-            </Typography>
-          </TouchableOpacity>
+            style={{ flex: 1, height: 44, borderRadius: 22 }}
+            leftIcon={
+              isArtist ? (
+                <Shuffle size={16} color={colors.primaryForeground} />
+              ) : (isActive && isPlaying) ? (
+                <Pause size={16} color={colors.primaryForeground} fill={colors.primaryForeground} />
+              ) : (
+                <Play size={16} color={colors.primaryForeground} fill={colors.primaryForeground} />
+              )
+            }
+            label={primaryBtnLabel}
+          />
 
           {onAction && (
-            <TouchableOpacity
-              activeOpacity={0.8}
+            <Button
+              variant="outline"
               onPress={onAction}
-              style={[styles.actionButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border, flex: 1, marginLeft: 8 }]}
-            >
-              <IconSymbol name={secondaryBtnIcon as any} size={16} color={colors.text} />
-              <Typography style={[styles.actionButtonText, { color: colors.text, fontWeight: '600', marginLeft: 8 }]}>
-                {secondaryBtnLabel}
-              </Typography>
-            </TouchableOpacity>
+              style={{ flex: 1, marginLeft: 8, height: 44, borderRadius: 22 }}
+              leftIcon={
+                isArtist ? (
+                  <Radio size={16} color={colors.text} />
+                ) : isSong ? (
+                  <Radio size={16} color={colors.text} />
+                ) : (
+                  <List size={16} color={colors.text} />
+                )
+              }
+              label={secondaryBtnLabel}
+            />
           )}
         </View>
 
@@ -121,7 +135,7 @@ export function TopResultCard({
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => onRecommendedSongPress?.(recommendedSong)}
-              style={[styles.songRow, { backgroundColor: addAlpha(colors.text, 0.02) }]}
+              style={[styles.songRow, { backgroundColor: addAlpha(colors.text, 0.03), borderColor: colors.border, borderWidth: 1 }]}
             >
               <Image
                 source={{ uri: recommendedSong.thumbnail || 'https://picsum.photos/100/100' }}
@@ -136,12 +150,12 @@ export function TopResultCard({
                 </Typography>
               </View>
               <View style={[styles.songPlayButton, { backgroundColor: addAlpha(colors.primary, 0.1) }]}>
-                <IconSymbol name="play.fill" size={14} color={colors.primary} />
+                <Play size={14} color={colors.primary} fill={colors.primary} />
               </View>
             </TouchableOpacity>
           </View>
         )}
-      </TouchableOpacity>
+      </BunnyCard>
     </View>
   );
 }
@@ -158,15 +172,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   topResultCard: {
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 2,
     marginTop: 4,
+  },
+  topResultCardInner: {
+    padding: 20,
   },
   topResultHeader: {
     flexDirection: 'row',
@@ -191,16 +200,6 @@ const styles = StyleSheet.create({
   topResultActions: {
     flexDirection: 'row',
     marginTop: 18,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 44,
-    borderRadius: 22,
-  },
-  actionButtonText: {
-    fontSize: 14,
   },
   songSection: {
     marginTop: 16,

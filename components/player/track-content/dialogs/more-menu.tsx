@@ -1,12 +1,11 @@
-import React from 'react';
 import { View, Image, Pressable, ActivityIndicator } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
+import { Heart } from 'lucide-react-native';
 
 interface MoreMenuProps {
   visible: boolean;
@@ -40,7 +39,6 @@ export function MoreMenu({
   setShowQualityModal,
 }: MoreMenuProps) {
   const { colors } = useAppTheme();
-
   return (
     <PlayerSheet visible={visible} onClose={onClose}>
       <View style={styles.moreHeader}>
@@ -71,11 +69,7 @@ export function MoreMenu({
         android_ripple={{ color: colors.border }}
         style={styles.moreActionRow}
       >
-        <IconSymbol
-          name="heart"
-          size={18}
-          color={isFav ? '#FF3B30' : colors.text}
-        />
+        <Heart size={18} color={isFav ? '#FF3B30' : colors.text} />
         <Text style={[styles.moreActionText, { color: colors.text }]}>
           {isFav ? 'Remove from Favorites' : 'Add to Favorites'}
         </Text>
@@ -84,7 +78,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowPlaylistSelectModal(true), 400);
+          setTimeout(() => setShowPlaylistSelectModal(true), 250);
         }}
         android_ripple={{ color: colors.border }}
         style={styles.moreActionRow}
@@ -131,7 +125,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowAboutModal(true), 400);
+          setTimeout(() => setShowAboutModal(true), 250);
         }}
         style={styles.moreActionRow}
         android_ripple={{ color: colors.border }}
@@ -143,7 +137,7 @@ export function MoreMenu({
       <Pressable
         onPress={() => {
           onClose();
-          setTimeout(() => setShowQualityModal(true), 400);
+          setTimeout(() => setShowQualityModal(true), 250);
         }}
         style={styles.moreActionRow}
         android_ripple={{ color: colors.border }}

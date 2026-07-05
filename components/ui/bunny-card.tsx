@@ -14,6 +14,7 @@ interface BunnyCardProps extends ViewProps {
   onLongPress?: () => void;
   glass?: boolean;
   elevated?: boolean;
+  bouncy?: boolean;
   contentContainerStyle?: ViewProps['style'];
 }
 
@@ -25,6 +26,7 @@ export function BunnyCard({
   onLongPress,
   glass = true,
   elevated = true,
+  bouncy = false,
   contentContainerStyle,
   ...props
 }: BunnyCardProps) {
@@ -33,17 +35,17 @@ export function BunnyCard({
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: bouncy ? scale.value : 1 }],
   }));
 
   const handlePressIn = () => {
-    if (onPress || onLongPress) {
+    if (bouncy && (onPress || onLongPress)) {
       scale.value = withSpring(0.97, { damping: 15, stiffness: 200 });
     }
   };
 
   const handlePressOut = () => {
-    if (onPress || onLongPress) {
+    if (bouncy && (onPress || onLongPress)) {
       scale.value = withSpring(1, { damping: 15, stiffness: 200 });
     }
   };

@@ -2,7 +2,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { BunnyCard } from '../ui/bunny-card';
-import { IconSymbol, IconSymbolName } from '../ui/icon-symbol';
+import { Radio } from 'lucide-react-native';
 import { Muted, Typography } from '../ui/typography';
 
 export interface RadioCardProps {
@@ -10,7 +10,6 @@ export interface RadioCardProps {
   subtitle?: string;
   artwork?: string;
   color?: string; // background accent color
-  icon?: IconSymbolName;
   onPress?: () => void;
 }
 
@@ -19,7 +18,6 @@ export function RadioCard({
   subtitle,
   artwork,
   color,
-  icon,
   onPress,
 }: RadioCardProps) {
   const { colors } = useAppTheme();
@@ -34,7 +32,7 @@ export function RadioCard({
         {artwork ? (
           <Image source={{ uri: artwork }} style={styles.cardImage} />
         ) : (
-          <IconSymbol name={(icon || 'quote.bubble') as any} size={24} color={color || colors.primary} />
+          <Radio size={24} color={color || colors.primary} />
         )}
       </View>
       <Typography variant="large" numberOfLines={1}>{title}</Typography>

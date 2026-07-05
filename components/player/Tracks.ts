@@ -19,6 +19,7 @@ export type AppTrack = Track & {
   activeVideoItag?: number;
   website?: string;
   streamHost?: string;
+  isAutoplay?: boolean;
 };
 
 const tracks: AppTrack[] = [];

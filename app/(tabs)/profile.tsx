@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TrackPlayer from 'react-native-track-player';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 
 
@@ -19,9 +20,10 @@ import { QueueTrackRow } from '@/components/library/QueueTrackRow';
 import { ThemedView } from '@/components/themed-view';
 import { Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useTrackOptions } from '@/contexts/track-options-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 
-import { PlaylistRowCard } from '@/components/cards';
+import { PlaylistCard, PlaylistRowCard } from '@/components/cards';
 import { type AppTrack } from '@/components/player/Tracks';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +43,7 @@ export default function ProfileScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const bottomSpacing = useBottomTabSpacing();
+  const { openPlaylistOptions } = useTrackOptions();
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -115,31 +118,14 @@ export default function ProfileScreen() {
         </View>
 
         {/* Segmented Tabs: Playlists / Downloads */}
-        <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity
-            onPress={() => setActiveTab('playlists')}
-            style={[styles.tabBtn, activeTab === 'playlists' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-          >
-            <Typography style={[styles.tabText, {
-              fontWeight: activeTab === 'playlists' ? '700' : '400',
-              color: activeTab === 'playlists' ? colors.primary : colors.mutedForeground
-            }]}>
-              Playlists ({playlists.length + 1})
-            </Typography>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('downloads')}
-            style={[styles.tabBtn, activeTab === 'downloads' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-          >
-            <Typography style={[styles.tabText, {
-              fontWeight: activeTab === 'downloads' ? '700' : '400',
-              color: activeTab === 'downloads' ? colors.primary : colors.mutedForeground
-            }]}>
-              Downloads ({downloadedTracks.length})
-            </Typography>
-          </TouchableOpacity>
-        </View>
+        <SegmentedControl
+          options={[
+            { value: 'playlists', label: 'Playlists', badge: playlists.length + 1 },
+            { value: 'downloads', label: 'Downloads', badge: downloadedTracks.length },
+          ]}
+          selectedValue={activeTab}
+          onChange={(val) => setActiveTab(val as Tab)}
+        />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -147,42 +133,56 @@ export default function ProfileScreen() {
         >
           {activeTab === 'playlists' ? (
             <View style={styles.listSection}>
-              {/* Create Playlist row button */}
-              <TouchableOpacity
-                onPress={() => setShowCreateModal(true)}
-                style={[styles.createPlaylistRow, { borderColor: colors.border }]}
-              >
-                <Feather name="plus-circle" size={20} color={colors.primary} />
-                <Typography style={[styles.createPlaylistText, { color: colors.primary }]}>
-                  Create New Playlist
-                </Typography>
-              </TouchableOpacity>
+              <View style={styles.playlistGrid}>
+                {/* Create Playlist card button */}
+                <TouchableOpacity
+                  onPress={() => setShowCreateModal(true)}
+                  style={[styles.createPlaylistCard, { backgroundColor: colors.card, borderColor: colors.border, width: '47%' }]}
+                >
+                  <Feather name="plus" size={32} color={colors.primary} />
+                  <Typography style={[styles.createPlaylistCardText, { color: colors.primary }]}>
+                    Create Playlist
+                  </Typography>
+                </TouchableOpacity>
 
-              {/* Special Liked Music Auto Playlist Row */}
-              <PlaylistRowCard
-                id="liked"
-                name="Liked Music"
-                songCount={favorites.length}
-                isLikedMusic={true}
-                onPress={() => router.push('/playlist/liked')}
-              />
-
-              {/* User Custom Playlists */}
-              {playlists.map((playlist) => (
-                <PlaylistRowCard
-                  key={playlist.id}
-                  id={playlist.id}
-                  name={playlist.name}
-                  songCount={playlist.tracks.length}
-                  onPress={() => router.push(`/playlist/${playlist.id}`)}
-                  onDeletePress={() => {
-                    setAlertTitle('Delete Playlist');
-                    setAlertDesc(`Delete "${playlist.name}"?`);
-                    setOnConfirm(() => () => deletePlaylist(playlist.id));
-                    setAlertVisible(true);
+                {/* Special Liked Music Auto Playlist Card */}
+                <PlaylistCard
+                  id="liked"
+                  name="Liked Music"
+                  songCount={favorites.length}
+                  isLikedMusic={true}
+                  onPress={() => router.push('/playlist/liked')}
+                  style={{ width: '47%', marginRight: 0 }}
+                  onLongPress={() => {
+                    openPlaylistOptions({
+                      id: 'liked',
+                      name: 'Liked Music',
+                      songCount: favorites.length,
+                      artwork: 'liked',
+                    });
                   }}
                 />
-              ))}
+
+                {/* User Custom Playlists */}
+                {playlists.map((playlist) => (
+                  <PlaylistCard
+                    key={playlist.id}
+                    id={playlist.id}
+                    name={playlist.name}
+                    songCount={playlist.tracks.length}
+                    onPress={() => router.push(`/playlist/${playlist.id}`)}
+                    style={{ width: '47%', marginRight: 0 }}
+                    onLongPress={() => {
+                      openPlaylistOptions({
+                        id: playlist.id,
+                        name: playlist.name,
+                        songCount: playlist.tracks.length,
+                        artwork: playlist.tracks[0]?.artwork,
+                      });
+                    }}
+                  />
+                ))}
+              </View>
             </View>
           ) : (
             <View style={styles.listSection}>
@@ -366,22 +366,29 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
   },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  tabBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    marginRight: 24,
-  },
-  tabText: {
-    fontSize: 14,
-  },
   listSection: {
     paddingBottom: 20,
+  },
+  playlistGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    rowGap: 16,
+  },
+  createPlaylistCard: {
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  createPlaylistCardText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   createPlaylistRow: {
     flexDirection: 'row',

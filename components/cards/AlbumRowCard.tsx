@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { IconSymbol } from '../ui/icon-symbol';
+import { ChevronRight } from 'lucide-react-native';
 import { Muted, Typography } from '../ui/typography';
 
 export interface AlbumRowCardProps {
@@ -72,7 +72,7 @@ export function AlbumRowCard({
         </Muted>
       </View>
 
-      <IconSymbol name="chevron.right" size={20} color={colors.muted} />
+      <ChevronRight size={20} color={colors.muted} />
     </Pressable>
   );
 }

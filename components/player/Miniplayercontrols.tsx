@@ -1,18 +1,13 @@
 import {
-  View, Text, Image, ActivityIndicator, Pressable, StyleSheet,
+  View, Image, ActivityIndicator, Pressable, StyleSheet,
 } from 'react-native';
 import { type AppTrack } from './Tracks';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { ThemedText } from '../themed-text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MINI_PLAYER_HEIGHT } from '@/constants/layout';
 import MarqueeText from './MarqueeText';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
 
-const MINI_HEIGHT = MINI_PLAYER_HEIGHT;
 
 type Props = {
   track: AppTrack;
@@ -49,8 +44,8 @@ export default function MiniPlayerControls({
       >
         <Image source={track.artwork && (track.artwork as string).trim() !== '' ? { uri: track.artwork as string } : require('@/assets/images/icon.png')} style={styles.artwork} />
         <View style={styles.info}>
-          <MarqueeText style={[styles.title, { color: colors.text }]}>{track.title}</MarqueeText>
-          <MarqueeText style={[styles.artist, { color: colors.mutedForeground }]}>
+          <MarqueeText speed ={40} style={[styles.title, { color: colors.text }]}>{track.title}</MarqueeText>
+          <MarqueeText speed ={40} style={[styles.artist, { color: colors.mutedForeground }]}>
             {`${track.artist}${track.album ? ` • ${track.album}` : ''}`}
           </MarqueeText>
         </View>

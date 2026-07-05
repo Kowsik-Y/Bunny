@@ -13,9 +13,8 @@ export async function trimHistory(): Promise<void> {
 
     if (historyCount > dynamicCap) {
       const toRemove = historyCount - dynamicCap;
-      for (let i = 0; i < toRemove; i++) {
-        await TrackPlayer.remove(0);
-      }
+      const indices = Array.from({ length: toRemove }, (_, i) => i);
+      await TrackPlayer.remove(indices);
       console.log(`[PlaybackService] History trimmed: removed ${toRemove} old tracks (cap=${dynamicCap}).`);
     }
   } catch (e: any) {

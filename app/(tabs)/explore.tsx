@@ -1,53 +1,48 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Keyboard, TextInput, Image } from 'react-native';
+import { useState, useEffect, useRef, type ComponentType, useMemo } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Dimensions, Keyboard, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Typography, H1, H2, Muted } from '@/components/ui/typography';
+import { Typography, H1, H2, H3, Muted } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
-import {  IconSymbolName } from '@/components/ui/icon-symbol';
-import { Input } from '@/components/ui/input';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { addAlpha } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { PlayerActions } from '@/services/SetupService';
 import { useCurrentTrack, usePlayerState, toast } from '@/services';
 import { searchYtMusic, getSearchSuggestions, YtMusicSearchResult, CategorizedSearchResults } from '@/services/ytMusic';
 import TrackPlayer from 'react-native-track-player';
 import { pipedService } from '@/services/piped';
-import { SongCard, AlbumCard, AlbumRowCard, ArtistCard } from '@/components/cards';
+import { SongCard, AlbumCard, AlbumRowCard, ArtistCard, PlaylistCard } from '@/components/cards';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Feather } from '@expo/vector-icons';
 import { useTrackOptions } from '@/contexts/track-options-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { addAlpha } from '@/constants/theme';
+import { BunnyCard } from '@/components/ui/bunny-card';
 
 import { SuggestionsOverlay } from '@/components/explore/SuggestionsOverlay';
-import { FilterChips } from '@/components/explore/FilterChips';
+import { ArtistTabBar } from '@/components/artist/ArtistTabBar';
 import { TopResultCard } from '@/components/explore/TopResultCard';
-import { RecentSearches } from '@/components/explore/RecentSearches';
-import { FeaturedAlbums } from '@/components/explore/FeaturedAlbums';
-import { RadioStations } from '@/components/explore/RadioStations';
 import { MoodsGenres } from '@/components/explore/MoodsGenres';
+import { Search, X, Music, Dumbbell, Compass, Moon, Heart, Plane, Gamepad2, PartyPopper } from 'lucide-react-native';
 
-type SearchProvider = 'ytmusic' | 'piped';
-
-const { width } = Dimensions.get('window');
+type SearchProvider = 'ytmusic';
 
 interface CategoryItem {
   id: string;
   title: string;
   color: string;
-  icon: IconSymbolName;
+  icon: ComponentType<{ size?: number; color?: string }>;
 }
 
 const CATEGORIES: CategoryItem[] = [
-  { id: '1', title: 'Chill', color: '#B5EAD7', icon: 'house.fill' },
-  { id: '2', title: 'Workout', color: '#FF9AA2', icon: 'forward.fill' },
-  { id: '3', title: 'Focus', color: '#C7CEEA', icon: 'list.bullet' },
-  { id: '4', title: 'Party', color: '#FFDAC1', icon: 'shuffle' },
-  { id: '5', title: 'Sleep', color: '#E2F0CB', icon: 'heart' },
-  { id: '6', title: 'Romance', color: '#FFB7B2', icon: 'quote.bubble' },
-  { id: '7', title: 'Travel', color: '#B2E2F2', icon: 'airplayaudio' },
-  { id: '8', title: 'Gaming', color: '#D5AAFF', icon: 'gearshape.fill' },
+  { id: '1', title: 'Chill', color: '#B5EAD7', icon: Music },
+  { id: '2', title: 'Workout', color: '#FF9AA2', icon: Dumbbell },
+  { id: '3', title: 'Focus', color: '#C7CEEA', icon: Compass },
+  { id: '4', title: 'Party', color: '#FFDAC1', icon: PartyPopper },
+  { id: '5', title: 'Sleep', color: '#E2F0CB', icon: Moon },
+  { id: '6', title: 'Romance', color: '#FFB7B2', icon: Heart },
+  { id: '7', title: 'Travel', color: '#B2E2F2', icon: Plane },
+  { id: '8', title: 'Gaming', color: '#D5AAFF', icon: Gamepad2 },
 ];
 
 
@@ -58,7 +53,7 @@ function getSearchScore(query: string, target: string): number {
   if (t.startsWith(q)) return 8;
   if (t.includes(q)) return 5;
   if (q.includes(t)) return 4;
-  
+
   const qWords = q.split(/\s+/);
   const tWords = t.split(/\s+/);
   let matches = 0;
@@ -70,6 +65,7 @@ function getSearchScore(query: string, target: string): number {
 
 export default function ExploreScreen() {
   const { colors } = useAppTheme();
+  const bottomSpacing = useBottomTabSpacing();
   const currentTrack = useCurrentTrack();
   const { openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
   const { isPlaying } = usePlayerState();
@@ -81,15 +77,16 @@ export default function ExploreScreen() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [locationCity, setLocationCity] = useState<string>('');
   const [localHits, setLocalHits] = useState<YtMusicSearchResult[]>([]);
-  const [localStations, setLocalStations] = useState<any[]>([]);
+  const [featuredPlaylists, setFeaturedPlaylists] = useState<YtMusicSearchResult[]>([]);
+  const [loadingInitial, setLoadingInitial] = useState(true);
 
   // Find the dynamically best matching top result candidate
-  const topResult = React.useMemo(() => {
+  const topResult = useMemo(() => {
     if (!results.songs.length && !results.artists.length && !results.albums.length && !results.playlists?.length) {
       return null;
     }
     const candidates: { type: 'song' | 'artist' | 'album' | 'playlist'; item: any; score: number }[] = [];
-    
+
     if (results.artists.length > 0) {
       candidates.push({
         type: 'artist',
@@ -118,74 +115,62 @@ export default function ExploreScreen() {
         score: getSearchScore(search, results.playlists[0].title || ''),
       });
     }
-    
+
     candidates.sort((a, b) => b.score - a.score);
     return candidates.length > 0 ? { type: candidates[0].type, item: candidates[0].item } : null;
   }, [results, search]);
 
-  const playRadioStation = async (station: any) => {
-    try {
-      const urlParts = station.url.split('/');
-      const channelId = urlParts[urlParts.length - 1];
-      const streamUrl = `https://radio.garden/api/ara/content/listen/${channelId}/channel.mp3`;
-      
-      const trackObj = {
-        id: `radiogarden-${channelId}`,
-        url: streamUrl,
-        title: station.title || 'Live Broadcast',
-        artist: station.sub || 'Live Radio',
-        album: 'Radio Garden',
-        duration: 0,
-        artwork: 'https://radio.garden/icons/favicon.png',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-      };
-      
-      await TrackPlayer.reset();
-      await TrackPlayer.add([trackObj]);
-      await TrackPlayer.play();
-    } catch (e) {
-      console.warn('Failed to play radio station:', e);
-    }
-  };
+  const isTopResultActive = useMemo(() => {
+    if (!topResult || !currentTrack) return false;
+    const topId = topResult.item.id;
+    return currentTrack.id === topId || !!(currentTrack.id && currentTrack.id.includes(topId));
+  }, [topResult, currentTrack]);
+
 
   useEffect(() => {
     const fetchLocalHits = async () => {
-      let city = 'Chennai';
-      let searchSuffix = 'Tamil hits';
+      let city = 'Local';
+      let searchSuffix = 'hits';
       let placeId = '';
-      
+
       try {
-        const geoRes = await fetch('http://radio.garden/api/geo');
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          if (geoData && geoData.title) {
-            city = geoData.title;
-            placeId = geoData.id || '';
-            if (geoData.code === 'IN') {
-              if (city.toLowerCase().includes('bengaluru') || city.toLowerCase().includes('bangalore')) {
-                searchSuffix = 'Kannada hits';
-              } else if (city.toLowerCase().includes('mumbai')) {
-                searchSuffix = 'Hindi trending';
-              } else if (city.toLowerCase().includes('hyderabad')) {
-                searchSuffix = 'Telugu hits';
-              } else if (city.toLowerCase().includes('delhi')) {
-                searchSuffix = 'Punjabi hits';
-              } else {
+        const ipRes = await fetch('http://ip-api.com/json');
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          if (ipData && ipData.status === 'success') {
+            city = ipData.city || 'Local';
+            const region = ipData.regionName || '';
+            const country = ipData.country || '';
+            
+            if (ipData.countryCode === 'IN') {
+              if (region.toLowerCase().includes('tamil')) {
                 searchSuffix = 'Tamil hits';
+              } else if (region.toLowerCase().includes('karnataka')) {
+                searchSuffix = 'Kannada hits';
+              } else if (region.toLowerCase().includes('telangana') || region.toLowerCase().includes('andhra')) {
+                searchSuffix = 'Telugu hits';
+              } else if (region.toLowerCase().includes('kerala')) {
+                searchSuffix = 'Malayalam hits';
+              } else if (region.toLowerCase().includes('maharashtra')) {
+                searchSuffix = 'Marathi hits';
+              } else if (region.toLowerCase().includes('punjab')) {
+                searchSuffix = 'Punjabi hits';
+              } else if (region.toLowerCase().includes('bengal') || region.toLowerCase().includes('kolkata')) {
+                searchSuffix = 'Bengali hits';
+              } else {
+                searchSuffix = 'Hindi trending';
               }
-            } else if (geoData.code === 'US') {
-              searchSuffix = 'US pop hits';
             } else {
-              searchSuffix = `${geoData.country} hits`;
+              searchSuffix = `${region || country} hits`;
             }
           }
         }
       } catch (err) {
-        console.warn('[Explore] Failed to fetch geo location:', err);
+        console.warn('[Explore] ip-api geolocation failed:', err);
       }
-      
+
       setLocationCity(city);
-      
+
       // Fetch YTMusic hits
       try {
         const res = await searchYtMusic(`${city} ${searchSuffix}`);
@@ -196,40 +181,19 @@ export default function ExploreScreen() {
         console.warn('[Explore] Failed to fetch local songs:', err);
       }
 
-      // Fetch Radio Garden channels
-      if (placeId) {
-        try {
-          const channelsRes = await fetch(`https://radio.garden/api/ara/content/page/${placeId}/channels`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-              'Referer': 'https://radio.garden/'
-            }
-          });
-          if (channelsRes.ok) {
-            const channelsData = await channelsRes.json();
-            const sections = channelsData?.data?.content || [];
-            const fetchedList: any[] = [];
-            for (const section of sections) {
-              if (section.items && (section.itemsType === 'channel' || section.type === 'list')) {
-                fetchedList.push(...section.items);
-              }
-            }
-            const colors = ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA'];
-            const mapped = fetchedList.slice(0, 8).map((item, idx) => ({
-              id: item.page?.url || String(idx),
-              title: item.title || item.page?.title || 'Unknown Station',
-              sub: `Live • ${city}`,
-              color: colors[idx % colors.length],
-              url: item.page?.url || ''
-            }));
-            setLocalStations(mapped);
-          }
-        } catch (err) {
-          console.warn('[Explore] Failed to load local stations:', err);
+      // Fetch featured playlists
+      try {
+        const res = await searchYtMusic('featured playlists');
+        if (res && res.playlists) {
+          setFeaturedPlaylists(res.playlists.slice(0, 10));
         }
+      } catch (err) {
+        console.warn('[Explore] Failed to fetch featured playlists:', err);
+      } finally {
+        setLoadingInitial(false);
       }
     };
-    
+
     fetchLocalHits();
   }, []);
 
@@ -274,7 +238,7 @@ export default function ExploreScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const isSearchingRef = useRef(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [provider, setProvider] = useState<SearchProvider>('ytmusic');
+  const [provider] = useState<SearchProvider>('ytmusic');
   const [activeFilter, setActiveFilter] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists'>('all');
   const router = useRouter();
 
@@ -491,7 +455,7 @@ export default function ExploreScreen() {
           {/* Search Bar */}
           <View style={styles.searchHeader}>
             <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+              <Search size={18} fill={colors.mutedForeground} color={colors.mutedForeground} style={{ marginRight: 8 }} />
               <TextInput
                 ref={searchInputRef}
                 placeholder="Search Music..."
@@ -518,7 +482,7 @@ export default function ExploreScreen() {
                     setActiveFilter('all');
                   }}
                 >
-                  <Feather name="x" size={18} color={colors.mutedForeground} />
+                  <X size={18} color={colors.mutedForeground} />
                 </TouchableOpacity>
               )}
             </View>
@@ -541,9 +505,11 @@ export default function ExploreScreen() {
           {isSearching ? (
             <View style={styles.resultsContainer}>
               {/* Horizontal Filter Chips */}
-              <FilterChips
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
+              <ArtistTabBar
+                availableTabs={['All', 'Songs', 'Artists', 'Albums', 'Playlists']}
+                activeTab={activeFilter === 'all' ? 'All' : activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
+                onTabChange={(tab) => setActiveFilter(tab.toLowerCase() as any)}
+                containerStyle={{ marginHorizontal: 0, marginVertical: 14 }}
               />
 
               {loading ? (
@@ -577,6 +543,8 @@ export default function ExploreScreen() {
                           type={topResult.type}
                           item={topResult.item}
                           recommendedSong={topResult.type === 'artist' && results.songs.length > 0 ? results.songs[0] : null}
+                          isActive={isTopResultActive}
+                          isPlaying={isPlaying}
                           onPress={() => {
                             if (topResult.type === 'artist') {
                               router.push(`/artist/${topResult.item.id}`);
@@ -585,7 +553,11 @@ export default function ExploreScreen() {
                             } else if (topResult.type === 'playlist') {
                               router.push(`/playlist/${topResult.item.id}`);
                             } else {
-                              PlayerActions.skipToTrackFromYt(topResult.item);
+                              if (isTopResultActive) {
+                                PlayerActions.playPause(isPlaying);
+                              } else {
+                                PlayerActions.skipToTrackFromYt(topResult.item);
+                              }
                             }
                           }}
                           onPlay={() => {
@@ -596,19 +568,23 @@ export default function ExploreScreen() {
                             } else if (topResult.type === 'playlist') {
                               router.push(`/playlist/${topResult.item.id}`);
                             } else {
-                              PlayerActions.skipToTrackFromYt(topResult.item);
+                              if (isTopResultActive) {
+                                PlayerActions.playPause(isPlaying);
+                              } else {
+                                PlayerActions.skipToTrackFromYt(topResult.item);
+                              }
                             }
                           }}
                           onAction={
                             topResult.type === 'artist'
                               ? () => handleArtistMix(topResult.item.name || '')
                               : topResult.type === 'song'
-                              ? () => PlayerActions.skipToTrackFromYt(topResult.item)
-                              : topResult.type === 'album'
-                              ? () => router.push(`/album/${topResult.item.id}`)
-                              : topResult.type === 'playlist'
-                              ? () => router.push(`/playlist/${topResult.item.id}`)
-                              : () => PlayerActions.skipToTrackFromYt(topResult.item)
+                                ? () => PlayerActions.skipToTrackFromYt(topResult.item)
+                                : topResult.type === 'album'
+                                  ? () => router.push(`/album/${topResult.item.id}`)
+                                  : topResult.type === 'playlist'
+                                    ? () => router.push(`/playlist/${topResult.item.id}`)
+                                    : () => PlayerActions.skipToTrackFromYt(topResult.item)
                           }
                           onRecommendedSongPress={(song) => PlayerActions.skipToTrackFromYt(song)}
                         />
@@ -618,9 +594,16 @@ export default function ExploreScreen() {
                       {results.songs.length > 0 && (
                         <View style={styles.resultsSection}>
                           <Typography variant="small" style={styles.sectionLabel}>SONGS </Typography>
-                          {results.songs.slice(0, 5).map(item => (
-                            <View key={item.id}>{renderSearchResult({ item })}</View>
-                          ))}
+                          <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                            {results.songs.slice(0, 5).map((item, index) => (
+                              <View key={item.id}>
+                                {renderSearchResult({ item })}
+                                {index < Math.min(5, results.songs.length) - 1 && (
+                                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                                )}
+                              </View>
+                            ))}
+                          </BunnyCard>
                         </View>
                       )}
 
@@ -628,9 +611,16 @@ export default function ExploreScreen() {
                       {results.albums.length > 0 && (
                         <View style={styles.resultsSection}>
                           <Typography variant="small" style={styles.sectionLabel}>ALBUMS</Typography>
-                          {results.albums.slice(0, 5).map(item => (
-                            <View key={item.id}>{renderSearchResult({ item })}</View>
-                          ))}
+                          <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                            {results.albums.slice(0, 5).map((item, index) => (
+                              <View key={item.id}>
+                                {renderSearchResult({ item })}
+                                {index < Math.min(5, results.albums.length) - 1 && (
+                                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                                )}
+                              </View>
+                            ))}
+                          </BunnyCard>
                         </View>
                       )}
 
@@ -638,9 +628,16 @@ export default function ExploreScreen() {
                       {results.playlists && results.playlists.length > 0 && (
                         <View style={styles.resultsSection}>
                           <Typography variant="small" style={styles.sectionLabel}>PLAYLISTS</Typography>
-                          {results.playlists.slice(0, 5).map(item => (
-                            <View key={item.id}>{renderSearchResult({ item })}</View>
-                          ))}
+                          <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                            {results.playlists.slice(0, 5).map((item, index) => (
+                              <View key={item.id}>
+                                {renderSearchResult({ item })}
+                                {index < Math.min(5, results.playlists.length) - 1 && (
+                                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                                )}
+                              </View>
+                            ))}
+                          </BunnyCard>
                         </View>
                       )}
 
@@ -648,9 +645,16 @@ export default function ExploreScreen() {
                       {results.artists.length > 1 && (
                         <View style={styles.resultsSection}>
                           <Typography variant="small" style={styles.sectionLabel}>ARTISTS</Typography>
-                          {results.artists.slice(1, 6).map(item => (
-                            <View key={item.id}>{renderSearchResult({ item })}</View>
-                          ))}
+                          <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                            {results.artists.slice(1, 6).map((item, index) => (
+                              <View key={item.id}>
+                                {renderSearchResult({ item })}
+                                {index < Math.min(5, results.artists.length - 1) - 1 && (
+                                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                                )}
+                              </View>
+                            ))}
+                          </BunnyCard>
                         </View>
                       )}
                     </>
@@ -660,9 +664,16 @@ export default function ExploreScreen() {
                   {activeFilter === 'songs' && results.songs.length > 0 && (
                     <View style={styles.resultsSection}>
                       <Typography variant="small" style={styles.sectionLabel}>SONGS</Typography>
-                      {results.songs.map(item => (
-                        <View key={item.id}>{renderSearchResult({ item })}</View>
-                      ))}
+                      <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                        {results.songs.map((item, index) => (
+                          <View key={item.id}>
+                            {renderSearchResult({ item })}
+                            {index < results.songs.length - 1 && (
+                              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                        ))}
+                      </BunnyCard>
                     </View>
                   )}
 
@@ -670,9 +681,16 @@ export default function ExploreScreen() {
                   {activeFilter === 'artists' && results.artists.length > 0 && (
                     <View style={styles.resultsSection}>
                       <Typography variant="small" style={styles.sectionLabel}>ARTISTS</Typography>
-                      {results.artists.map(item => (
-                        <View key={item.id}>{renderSearchResult({ item })}</View>
-                      ))}
+                      <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                        {results.artists.map((item, index) => (
+                          <View key={item.id}>
+                            {renderSearchResult({ item })}
+                            {index < results.artists.length - 1 && (
+                              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                        ))}
+                      </BunnyCard>
                     </View>
                   )}
 
@@ -680,9 +698,16 @@ export default function ExploreScreen() {
                   {activeFilter === 'albums' && results.albums.length > 0 && (
                     <View style={styles.resultsSection}>
                       <Typography variant="small" style={styles.sectionLabel}>ALBUMS</Typography>
-                      {results.albums.map(item => (
-                        <View key={item.id}>{renderSearchResult({ item })}</View>
-                      ))}
+                      <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                        {results.albums.map((item, index) => (
+                          <View key={item.id}>
+                            {renderSearchResult({ item })}
+                            {index < results.albums.length - 1 && (
+                              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                        ))}
+                      </BunnyCard>
                     </View>
                   )}
 
@@ -690,9 +715,16 @@ export default function ExploreScreen() {
                   {activeFilter === 'playlists' && results.playlists && results.playlists.length > 0 && (
                     <View style={styles.resultsSection}>
                       <Typography variant="small" style={styles.sectionLabel}>PLAYLISTS</Typography>
-                      {results.playlists.map(item => (
-                        <View key={item.id}>{renderSearchResult({ item })}</View>
-                      ))}
+                      <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                        {results.playlists.map((item, index) => (
+                          <View key={item.id}>
+                            {renderSearchResult({ item })}
+                            {index < results.playlists.length - 1 && (
+                              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                        ))}
+                      </BunnyCard>
                     </View>
                   )}
 
@@ -702,10 +734,10 @@ export default function ExploreScreen() {
                     (activeFilter === 'artists' && results.artists.length === 0) ||
                     (activeFilter === 'albums' && results.albums.length === 0) ||
                     (activeFilter === 'playlists' && (!results.playlists || results.playlists.length === 0))) && (
-                    <View style={styles.center}>
-                      <Muted>No results found</Muted>
-                    </View>
-                  )}
+                      <View style={styles.center}>
+                        <Muted>No results found</Muted>
+                      </View>
+                    )}
                 </ScrollView>
               )}
             </View>
@@ -716,48 +748,112 @@ export default function ExploreScreen() {
             >
 
               {/* Local Spotlight */}
-              {localHits.length > 0 && (
+              {loadingInitial ? (
                 <View style={{ marginBottom: 32 }}>
                   <View style={styles.sectionHeader}>
-                    <H2 style={styles.sectionTitle}>Local Spotlight ({locationCity})</H2>
+                    <Typography style={[styles.sectionTitle, { color: colors.text }]}>Local Spotlight</Typography>
                   </View>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     style={{ marginHorizontal: -20 }}
-                    contentContainerStyle={{ paddingHorizontal: 20 }}
+                    contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
                   >
-                    {localHits.map((song) => (
-                      <AlbumCard
-                        key={song.id}
-                        title={song.title || ''}
-                        subtitle={song.artist || ''}
-                        artwork={song.thumbnail || ''}
-                        type="album"
-                        variant="carousel"
-                        onPress={() => PlayerActions.skipToTrackFromYt(song)}
-                        onLongPress={() => openTrackOptions({
-                          id: song.id,
-                          title: song.title || '',
-                          artist: song.artist || '',
-                          album: song.album || 'Single',
-                          artwork: song.thumbnail || '',
-                          url: song.url || `https://music.youtube.com/watch?v=${song.id}`,
-                          duration: song.duration || 0,
-                          artistId: song.artistId,
-                          albumId: song.albumId,
-                          artists: song.artists,
-                        })}
-                      />
+                    {[1, 2, 3, 4, 5].map((k) => (
+                      <View key={k} style={{ width: 140, gap: 8 }}>
+                        <Skeleton style={{ width: 140, height: 140, borderRadius: 12 }} />
+                        <Skeleton style={{ width: '80%', height: 14, borderRadius: 4 }} />
+                        <Skeleton style={{ width: '50%', height: 10, borderRadius: 4 }} />
+                      </View>
                     ))}
                   </ScrollView>
                 </View>
+              ) : (
+                localHits.length > 0 && (
+                  <View style={{ marginBottom: 32 }}>
+                    <View style={styles.sectionHeader}>
+                      <Typography style={[styles.sectionTitle, { color: colors.text }]}>Local Spotlight ({locationCity})</Typography>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginHorizontal: -20 }}
+                      contentContainerStyle={{ paddingHorizontal: 20 }}
+                    >
+                      {localHits.map((song) => (
+                        <AlbumCard
+                          key={song.id}
+                          title={song.title || ''}
+                          subtitle={song.artist || ''}
+                          artwork={song.thumbnail || ''}
+                          type="album"
+                          variant="carousel"
+                          onPress={() => PlayerActions.skipToTrackFromYt(song)}
+                          onLongPress={() => openTrackOptions({
+                            id: song.id,
+                            title: song.title || '',
+                            artist: song.artist || '',
+                            album: song.album || 'Single',
+                            artwork: song.thumbnail || '',
+                            url: song.url || `https://music.youtube.com/watch?v=${song.id}`,
+                            duration: song.duration || 0,
+                            artistId: song.artistId,
+                            albumId: song.albumId,
+                            artists: song.artists,
+                          })}
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )
               )}
 
-              {/* Radio Section */}
-              {localStations.length > 0 && (
-                <RadioStations stations={localStations} onStationPress={playRadioStation} />
+              {/* Featured Playlists */}
+              {loadingInitial ? (
+                <View style={{ marginBottom: 32 }}>
+                  <View style={styles.sectionHeader}>
+                    <Typography style={[styles.sectionTitle, { color: colors.text }]}>Featured Playlists</Typography>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginHorizontal: -20 }}
+                    contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
+                  >
+                    {[1, 2, 3, 4, 5].map((k) => (
+                      <View key={k} style={{ width: 140, gap: 8 }}>
+                        <Skeleton style={{ width: 140, height: 140, borderRadius: 12 }} />
+                        <Skeleton style={{ width: '70%', height: 14, borderRadius: 4 }} />
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                featuredPlaylists.length > 0 && (
+                  <View style={{ marginBottom: 32 }}>
+                    <View style={styles.sectionHeader}>
+                      <Typography style={[styles.sectionTitle, { color: colors.text }]}>Featured Playlists</Typography>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginHorizontal: -20 }}
+                      contentContainerStyle={{ paddingHorizontal: 20 }}
+                    >
+                      {featuredPlaylists.map((playlist) => (
+                        <PlaylistCard
+                          key={playlist.id}
+                          id={playlist.id}
+                          name={playlist.title || playlist.name || 'Untitled Playlist'}
+                          artwork={playlist.thumbnail}
+                          onPress={() => router.push(`/playlist/${playlist.id}`)}
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )
               )}
+
 
               {/* Categories Grid */}
               <MoodsGenres categories={CATEGORIES} onCategoryPress={(cat) => router.push(`/playlist/${cat.title}`)} />
@@ -765,6 +861,33 @@ export default function ExploreScreen() {
           )}
         </View>
       </SafeAreaView>
+      {/* Top Fade Gradient */}
+      <LinearGradient
+        colors={[
+          colors.background,
+          addAlpha(colors.background, 0.9),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.1),
+          'transparent'
+        ]}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
+      {/* Bottom Fade Gradient */}
+      <LinearGradient
+        colors={[
+          'transparent',
+          addAlpha(colors.background, 0.1),
+          addAlpha(colors.background, 0.3),
+          addAlpha(colors.background, 0.6),
+          addAlpha(colors.background, 0.9),
+          colors.background
+        ]}
+        style={[styles.bottomGradient, { height: bottomSpacing + 25 }]}
+        pointerEvents="none"
+      />
     </ThemedView>
   );
 }
@@ -899,7 +1022,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   featuredScroll: {
     marginBottom: 32,
@@ -996,5 +1121,24 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 14,
+  },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    zIndex: 10,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 20,
   },
 });

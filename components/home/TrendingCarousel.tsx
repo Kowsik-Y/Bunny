@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentTrack, usePlayerState, PlayerActions } from '@/services';

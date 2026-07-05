@@ -55,11 +55,19 @@ export const PlayerActions = {
 
   skipToTrack: async (trackId: string) => {
     const queue = await TrackPlayer.getQueue();
-    const idx = queue.findIndex((t) => String(t.id) === String(trackId));
-    if (idx >= 0) {
-      await TrackPlayer.skip(idx);
+    const targetIdx = queue.findIndex((t) => String(t.id) === String(trackId));
+    if (targetIdx < 0) return;
+
+    const activeIdx = await TrackPlayer.getActiveTrackIndex();
+    if (activeIdx === undefined || activeIdx === null) return;
+
+    if (targetIdx === activeIdx) {
       await TrackPlayer.play();
+      return;
     }
+
+    await TrackPlayer.skip(targetIdx);
+    await TrackPlayer.play();
   },
 
   skipToTrackFromYt: async (ytTrack: any) => {

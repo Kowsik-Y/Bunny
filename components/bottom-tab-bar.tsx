@@ -9,19 +9,11 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Home, Search, ListMusic, Podcast } from 'lucide-react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { TAB_BAR_BOTTOM, PLAYER_BOTTOM_OFFSET } from '@/constants/layout';
 
 
 const VISIBLE_ROUTES = ['index', 'radio', 'explore', 'profile'];
-
-const ROUTE_ICONS: Record<string, any> = {
-  index: 'house.fill',
-  explore: 'paperplane.fill',
-  radio: 'antenna.radiowaves.left.and.right',
-  profile: 'person.fill',
-};
 
 const PILL_H = 50;
 
@@ -63,6 +55,8 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
 
   const tabPanGesture = Gesture.Pan()
     .runOnJS(true)
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-8, 8])
     .onStart(() => {
       const activeLayout = tabLayouts.current[activeRouteName];
       if (activeLayout) {
@@ -298,7 +292,6 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             if (!VISIBLE_ROUTES.includes(route.name)) return null;
 
             const isFocused = state.index === index;
-            const icon = ROUTE_ICONS[route.name] ?? 'house.fill';
 
             const onPress = () => {
               const event = navigation.emit({
@@ -337,14 +330,7 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
                   <ListMusic size={20} color={iconColor}/>
                 ) : route.name === 'radio' ? (
                   <Podcast size={20} color={iconColor} />
-                ) : (
-                  <IconSymbol
-                    size={20}
-                    name={icon}
-                    color={iconColor}
-                    active={isFocused}
-                  />
-                )}
+                ) : null}
               </Pressable>
             );
           })}

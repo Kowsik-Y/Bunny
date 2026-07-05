@@ -1,22 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, ActivityIndicator, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { RefreshCw, Bell } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Switch } from '@/components/ui/switch';
-
-import { H1, H3, Muted, Typography } from '@/components/ui/typography';
+import { Muted, Typography } from '@/components/ui/typography';
 import { ThemedView } from '@/components/themed-view';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BunnyCard } from '@/components/ui/bunny-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { checkAppUpdates } from '@/services';
 import packageJson from '../../package.json';
 
 export default function UpdatesSettingsScreen() {
   const { colors } = useAppTheme();
-  const router = useRouter();
   const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
 
@@ -52,7 +48,7 @@ export default function UpdatesSettingsScreen() {
   return (
     <ThemedView style={styles.screen}>
       <Stack.Screen options={{ title: 'App Updates' }} />
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
@@ -70,7 +66,7 @@ export default function UpdatesSettingsScreen() {
               Up to date
             </Typography>
           </View>
-          
+
           <View style={[styles.settingRow, { marginTop: 8, marginBottom: 8 }]}>
             <View style={styles.iconContainer}>
               <Bell size={20} color={colors.primary} />
@@ -84,7 +80,7 @@ export default function UpdatesSettingsScreen() {
               onCheckedChange={handleToggleAutoUpdate}
             />
           </View>
-          
+
           <Pressable
             onPress={handleCheckUpdate}
             disabled={checkingUpdate}

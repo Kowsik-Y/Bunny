@@ -3,7 +3,7 @@ import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { type AppTrack } from '@/components/player/Tracks';
 import { Typography, Muted } from '@/components/ui/typography';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Play, Pause, X } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { addAlpha } from '@/constants/theme';
 
@@ -59,13 +59,13 @@ export function QueueTrackRow({
           {isActive && (
             <View style={[styles.nowPlayingOverlay, { backgroundColor: addAlpha(colors.primary, 0.8) }]}>
               {isPlaying
-                ? <IconSymbol name='pause.fill' size={14} color='#fff' />
-                : <IconSymbol name='play.fill' size={14} color='#fff' />}
+                ? <Pause size={14} color='#fff' fill='#fff' />
+                : <Play size={14} color='#fff' fill='#fff' />}
             </View>
           )}
           {isDummy && !isActive && (
             <View style={[styles.nowPlayingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-              <IconSymbol name='pause.fill' size={12} color='#fff' />
+              <Pause size={12} color='#fff' fill='#fff' />
             </View>
           )}
         </View>
@@ -89,7 +89,7 @@ export function QueueTrackRow({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={styles.removeBtn}
         >
-          <IconSymbol name='xmark' size={20} color={colors.mutedForeground} />
+          <X size={20} color={colors.mutedForeground} />
         </TouchableOpacity>
       )}
     </Animated.View>

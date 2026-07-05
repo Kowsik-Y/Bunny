@@ -28,6 +28,7 @@ interface PlaylistHeaderProps {
   onArtistPress?: () => void;  // shows artist name as a tappable link
   artistName?: string;
   onHeartPress?: () => void;   // shows heart button when provided
+  isLikedMusic?: boolean;
 }
 
 export function PlaylistHeader({
@@ -43,6 +44,7 @@ export function PlaylistHeader({
   onArtistPress,
   artistName,
   onHeartPress,
+  isLikedMusic = false,
 }: PlaylistHeaderProps) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -82,7 +84,14 @@ export function PlaylistHeader({
               />
               {/* Actual artwork */}
               <View style={styles.artworkContainer}>
-                {artworkUrl && artworkUrl.trim() !== '' ? (
+                {isLikedMusic ? (
+                  <LinearGradient
+                    colors={['#8E2DE2', '#4A00E0']}
+                    style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+                  >
+                    <Heart size={64} color="#ffffff" fill="#ffffff" />
+                  </LinearGradient>
+                ) : artworkUrl && artworkUrl.trim() !== '' ? (
                   <Image source={{ uri: artworkUrl }} style={styles.artwork} />
                 ) : tracks.length > 0 ? (
                   <View style={styles.gridArtwork}>

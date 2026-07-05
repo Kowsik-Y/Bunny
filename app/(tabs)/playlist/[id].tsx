@@ -110,9 +110,11 @@ export default function PlaylistScreen() {
         artist={item.artist}
         album={item.album}
         artwork={item.artwork}
-        rightIcon="bullet"
+        rightIcon="play"
         isActive={isActive}
         isPlaying={isPlaying}
+        index={index}
+        showRank={true}
         onPress={() => PlayerActions.skipToTrackFromYt({
           id: item.id,
           title: item.title,
@@ -220,6 +222,7 @@ export default function PlaylistScreen() {
             onPlayPress={handlePlayPress}
             onShufflePress={handleShufflePress}
             onDownloadPress={handleDownloadPress}
+            isLikedMusic={id === 'liked'}
           />
         }
         contentContainerStyle={styles.scrollContent}
