@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Typography as Text } from '@/components/ui/typography';
-import { SwipeBottomSheet } from '../../SwipeBottomSheet';
 
 interface PlayerSheetProps {
   visible: boolean;
@@ -30,28 +30,76 @@ export function PlayerSheet({
   colors,
   children,
 }: PlayerSheetProps) {
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const wasPresented = useRef(false);
+
+  useEffect(() => {
+    if (visible) {
+      wasPresented.current = true;
+      const raf = requestAnimationFrame(() => {
+        bottomSheetModalRef.current?.present();
+      });
+      return () => cancelAnimationFrame(raf);
+    } else if (wasPresented.current) {
+      wasPresented.current = false;
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [visible]);
+
+  const handleDismiss = () => {
+    wasPresented.current = false;
+    if (visible) {
+      onClose();
+    }
+  };
+
+  const snapPoints = useMemo(() => ['80%'], []);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.4}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
   return (
-    <SwipeBottomSheet
-      visible={visible}
-      onClose={onClose}
-      backgroundColor={colors.card}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose={true}
+      onDismiss={handleDismiss}
+      backgroundStyle={{ backgroundColor: colors.card }}
+      handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      backdropComponent={renderBackdrop}
     >
-      {title && (
-        <View style={styles.header}>
-          {showBack && (
-            <Pressable onPress={onBack} style={styles.backBtn}>
-              <Feather name="chevron-left" size={22} color={colors.text} />
-            </Pressable>
-          )}
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-        </View>
-      )}
-      {children}
-    </SwipeBottomSheet>
+      <BottomSheetView style={styles.content}>
+        {title && (
+          <View style={styles.header}>
+            {showBack && (
+              <Pressable onPress={onBack} style={styles.backBtn}>
+                <Feather name="chevron-left" size={22} color={colors.text} />
+              </Pressable>
+            )}
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          </View>
+        )}
+        {children}
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
