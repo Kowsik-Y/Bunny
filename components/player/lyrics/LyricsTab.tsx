@@ -222,7 +222,7 @@ export default function LyricsTab({
             activeOpacity={0.7}
             style={styles.refetchButton}
           >
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: '600' }}>
               Refetch Lyrics
             </Text>
           </TouchableOpacity>
@@ -283,20 +283,18 @@ export default function LyricsTab({
 const styles = StyleSheet.create({
   lyricsContainer: {
     justifyContent: 'center',
-    width: width - 32,
     height: '100%',
     borderRadius: 12,
   },
   floatingActionBar: {
     position: 'absolute',
     bottom: 25,
-    right: 20,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 20,
     backgroundColor: 'rgba(0,0,0,0.65)',
     borderRadius: 24,
-    padding: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     shadowColor: '#000',
@@ -345,7 +343,7 @@ const styles = StyleSheet.create({
   },
   lyricsContent: {
     paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
   },
   lyricsLineWrap: {
     paddingVertical: 12,
