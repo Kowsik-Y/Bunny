@@ -16,7 +16,7 @@ export function EmptyState({ tab }: EmptyStateProps) {
       {tab === 'queue' ? (
         <List size={48} color={colors.mutedForeground} />
       ) : (
-        <Heart size={48} color={colors.mutedForeground} />
+        <Heart fill={colors.mutedForeground} size={48} color={colors.mutedForeground} />
       )}
       <Typography variant='large' style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
         {tab === 'queue' ? 'Queue is empty' : 'No saved tracks yet'}

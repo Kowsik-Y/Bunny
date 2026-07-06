@@ -4,4 +4,5 @@ export interface DownloadedTrack {
   track: AppTrack;
   localUri: string;
   downloadedAt: string;
+  size?: number;
 }

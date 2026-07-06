@@ -109,6 +109,7 @@ export function TrackContent({
 
   const queue = useQueue();
   const palette = useArtworkPalette(track.artwork as string | undefined, track, queue);
+  const videoViewRef = useRef<VideoView>(null);
 
   const [prevColors, setPrevColors] = useState<string[]>(globalPrevColors);
   const [currentColors, setCurrentColors] = useState<string[]>(globalCurrentColors);
@@ -400,10 +401,12 @@ export function TrackContent({
                 {playerMode === 'video' && track.videoUrl ? (
                   <View style={styles.videoContainer}>
                     <VideoView
+                      ref={videoViewRef}
                       player={videoPlayer}
                       style={styles.videoPlayer}
                       contentFit="contain"
                       nativeControls={false}
+                      fullscreenOptions={{ enable: true, orientation: 'landscape' }}
                     />
                     {isVideoPlaying === false && (
                       <View style={styles.videoBufferOverlay} pointerEvents="none">
@@ -413,7 +416,7 @@ export function TrackContent({
                     <View style={styles.videoTopBar}>
                       <Pressable
                         android_ripple={{ foreground: true, color: '#ffffff40', radius: 16 }}
-                        onPress={() => { }}
+                        onPress={() => videoViewRef.current?.enterFullscreen()}
                         style={styles.fullscreenBtn}
                       >
                         <Maximize size={15} color="#fff" />
@@ -473,7 +476,7 @@ export function TrackContent({
                   onPress={() => toggleFavorite(track)}
                   style={{ ...styles.metaCircleBtn, backgroundColor: isFav ? '#FF3B3090' : 'rgba(255,255,255,0.1)' }}
                 >
-                  <Heart size={18} color="rgba(255,255,255,0.8)" />
+                  <Heart fill="rgba(255,255,255)" size={18} color="rgba(255,255,255,0.8)" />
                 </Pressable>
                 <Pressable
                   android_ripple={{
@@ -663,6 +666,7 @@ export function TrackContent({
         setShowQualityModal={setShowQualityModal}
         setShowStatsModal={setShowStatsModal}
         trackOptionsState={trackOptionsState}
+        handleArtistPress={handleArtistPress}
       />
 
       <PlaylistSelect

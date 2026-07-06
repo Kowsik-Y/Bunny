@@ -46,7 +46,11 @@ export async function setupPlayer(): Promise<void> {
       const persistedIndexRaw = await AsyncStorage.getItem('player-persisted-index');
       const persistedPositionRaw = await AsyncStorage.getItem('player-persisted-position');
 
-      if (persistedQueueRaw) {
+      const existingQueue = await TrackPlayer.getQueue();
+
+      if (existingQueue.length > 0) {
+        console.log('[SetupService] Player already has tracks in queue. Skipping restore.');
+      } else if (persistedQueueRaw) {
         const persistedQueue = JSON.parse(persistedQueueRaw) as AppTrack[];
         if (persistedQueue.length > 0) {
           await TrackPlayer.add(persistedQueue);
@@ -65,17 +69,20 @@ export async function setupPlayer(): Promise<void> {
           }
         }
       } else {
-        const queue = await TrackPlayer.getQueue();
-        if (queue.length === 0 && defaultTracks.length > 0) {
+        if (defaultTracks.length > 0) {
           await TrackPlayer.add(defaultTracks);
         }
       }
+      await TrackPlayer.pause();
     } catch (e) {
       console.warn('[SetupService] Failed to restore persisted player state:', e);
       const queue = await TrackPlayer.getQueue();
       if (queue.length === 0 && defaultTracks.length > 0) {
         await TrackPlayer.add(defaultTracks);
       }
+      try {
+        await TrackPlayer.pause();
+      } catch (_) {}
     }
 
     setIsReady(true);

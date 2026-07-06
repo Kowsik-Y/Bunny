@@ -5,7 +5,7 @@ const path = require('path');
 function withAndroidJVMTarget(config) {
   return withProjectBuildGradle(config, async (config) => {
     let buildGradle = config.modResults.contents;
-    
+
     // Append subprojects configuration for Kotlin JVM target
     if (!buildGradle.includes('KotlinCompile')) {
       buildGradle += `\n\nsubprojects {
@@ -16,7 +16,7 @@ function withAndroidJVMTarget(config) {
     }
 }\n`;
     }
-    
+
     config.modResults.contents = buildGradle;
     return config;
   });
@@ -25,7 +25,7 @@ function withAndroidJVMTarget(config) {
 function withAndroidManifestPackage(config) {
   return withAndroidManifest(config, async (config) => {
     // Explicitly add package name to manifest for React Native CLI autolinking compatibility
-    config.modResults.manifest.$['package'] = 'com.kowsiky.Bunny';
+    config.modResults.manifest.$['package'] = 'com.bunny';
     return config;
   });
 }
@@ -62,12 +62,12 @@ function withAndroidProguardRules(config) {
       if (!fs.existsSync(fileDir)) {
         fs.mkdirSync(fileDir, { recursive: true });
       }
-      
+
       let contents = '';
       if (fs.existsSync(filePath)) {
         contents = fs.readFileSync(filePath, 'utf-8');
       }
-      
+
       const rules = [
         '# Suppress R8/Proguard warnings for missing classes',
         '-dontwarn com.google.re2j.**',
@@ -79,9 +79,9 @@ function withAndroidProguardRules(config) {
         '-keep class com.bunny.youtubeextractor.** { *; }',
         '-keep class com.bunny.innertube.** { *; }',
         '-keep class com.music.innertube.** { *; }',
-        '-keep class com.kowsiky.Bunny.** { *; }'
+        '-keep class com.bunny.** { *; }'
       ];
-      
+
       let modified = false;
       rules.forEach(rule => {
         if (!contents.includes(rule)) {
@@ -89,7 +89,7 @@ function withAndroidProguardRules(config) {
           modified = true;
         }
       });
-      
+
       if (modified) {
         fs.writeFileSync(filePath, contents, 'utf-8');
       }
@@ -121,7 +121,7 @@ function withAndroidABISplits(config) {
 function withAndroidVersioning(config) {
   return withAppBuildGradle(config, async (config) => {
     let appGradle = config.modResults.contents;
-    
+
     // Read package.json version by traversing upwards until found
     let projectRoot = config.modRequest.projectRoot;
     let packageJsonPath = path.join(projectRoot, 'package.json');
@@ -138,14 +138,14 @@ function withAndroidVersioning(config) {
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
       const versionName = packageJson.version;
       const versionCode = versionName.split('.').reduce((acc, val) => acc * 100 + parseInt(val, 10), 0);
-      
+
       // Replace versionCode in build.gradle
       appGradle = appGradle.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
-      
+
       // Replace versionName in build.gradle
       appGradle = appGradle.replace(/versionName\s+"[^"]+"/, `versionName "${versionName}"`);
     }
-    
+
     // Add versionNameSuffix in debug block if not present
     if (!appGradle.includes('versionNameSuffix "-debug"')) {
       appGradle = appGradle.replace(
@@ -153,7 +153,7 @@ function withAndroidVersioning(config) {
         'debug {\n            signingConfig signingConfigs.debug\n            versionNameSuffix "-debug"'
       );
     }
-    
+
     config.modResults.contents = appGradle;
     return config;
   });

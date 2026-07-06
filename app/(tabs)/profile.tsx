@@ -2,7 +2,7 @@ import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBo
 import { Alert } from '@/components/ui/alert';
 
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   Image,
   Pressable,
@@ -39,7 +39,15 @@ import {
 import { Cog, Plus, Play, Pause, XCircle, Download } from 'lucide-react-native';
 import { addAlpha } from '@/constants/theme';
 
-type Tab = 'playlists' | 'downloads';
+function formatSpeed(bytesPerSec: number): string {
+  if (!bytesPerSec || bytesPerSec <= 0) return '0 B/s';
+  const k = 1024;
+  const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  const i = Math.floor(Math.log(bytesPerSec) / Math.log(k));
+  return parseFloat((bytesPerSec / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+type Tab = 'playlists' | 'downloading';
 
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
@@ -70,8 +78,31 @@ export default function ProfileScreen() {
     pausedDownloadingIds,
     pauseDownload,
     cancelDownload,
-    startDownload
+    startDownload,
+    pauseAllDownloads,
+    resumeAllDownloads,
+    cancelAllDownloads,
+    downloadSpeed,
+    uploadSpeed,
+    downloadingSizes,
   } = useDownloads();
+
+  const totalDownloadsSize = useMemo(() => {
+    const totalBytes = downloadedTracks.reduce((acc, curr) => acc + (curr.size || 0), 0);
+    if (totalBytes === 0) return '0 MB';
+    const gb = totalBytes / (1024 * 1024 * 1024);
+    if (gb >= 1) {
+      return gb.toFixed(2) + ' GB';
+    }
+    const mb = totalBytes / (1024 * 1024);
+    return mb.toFixed(1) + ' MB';
+  }, [downloadedTracks]);
+
+  const formatTrackBytes = useCallback((bytes?: number) => {
+    if (!bytes || bytes <= 0) return undefined;
+    const mb = bytes / (1024 * 1024);
+    return mb.toFixed(1) + ' MB';
+  }, []);
 
   // Playback Queue Hooks
   const queue = useQueue();
@@ -117,11 +148,11 @@ export default function ProfileScreen() {
           </Button>
         </View>
 
-        {/* Segmented Tabs: Playlists / Downloads */}
+        {/* Segmented Tabs */}
         <SegmentedControl
           options={[
             { value: 'playlists', label: 'Playlists', badge: playlists.length + 1 },
-            { value: 'downloads', label: 'Downloads', badge: downloadedTracks.length },
+            { value: 'downloading', label: 'Downloading', badge: Object.keys(downloadingIds).length },
           ]}
           selectedValue={activeTab}
           onChange={(val) => setActiveTab(val as Tab)}
@@ -191,6 +222,60 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={styles.listSection}>
+              {Object.keys(downloadingIds).length > 0 && (
+                <View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 4, marginBottom: -2 }}>
+                    <Typography style={{ fontSize: 13, color: colors.mutedForeground }}>
+                      Download: <Typography style={{ fontWeight: '700', color: colors.text }}>{formatSpeed(downloadSpeed)}</Typography>
+                    </Typography>
+                    <Typography style={{ fontSize: 13, color: colors.mutedForeground }}>
+                      Upload: <Typography style={{ fontWeight: '700', color: colors.text }}>{formatSpeed(uploadSpeed)}</Typography>
+                    </Typography>
+                  </View>
+                  <View style={styles.downloadControlsBar}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      style={{ flex: 1, height: 36, borderRadius: 18 }}
+                      onPress={async () => {
+                        const anyActive = Object.keys(downloadingIds).some(id => !pausedDownloadingIds[id]);
+                        if (anyActive) {
+                          await pauseAllDownloads();
+                        } else {
+                          await resumeAllDownloads();
+                        }
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {Object.keys(downloadingIds).some(id => !pausedDownloadingIds[id]) ? (
+                          <>
+                            <Pause size={14} color={colors.primary} />
+                            <Typography style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>Pause All</Typography>
+                          </>
+                        ) : (
+                          <>
+                            <Play size={14} color={colors.primary} />
+                            <Typography style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>Resume All</Typography>
+                          </>
+                        )}
+                      </View>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      style={{ flex: 1, height: 36, borderRadius: 18, borderColor: 'rgba(255, 59, 48, 0.2)' }}
+                      onPress={async () => {
+                        await cancelAllDownloads();
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <XCircle size={14} color="#FF3B30" />
+                        <Typography style={{ fontSize: 13, color: '#FF3B30', fontWeight: '600' }}>Cancel All</Typography>
+                      </View>
+                    </Button>
+                  </View>
+                </View>
+              )}
               {/* Active Downloading Progress Rows */}
               {Object.keys(downloadingIds).map((trackId) => {
                 const track = downloadingTracks[trackId];
@@ -206,7 +291,7 @@ export default function ProfileScreen() {
                         {track.title}
                       </Typography>
                       <Muted style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                        {isPaused ? 'Paused' : `Downloading... ${Math.round(progress * 100)}%`}
+                        {isPaused ? 'Paused' : `Downloading... ${Math.round(progress * 100)}%${downloadingSizes[trackId] ? ` (${formatTrackBytes(downloadingSizes[trackId])})` : ''}`}
                       </Muted>
                       <View style={styles.progressBarContainer}>
                         <View style={[
@@ -234,32 +319,12 @@ export default function ProfileScreen() {
                   </View>
                 );
               })}
-
-              {downloadedTracks.length === 0 && Object.keys(downloadingIds).length === 0 ? (
+              
+              {Object.keys(downloadingIds).length === 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 60 }}>
                   <Download size={48} color={colors.mutedForeground} style={{ marginBottom: 15, opacity: 0.5 }} />
-                  <Typography style={{ fontWeight: '600', fontSize: 16 }}>No offline downloads</Typography>
-                  <Muted style={{ marginTop: 6, textAlign: 'center', paddingHorizontal: 40 }}>
-                    Songs you download will appear here so you can listen offline.
-                  </Muted>
+                  <Typography style={{ fontWeight: '600', fontSize: 16 }}>No active downloads</Typography>
                 </View>
-              ) : (
-                downloadedTracks.map((download, i) => (
-                  <QueueTrackRow
-                    key={download.track.id + '-download-' + i}
-                    track={download.track}
-                    index={i}
-                    isActive={currentTrack?.id === download.track.id}
-                    isPlaying={isPlaying && currentTrack?.id === download.track.id}
-                    onPress={() => handleDownloadTrackPress(i, download.track)}
-                    onRemove={() => {
-                      setAlertTitle('Remove Download');
-                      setAlertDesc(`Remove "${download.track.title}" from device?`);
-                      setOnConfirm(() => () => removeDownload(download.track.id));
-                      setAlertVisible(true);
-                    }}
-                  />
-                ))
               )}
             </View>
           )}
@@ -468,5 +533,13 @@ const styles = StyleSheet.create({
   progressBar: {
     height: '100%',
     borderRadius: 2,
+  },
+  downloadControlsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 10,
   },
 });

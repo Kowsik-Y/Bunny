@@ -14,6 +14,7 @@ interface QueueTrackRowProps {
   isPlaying: boolean;
   onPress: () => void;
   onRemove: () => void;
+  fileSize?: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -30,6 +31,7 @@ export function QueueTrackRow({
   isPlaying,
   onPress,
   onRemove,
+  fileSize,
 }: QueueTrackRowProps) {
   const { colors } = useAppTheme();
   const isDummy = track.url?.toString().includes('dummy.com');
@@ -77,9 +79,16 @@ export function QueueTrackRow({
           >
             {track.title}
           </Typography>
-          <Muted numberOfLines={1} style={styles.trackArtist}>
-            {track.artist}
-          </Muted>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Muted numberOfLines={1} style={[styles.trackArtist, { flex: 1 }]}>
+              {track.artist}
+            </Muted>
+            {fileSize && (
+              <Muted style={{ fontSize: 11, fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                {fileSize}
+              </Muted>
+            )}
+          </View>
         </View>
         <Muted style={styles.duration}>{formatDuration(track.duration)}</Muted>
       </TouchableOpacity>

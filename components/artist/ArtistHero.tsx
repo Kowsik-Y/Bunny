@@ -16,7 +16,7 @@ const HEADER_HEIGHT = width;
 interface ArtistHeroProps {
   thumbnailUrl: string | undefined;
   name: string;
-  subscribers: string | undefined;
+  subscribers: any;
   headerScale?: any;
   headerOpacity?: any;
   height?: number;
@@ -100,9 +100,14 @@ export function ArtistHero({
 
   // Text should be white when gradient base is dark, dark when gradient base is light
   const useWhiteText = isDark || lum < 0.55;
-  const textColor = useWhiteText ? '#000' : colors.text;
-  const textShadowColor = useWhiteText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255)';
+  const textColor = colors.text;
   const pillBg = useWhiteText ? 'rgba(0,0,0)' : 'rgba(0,0,0,0.12)';
+
+  const resolvedSubscribers = typeof subscribers === 'string'
+    ? subscribers
+    : (subscribers && typeof subscribers === 'object'
+      ? (subscribers.text || String(subscribers))
+      : (subscribers ? String(subscribers) : undefined));
 
   return (
     <View style={[styles.heroContainer, { height }]}>
@@ -147,9 +152,9 @@ export function ArtistHero({
               color: textColor,
             }
           ]}>{name}</Typography>
-          {subscribers && !isSmallHeader && (
+          {resolvedSubscribers && !isSmallHeader && (
             <View style={[styles.subPill, { backgroundColor: pillBg }]}>
-              <Typography style={[styles.subPillText, { color: "#fff" }]}>{subscribers}</Typography>
+              <Typography style={[styles.subPillText, { color: "#fff" }]}>{resolvedSubscribers}</Typography>
             </View>
           )}
         </View>

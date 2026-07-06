@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
-import { PlayerActions, toast, useCurrentTrack, useDownloads, useFavorites, usePlayerState } from '@/services';
+import { PlayerActions, toast, useCurrentTrack, useDownloads, useFavorites, usePlayerState, usePlaylists } from '@/services';
 import { getLocalPlaylists } from '@/services/playlists';
-import { createLocalPlaylist, addTrackToLocalPlaylist } from '@/services/playlists/storage';
 import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -25,10 +24,11 @@ export default function PlaylistScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { favorites } = useFavorites();
-  const { startDownload, isDownloaded, downloadingIds } = useDownloads();
+  const { startDownload, isDownloaded, downloadingIds, pausedDownloadingIds, pauseDownload, cancelDownload } = useDownloads();
   const currentTrack = useCurrentTrack();
   const { openPlaylistOptions } = useTrackOptions();
   const { isPlaying, isBuffering } = usePlayerState();
+  const { playlists, createPlaylist, addTrackToPlaylist } = usePlaylists();
   const bottomSpacing = useBottomTabSpacing();
 
   const [playlistName, setPlaylistName] = useState<string>(typeof id === 'string' ? id : 'Playlist');
@@ -36,6 +36,30 @@ export default function PlaylistScreen() {
   const [loading, setLoading] = useState(true);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  const isAddedToLibrary = playlists.some(
+    (p) => p.name.toLowerCase() === playlistName.toLowerCase()
+  );
+
+  const handleAddToLibrary = async () => {
+    if (isAddedToLibrary) return;
+    toast.info('Saving playlist to library...');
+    try {
+      let playlist = playlists.find(p => p.name.toLowerCase() === playlistName.toLowerCase());
+      if (!playlist) {
+        playlist = await createPlaylist(playlistName);
+      }
+      if (playlist && playlistTracks.length > 0) {
+        for (const track of playlistTracks) {
+          await addTrackToPlaylist(playlist.id, track);
+        }
+        toast.success('Saved to library locally');
+      }
+    } catch (e) {
+      console.warn('Failed to add playlist to library', e);
+      toast.error('Failed to add playlist to library');
+    }
+  };
 
   const loadPlaylistDetails = useCallback(async () => {
     try {
@@ -180,30 +204,48 @@ export default function PlaylistScreen() {
     (t) => currentTrack?.id === t.id || (currentTrack?.id && currentTrack.id.includes(t.id))
   );
 
-  const handlePlayPress = () => {
+  const handlePlayPress = async () => {
     // If this playlist is already active, just toggle play/pause
     if (isPlaylistActive) {
       PlayerActions.playPause(isPlaying || isBuffering);
       return;
     }
-    if (playlistTracks[0]) {
-      PlayerActions.skipToTrackFromYt({
-        id: playlistTracks[0].id,
-        title: playlistTracks[0].title,
-        artist: playlistTracks[0].artist,
-        album: playlistTracks[0].album,
-        thumbnail: playlistTracks[0].artwork,
-        url: playlistTracks[0].url?.toString() || `https://music.youtube.com/watch?v=${playlistTracks[0].id}`,
-        duration: playlistTracks[0].duration,
-        type: 'song',
-        artistId: playlistTracks[0].artistId,
-        albumId: playlistTracks[0].albumId,
-      });
+    if (playlistTracks.length > 0) {
+      await PlayerActions.playCollection(playlistTracks);
     }
   };
 
-  const handleShufflePress = () => {
-    // Shuffle logic if needed
+  const handleShufflePress = async () => {
+    if (playlistTracks.length > 0) {
+      const shuffled = [...playlistTracks].sort(() => Math.random() - 0.5);
+      await PlayerActions.playCollection(shuffled);
+    }
+  };
+
+  const handlePauseDownloads = async () => {
+    const tracksToPause = playlistTracks.filter((t) => downloadingIds[t.id] !== undefined);
+    const alreadyPausedCount = tracksToPause.filter((t) => pausedDownloadingIds[t.id]).length;
+    const shouldResume = alreadyPausedCount === tracksToPause.length;
+
+    if (shouldResume) {
+      toast.info('Resuming downloads...');
+      for (const track of tracksToPause) {
+        await startDownload(track);
+      }
+    } else {
+      toast.info('Pausing downloads...');
+      for (const track of tracksToPause) {
+        await pauseDownload(track.id);
+      }
+    }
+  };
+
+  const handleCancelDownloads = async () => {
+    toast.info('Cancelling downloads...');
+    const tracksToCancel = playlistTracks.filter((t) => downloadingIds[t.id] !== undefined);
+    for (const track of tracksToCancel) {
+      await cancelDownload(track.id);
+    }
   };
 
   const handleDownloadPress = async () => {
@@ -212,23 +254,18 @@ export default function PlaylistScreen() {
       return;
     }
 
+    if (!isAddedToLibrary) {
+      await handleAddToLibrary();
+    }
+
     toast.info(`Downloading ${playlistTracks.length} tracks...`);
 
     try {
-      const playlists = await getLocalPlaylists();
-      let playlist = playlists.find(p => p.name.toLowerCase() === playlistName.toLowerCase());
-      if (!playlist) {
-        playlist = await createLocalPlaylist(playlistName);
-      }
-
       let success = 0;
       for (const track of playlistTracks) {
         const ok = await startDownload(track);
         if (ok) {
           success++;
-          if (playlist) {
-            await addTrackToLocalPlaylist(playlist.id, track);
-          }
         }
       }
       toast.success(`Queued ${success}/${playlistTracks.length} downloads`);
@@ -304,12 +341,17 @@ export default function PlaylistScreen() {
                 isPlaying={isPlaylistActive && (isPlaying || isBuffering)}
                 onPlayPress={handlePlayPress}
                 onShufflePress={handleShufflePress}
+                onAddToLibraryPress={id !== 'liked' ? handleAddToLibrary : undefined}
+                isAddedToLibrary={isAddedToLibrary}
                 onDownloadPress={handleDownloadPress}
                 isLikedMusic={id === 'liked'}
                 onSharePress={handleSharePress}
                 onSavePlaylistPress={id !== 'liked' ? handleSavePlaylistPress : undefined}
                 downloadStatus={downloadStatus}
                 downloadProgress={overallProgress}
+                onPauseDownloadsPress={handlePauseDownloads}
+                onCancelDownloadsPress={handleCancelDownloads}
+                isDownloadsPaused={isDownloading && downloadingTracksList.every(t => pausedDownloadingIds[t.id])}
               />
             );
           })()

@@ -4,8 +4,8 @@ import { H1, Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Download, Heart, Pause, Play, Shuffle, Share2, Plus, User, Check } from 'lucide-react-native';
-import { Dimensions, Image, StyleSheet, View, ScrollView } from 'react-native';
+import { Download, Heart, Pause, Play, Shuffle, Share2, Plus, User, Check, FolderPlus, XCircle } from 'lucide-react-native';
+import { Dimensions, Image, StyleSheet, View, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
@@ -30,10 +30,14 @@ interface PlaylistHeaderProps {
   subtitle?: string;           // e.g. "Album • 12 tracks • 2023"
   onArtistPress?: () => void;  // shows artist name as a tappable link
   artistName?: string;
-  onHeartPress?: () => void;   // shows heart button when provided
+  onAddToLibraryPress?: () => void;
+  isAddedToLibrary?: boolean;
   isLikedMusic?: boolean;
   downloadStatus?: 'default' | 'downloading' | 'downloaded';
   downloadProgress?: number;
+  onPauseDownloadsPress?: () => void;
+  onCancelDownloadsPress?: () => void;
+  isDownloadsPaused?: boolean;
 }
 
 export function PlaylistHeader({
@@ -48,13 +52,17 @@ export function PlaylistHeader({
   subtitle,
   onArtistPress,
   artistName,
-  onHeartPress,
+  onAddToLibraryPress,
+  isAddedToLibrary = false,
   isLikedMusic = false,
   onSharePress,
   onSavePlaylistPress,
   onGoToArtistPress,
   downloadStatus = 'default',
   downloadProgress = 0,
+  onPauseDownloadsPress,
+  onCancelDownloadsPress,
+  isDownloadsPaused = false,
 }: PlaylistHeaderProps) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -197,9 +205,9 @@ export function PlaylistHeader({
               <Shuffle size={20} color={colors.primary} />
             </Button>
 
-            {onHeartPress && (
-              <Button variant="secondary" size="icon" onPress={onHeartPress}>
-                <Heart size={20} color={colors.primary} />
+            {onAddToLibraryPress && !isAddedToLibrary && (
+              <Button variant="secondary" size="icon" onPress={onAddToLibraryPress}>
+                <FolderPlus size={20} color={colors.primary} />
               </Button>
             )}
 
@@ -209,23 +217,58 @@ export function PlaylistHeader({
               </Button>
             )}
 
-            {onDownloadPress && (
-              <Button
-                variant="secondary"
-                size="icon"
-                onPress={onDownloadPress}
-                disabled={downloadStatus !== 'default'}
-              >
-                {downloadStatus === 'downloaded' ? (
-                  <Check size={20} color={colors.primary} />
-                ) : downloadStatus === 'downloading' ? (
+            {downloadStatus === 'downloading' ? (
+              <View style={[
+                styles.combinedDownloadPill,
+                {
+                  backgroundColor: colors.secondary,
+                  borderColor: colors.border,
+                }
+              ]}>
+                <View style={styles.downloadProgressWrapper}>
                   <Typography style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
                     {Math.round(downloadProgress * 100)}%
                   </Typography>
-                ) : (
-                  <Download size={20} color={colors.primary} />
+                </View>
+                <View style={[styles.verticalDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }]} />
+                {onPauseDownloadsPress && (
+                  <Pressable
+                    style={styles.combinedPillButton}
+                    onPress={onPauseDownloadsPress}
+                    android_ripple={{ color: 'rgba(255,255,255,0.1)' }}
+                  >
+                    {isDownloadsPaused ? (
+                      <Play size={16} color={colors.primary} />
+                    ) : (
+                      <Pause size={16} color={colors.primary} />
+                    )}
+                  </Pressable>
                 )}
-              </Button>
+                <View style={[styles.verticalDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }]} />
+                {onCancelDownloadsPress && (
+                  <Pressable
+                    style={styles.combinedPillButton}
+                    onPress={onCancelDownloadsPress}
+                    android_ripple={{ color: 'rgba(255,255,255,0.1)' }}
+                  >
+                    <XCircle size={16} color="#FF3B30" />
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              onDownloadPress && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onPress={onDownloadPress}
+                >
+                  {downloadStatus === 'downloaded' ? (
+                    <Check size={20} color={colors.primary} />
+                  ) : (
+                    <Download size={20} color={colors.primary} />
+                  )}
+                </Button>
+              )
             )}
 
             {onSharePress && (
@@ -322,5 +365,30 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     paddingHorizontal: 20,
+  },
+  combinedDownloadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+    overflow: 'hidden',
+  },
+  downloadProgressWrapper: {
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  verticalDivider: {
+    width: 1,
+    height: 20,
+  },
+  combinedPillButton: {
+    height: '100%',
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

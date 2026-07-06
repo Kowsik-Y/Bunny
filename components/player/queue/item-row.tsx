@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { ScaleDecorator, ShadowDecorator } from 'react-native-draggable-flatlist';
 import { Trash2, Volume2, Ellipsis } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';

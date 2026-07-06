@@ -125,14 +125,37 @@ export function ArtistTabContent({
   const renderAbout = (section: any, sIdx: number) => {
     const about = (section.items || [])[0];
     if (!about) return null;
+
+    let textVal = '';
+    if (typeof about === 'string') {
+      textVal = about;
+    } else if (about && typeof about === 'object') {
+      if (typeof about.description === 'string') {
+        textVal = about.description;
+      } else if (about.description && typeof about.description === 'object') {
+        textVal = about.description.text || '';
+      }
+    }
+
+    let badgeVal: string | undefined = undefined;
+    if (about && typeof about === 'object' && about.views) {
+      if (typeof about.views === 'string') {
+        badgeVal = about.views;
+      } else if (typeof about.views === 'number') {
+        badgeVal = String(about.views);
+      } else if (typeof about.views === 'object') {
+        badgeVal = about.views.text || String(about.views);
+      }
+    }
+
     return (
       <View style={{ paddingHorizontal: 10 }}>
         <ExpandableText
           key={sIdx}
-          text={about.description || ''}
+          text={textVal}
           asCard={true}
           title="Biography"
-          badge={about.views}
+          badge={badgeVal}
         />
       </View>
     );
@@ -175,6 +198,7 @@ const styles = StyleSheet.create({
   tabContent: {
     paddingBottom: 40,
     paddingTop: 8,
+    gap:25
   },
   emptyTab: {
     paddingVertical: 60,

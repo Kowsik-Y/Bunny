@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, BackHandler } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Typography as Text } from '@/components/ui/typography';
@@ -40,6 +40,16 @@ export function PlayerSheet({
       bottomSheetModalRef.current?.dismiss();
     }
   }, [visible, mounted]);
+
+  useEffect(() => {
+    if (visible) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleDismiss();
+        return true;
+      });
+      return () => backHandler.remove();
+    }
+  }, [visible]);
 
   const handleDismiss = () => {
     setMounted(false);

@@ -6,7 +6,8 @@ import {
     StyleSheet,
     Platform,
     Keyboard,
-    BackHandler
+    BackHandler,
+    DeviceEventEmitter
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -178,6 +179,16 @@ const MusicPlayerModal = ({
             subscription.remove();
         };
     }, [isExpandedJS, collapse]);
+
+    // Listen for collapse-player-modal event to close player
+    useEffect(() => {
+        const collapseSub = DeviceEventEmitter.addListener('collapse-player-modal', () => {
+            collapse();
+        });
+        return () => {
+            collapseSub.remove();
+        };
+    }, [collapse]);
 
     // const SNAP_EXPANDED = 0; // already defined implicitly as 0 target in expand
 

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Image, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Image, Text, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { Heart, ListVideo, ListPlus, Bookmark, Loader2, CheckCircle2, Download, ListMusic, MinusCircle, Disc, User, Info, Share2, Pin, BarChart2, ListX, FolderPlus, Trash2, Shuffle } from 'lucide-react-native';
+import { Alert } from '@/components/ui/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
@@ -17,6 +18,7 @@ interface MainSheetProps {
 export function MainSheet({ state }: MainSheetProps) {
   const { colors } = useAppTheme();
   const { deletePlaylist } = usePlaylists();
+  const [deleteAlertVisible, setDeleteAlertVisible] = React.useState(false);
   const currentTrack = useCurrentTrack();
   const {
     selectedItem,
@@ -24,6 +26,7 @@ export function MainSheet({ state }: MainSheetProps) {
     isFavorite,
     downloadingIds,
     isDownloaded,
+    isInQueue,
     handleDownload,
     handlePlayNext,
     handleAddToQueue,
@@ -62,7 +65,7 @@ export function MainSheet({ state }: MainSheetProps) {
             colors={['#8E2DE2', '#4A00E0']}
             style={[styles.artwork, { alignItems: 'center', justifyContent: 'center' }]}
           >
-            <Heart size={24} color="#ffffff" />
+            <Heart fill="#ffffff" size={24} color="#ffffff" />
           </LinearGradient>
         ) : (
           <Image
@@ -98,15 +101,24 @@ export function MainSheet({ state }: MainSheetProps) {
                   label="Play next"
                   onPress={handlePlayNext}
                 />
-                <ActionRow
-                  icon={<ListPlus size={20} color={colors.text} />}
-                  label="Add to queue"
-                  onPress={handleAddToQueue}
-                />
+                {isInQueue ? (
+                  <ActionRow
+                    icon={<CheckCircle2 size={20} color={colors.mutedForeground} />}
+                    label="Already in queue"
+                    onPress={() => { }}
+                    color={colors.mutedForeground}
+                  />
+                ) : (
+                  <ActionRow
+                    icon={<ListPlus size={20} color={colors.text} />}
+                    label="Add to queue"
+                    onPress={handleAddToQueue}
+                  />
+                )}
               </>
             )}
             <ActionRow
-              icon={<Bookmark size={18} color={isLiked ? '#FF3B30' : colors.text} />}
+              icon={<Heart fill={isLiked ? '#FF3B30' : colors.text} size={18} color={isLiked ? '#FF3B30' : colors.text} />}
               label={isLiked ? 'Remove from library' : 'Save to library'}
               onPress={handleToggleLike}
               color={isLiked ? '#FF3B30' : undefined}
@@ -128,14 +140,14 @@ export function MainSheet({ state }: MainSheetProps) {
               const labelEl = isInProgress
                 ? `Downloading… ${Math.round(dlProgress * 100)}%`
                 : dlDone
-                ? 'Downloaded  •  Tap to remove'
-                : 'Download';
+                  ? 'Downloaded  •  Tap to remove'
+                  : 'Download';
 
               const labelColor = isInProgress
                 ? colors.primary
                 : dlDone
-                ? '#34C759'
-                : colors.text;
+                  ? '#34C759'
+                  : colors.text;
 
               return (
                 <Pressable
@@ -157,7 +169,7 @@ export function MainSheet({ state }: MainSheetProps) {
               label="Save to playlist"
               onPress={() => setSheetScreen('playlists')}
             />
-            {!isCurrentTrackActive && (
+            {!isCurrentTrackActive && isInQueue && (
               <ActionRow
                 icon={<MinusCircle size={18} color={colors.text} />}
                 label="Remove from queue"
@@ -192,13 +204,15 @@ export function MainSheet({ state }: MainSheetProps) {
               icon={<Pin size={20} color={colors.text} />}
               label="Pin to Listen again"
               onPress={state.handlePinListenAgain}
-            />
-            <ActionRow
-              icon={<BarChart2 size={20} color={colors.text} />}
-              label="Stats for nerds"
-              onPress={() => setSheetScreen('stats')}
               last={!isCurrentTrackActive}
             />
+            {isCurrentTrackActive && (
+              <ActionRow
+                icon={<BarChart2 size={20} color={colors.text} />}
+                label="Stats for nerds"
+                onPress={() => setSheetScreen('stats')}
+              />
+            )}
             {isCurrentTrackActive && (
               <ActionRow
                 icon={<ListX size={20} color={colors.text} />}
@@ -223,7 +237,7 @@ export function MainSheet({ state }: MainSheetProps) {
               onPress={handleAddToQueueCollection}
             />
             <ActionRow
-              icon={<Bookmark size={18} color={colors.text} />}
+              icon={<Heart fill={colors.text} size={18} color={colors.text} />}
               label="Save album to library"
               onPress={handleSaveAlbumToLibrary}
             />
@@ -279,15 +293,7 @@ export function MainSheet({ state }: MainSheetProps) {
                 icon={<Trash2 size={18} color="#FF3B30" />}
                 label="Delete playlist"
                 onPress={() => {
-                  state.setVisible(false);
-                  Alert.alert(
-                    'Delete Playlist',
-                    `Are you sure you want to delete "${selectedItem.title}"?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(selectedItem.id) }
-                    ]
-                  );
+                  setDeleteAlertVisible(true);
                 }}
                 color="#FF3B30"
               />
@@ -302,6 +308,7 @@ export function MainSheet({ state }: MainSheetProps) {
               label="Go to artist page"
               onPress={() => {
                 state.setVisible(false);
+                DeviceEventEmitter.emit('collapse-player-modal');
                 state.router.push(`/artist/${selectedItem.id}` as any);
               }}
             />
@@ -342,6 +349,21 @@ export function MainSheet({ state }: MainSheetProps) {
           </>
         )}
       </BottomSheetScrollView>
+
+      <Alert
+        visible={deleteAlertVisible}
+        onClose={() => setDeleteAlertVisible(false)}
+        title="Delete Playlist"
+        description={`Are you sure you want to delete "${selectedItem.title}"?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={async () => {
+          await deletePlaylist(selectedItem.id);
+          setDeleteAlertVisible(false);
+          state.setVisible(false);
+        }}
+        variant="destructive"
+      />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import { Share } from 'react-native';
+import { Share, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import TrackPlayer from 'react-native-track-player';
 import { type AppTrack } from '@/components/player/Tracks';
@@ -49,10 +49,18 @@ export function useCollectionActions({
       }
       
       if (tracksData.length > 0) {
-        const activeIdx = await TrackPlayer.getActiveTrackIndex();
-        const insertIdx = typeof activeIdx === 'number' ? activeIdx + 1 : 0;
-        await TrackPlayer.add(tracksData, insertIdx);
-        toast.success(`Queued ${tracksData.length} songs next`);
+        const currentQueue = await TrackPlayer.getQueue();
+        const currentIds = new Set(currentQueue.map(t => String(t.id)));
+        const newTracks = tracksData.filter(t => !currentIds.has(String(t.id)));
+
+        if (newTracks.length > 0) {
+          const activeIdx = await TrackPlayer.getActiveTrackIndex();
+          const insertIdx = typeof activeIdx === 'number' ? activeIdx + 1 : 0;
+          await TrackPlayer.add(newTracks, insertIdx);
+          toast.success(`Queued ${newTracks.length} new songs next`);
+        } else {
+          toast.info('All songs in this collection are already in the queue');
+        }
       } else {
         toast.info('No tracks found');
       }
@@ -87,8 +95,16 @@ export function useCollectionActions({
       }
 
       if (tracksData.length > 0) {
-        await TrackPlayer.add(tracksData);
-        toast.success(`Added ${tracksData.length} songs to queue`);
+        const currentQueue = await TrackPlayer.getQueue();
+        const currentIds = new Set(currentQueue.map(t => String(t.id)));
+        const newTracks = tracksData.filter(t => !currentIds.has(String(t.id)));
+
+        if (newTracks.length > 0) {
+          await TrackPlayer.add(newTracks);
+          toast.success(`Added ${newTracks.length} new songs to queue`);
+        } else {
+          toast.info('All songs in this collection are already in the queue');
+        }
       } else {
         toast.info('No tracks found');
       }
@@ -248,6 +264,7 @@ export function useCollectionActions({
     if (!selectedItem) return;
     setVisible(false);
     if (selectedItem.artistId) {
+      DeviceEventEmitter.emit('collapse-player-modal');
       router.push(`/artist/${selectedItem.artistId}` as any);
     }
   };

@@ -23,6 +23,8 @@ import { type AppTrack } from '@/components/player/Tracks';
 import { MapPin, Search, X, Radio, Map as MapIcon, AudioLines, Globe, Pause, Play } from 'lucide-react-native';
 import { toast } from '@/services';
 import { addAlpha } from '@/constants/theme';
+import { useNetworkState } from '@/contexts/network-context';
+import { OfflineStateView } from '@/components/network/OfflineStateView';
 
 const { height } = Dimensions.get('window');
 
@@ -38,6 +40,7 @@ const POPULAR_PRESETS = [
 
 export default function RadioScreen() {
   const { colors } = useAppTheme();
+  const { isConnected } = useNetworkState();
   const bottomSpacing = useBottomTabSpacing();
   
   // Location States
@@ -362,6 +365,16 @@ export default function RadioScreen() {
     const channelId = urlParts[urlParts.length - 1];
     return activeTrack.id === `radiogarden-${channelId}`;
   };
+
+  if (isConnected === false) {
+    return (
+      <ThemedView style={styles.screen}>
+        <SafeAreaView edges={['top']} style={styles.safe}>
+          <OfflineStateView message="Radio stations require an active internet connection. You can still listen to your downloaded songs." />
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.screen}>

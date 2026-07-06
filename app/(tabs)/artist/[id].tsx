@@ -41,8 +41,7 @@ function sectionTab(section: any): TabKey {
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { colors, colorScheme } = useAppTheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [artistData, setArtistData] = useState<any>(null);
   const [loading, setLoading] = useState(true);

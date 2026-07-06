@@ -24,9 +24,14 @@ import { TrackOptionsProvider } from '@/contexts/track-options-context';
 import { ToastProvider } from '@/components/ui/toast';
 import { setupPlayer } from '@/services/SetupService';
 import { checkAppUpdates } from '@/services';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { DeviceEventEmitter, Linking, AppState } from 'react-native';
+import { Alert } from '@/components/ui/alert';
+import TrackPlayer from 'react-native-track-player';
+import { NetworkProvider } from '@/contexts/network-context';
+import { NetworkStatusBanner } from '@/components/network/NetworkStatusBanner';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => { });
@@ -53,6 +58,56 @@ function RootLayoutWithTheme() {
   useEffect(() => {
     setupPlayer().catch(() => { });
     checkAppUpdates(true).catch(() => { });
+
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'background') {
+        try {
+          const state = await TrackPlayer.getPlaybackState();
+          if (state.state !== 'playing') {
+            await TrackPlayer.stop();
+          }
+        } catch (_) {}
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const [permAlertVisible, setPermAlertVisible] = useState(false);
+  const [globalAlert, setGlobalAlert] = useState<{
+    visible: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    cancelText?: string | null;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('show_notification_permission_alert', () => {
+      setPermAlertVisible(true);
+    });
+    const alertSub = DeviceEventEmitter.addListener('show_app_alert', (config) => {
+      setGlobalAlert({
+        visible: true,
+        title: config.title,
+        description: config.description,
+        confirmText: config.confirmText,
+        cancelText: config.cancelText,
+        onConfirm: async () => {
+          if (config.onConfirm) {
+            await config.onConfirm();
+          }
+          setGlobalAlert(null);
+        },
+      });
+    });
+    return () => {
+      sub.remove();
+      alertSub.remove();
+    };
   }, []);
 
   if (!fontsLoaded) {
@@ -79,7 +134,7 @@ function RootLayoutWithTheme() {
         <BottomSheetModalProvider>
           <TrackOptionsProvider>
             <ToastProvider>
-              <Stack>
+              <Stack screenOptions={{ animation: 'default' }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="settings" options={{ headerShown: false }} />
                 <Stack.Screen
@@ -91,6 +146,33 @@ function RootLayoutWithTheme() {
                   }}
                 />
               </Stack>
+              <Alert
+                visible={permAlertVisible}
+                onClose={() => setPermAlertVisible(false)}
+                title="Enable Notifications"
+                description="Notifications are required to display active download progress in the system status bar. Please enable them in Settings."
+                confirmText="Settings"
+                cancelText="Maybe Later"
+                onConfirm={async () => {
+                  try {
+                    await Linking.openSettings();
+                  } catch (e) {
+                    console.warn('Failed to open settings:', e);
+                  }
+                }}
+              />
+              {globalAlert && (
+                <Alert
+                  visible={globalAlert.visible}
+                  onClose={() => setGlobalAlert(null)}
+                  title={globalAlert.title}
+                  description={globalAlert.description}
+                  confirmText={globalAlert.confirmText}
+                  cancelText={globalAlert.cancelText}
+                  onConfirm={globalAlert.onConfirm}
+                />
+              )}
+              <NetworkStatusBanner />
             </ToastProvider>
             <StatusBar
               style={colorScheme === 'dark' ? 'light' : 'dark'}
@@ -106,7 +188,9 @@ function RootLayoutWithTheme() {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <RootLayoutWithTheme />
+      <NetworkProvider>
+        <RootLayoutWithTheme />
+      </NetworkProvider>
     </AppThemeProvider>
   );
 }

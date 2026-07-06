@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, BackHandler } from 'react-native';
 
 // Keep BottomSheetContext legacy export just in case
 export const BottomSheetContext = React.createContext({ scrollEnabled: true });
@@ -41,6 +41,16 @@ export function SwipeBottomSheet({
       bottomSheetModalRef.current?.dismiss();
     }
   }, [visible, mounted]);
+
+  useEffect(() => {
+    if (visible) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleDismiss();
+        return true;
+      });
+      return () => backHandler.remove();
+    }
+  }, [visible]);
 
   const handleDismiss = () => {
     setMounted(false);

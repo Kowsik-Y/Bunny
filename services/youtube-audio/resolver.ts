@@ -6,10 +6,62 @@ import { getVisitorData, invalidateVisitorData } from './visitorData';
 import { getSignatureTimestamp } from './signature';
 import { resolveJioSaavn } from './jiosaavn';
 
+import { getDownloadedTracks, getLocalDownloadUri } from '../downloads/storage';
+
 const PLAYER_URL =
   'https://music.youtube.com/youtubei/v1/player?prettyPrint=false';
 
 export async function resolveAudio(videoId: string, forcePiped = false) {
+  // First, check if the song is downloaded locally!
+  try {
+    const downloads = await getDownloadedTracks();
+    const found = downloads.find((d) => String(d.track.id) === String(videoId));
+    if (found) {
+      const exists = await getLocalDownloadUri(videoId);
+      if (exists) {
+        if (__DEV__) console.log(`[resolveAudio] Found local downloaded file for: ${found.track.title}`);
+        const bestFormat = {
+          url: exists,
+          mimeType: 'audio/m4a',
+          format: 'MP4',
+          quality: 'high',
+          bitrate: 128000,
+          itag: 0,
+        };
+        return {
+          videoId,
+          title: found.track.title,
+          artist: found.track.artist,
+          duration: found.track.duration,
+          thumbnail: found.track.artwork || null,
+          best: bestFormat,
+          allAudio: [bestFormat],
+          client: 'LOCAL',
+          streamUA: '',
+          track: {
+            id: videoId,
+            url: exists,
+            title: found.track.title,
+            artist: found.track.artist,
+            artwork: found.track.artwork,
+            duration: found.track.duration,
+            artistId: found.track.artistId,
+            albumId: (found.track as any).albumId,
+            artists: (found.track as any).artists,
+            allAudio: [bestFormat],
+            activeItag: 0,
+            allVideo: [],
+            activeVideoItag: undefined,
+            headers: {},
+            userAgent: '',
+          }
+        };
+      }
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('[resolveAudio] Failed to check local download cache:', err);
+  }
+
   let quality: 'low' | 'medium' | 'high' = 'medium';
   try {
     const rawPrefs = await TrackPlayer.getQueue(); // Just check if TrackPlayer works

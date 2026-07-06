@@ -23,6 +23,8 @@ import { ArtistTabBar } from '@/components/artist/ArtistTabBar';
 import { TopResultCard } from '@/components/explore/TopResultCard';
 import { MoodsGenres } from '@/components/explore/MoodsGenres';
 import { Search, X, Music, Dumbbell, Compass, Moon, Heart, Plane, Gamepad2, PartyPopper } from 'lucide-react-native';
+import { useNetworkState } from '@/contexts/network-context';
+import { OfflineStateView } from '@/components/network/OfflineStateView';
 
 type SearchProvider = 'ytmusic';
 
@@ -64,6 +66,7 @@ function getSearchScore(query: string, target: string): number {
 
 export default function ExploreScreen() {
   const { colors } = useAppTheme();
+  const { isConnected } = useNetworkState();
   const bottomSpacing = useBottomTabSpacing();
   const currentTrack = useCurrentTrack();
   const { openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
@@ -449,6 +452,16 @@ export default function ExploreScreen() {
       />
     );
   };
+
+  if (isConnected === false) {
+    return (
+      <ThemedView style={styles.screen}>
+        <SafeAreaView edges={['top']} style={styles.safe}>
+          <OfflineStateView message="To search and explore music, please connect to the internet. You can still listen to your downloaded songs." />
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.screen}>

@@ -3,15 +3,18 @@ import { View, StyleSheet, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Typography } from './typography';
-import { Info, AlertCircle, Check } from 'lucide-react-native';
+import { Info, AlertCircle, Check, AlertTriangle } from 'lucide-react-native';
+import { DeviceEventEmitter } from 'react-native';
+import { TOAST_EVENT, type ToastPayload } from '@/services/toast';
 
-type ToastType = 'default' | 'success' | 'error' | 'info';
+type ToastType = 'default' | 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: string;
   title?: string;
   description?: string;
   type?: ToastType;
+  duration?: number;
 }
 
 interface ToastContextType {
@@ -30,12 +33,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
     setTimeout(() => {
       removeToast(id);
-    }, 3000);
+    }, options.duration || 3000);
   }, []);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(TOAST_EVENT, (payload: ToastPayload) => {
+      addToast({
+        title: payload.type === 'error' ? 'Error' : payload.type === 'success' ? 'Success' : payload.type === 'warning' ? 'Warning' : 'Info',
+        description: payload.message,
+        type: payload.type as ToastType,
+        duration: payload.duration || 3000,
+      });
+    });
+    return () => sub.remove();
+  }, [addToast]);
 
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
@@ -72,7 +87,7 @@ function ToastItem({ toast }: { toast: Toast; onDismiss: () => void }) {
 
     Animated.timing(progress, {
       toValue: 0,
-      duration: 2750,
+      duration: (toast.duration || 3000) - 250,
       useNativeDriver: false,
     }).start();
   }, []);
@@ -83,6 +98,8 @@ function ToastItem({ toast }: { toast: Toast; onDismiss: () => void }) {
         return <Check size={18} color={colors.primary} />;
       case 'error':
         return <AlertCircle size={18} color={colors.destructive} />;
+      case 'warning':
+        return <AlertTriangle size={18} color="#FFCC00" />;
       case 'info':
         return <Info size={18} color={colors.primary} />;
       default:
@@ -96,6 +113,8 @@ function ToastItem({ toast }: { toast: Toast; onDismiss: () => void }) {
         return colors.primary;
       case 'error':
         return colors.destructive;
+      case 'warning':
+        return '#FFCC00';
       default:
         return colors.primary;
     }

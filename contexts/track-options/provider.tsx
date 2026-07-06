@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, DeviceEventEmitter } from 'react-native';
 import { Alert } from '@/components/ui/alert';
 import { Typography } from '@/components/ui/typography';
 import { SwipeBottomSheet, BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
@@ -95,6 +95,7 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
               key={art.id}
               onPress={() => {
                 setShowArtistSheet(false);
+                DeviceEventEmitter.emit('collapse-player-modal');
                 router.push(`/artist/${art.id}` as any);
               }}
               style={{

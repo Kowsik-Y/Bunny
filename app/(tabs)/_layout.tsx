@@ -1,7 +1,6 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
 import { View, StyleSheet, Linking, DeviceEventEmitter, BackHandler } from 'react-native';
 import { useEffect } from 'react';
-import { ToastContainer } from '@/components/ui/ToastContainer';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
 import * as Notifications from 'expo-notifications';
 
@@ -68,18 +67,7 @@ function TabsWithPlayer() {
     };
   }, [expand]);
 
-  useEffect(() => {
-    const handleBackPress = () => {
-      if (router.canGoBack()) {
-        router.back();
-        return true;
-      }
-      return false;
-    };
 
-    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-    return () => sub.remove();
-  }, [router]);
 
   return (
       <View style={StyleSheet.absoluteFill}>
@@ -178,7 +166,6 @@ function TabsWithPlayer() {
             onSkipToTrack={PlayerActions.skipToTrack}
           />
         </View>
-        <ToastContainer />
       </View>
   );
 }

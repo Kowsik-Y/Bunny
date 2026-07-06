@@ -26,6 +26,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { type LrcLine, fetchLyricsFromApis, LYRICS_CACHE } from '@/services';
 import { type AppTrack } from '../Tracks';
 import LyricLine from './LyricLine';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 const { width } = Dimensions.get('window');
 
@@ -179,6 +180,17 @@ export default function LyricsTab({
       fetchLyrics();
     }
   }, [isVisible, lyricsPrefetch, fetchLyrics]);
+
+  useEffect(() => {
+    if (isVisible) {
+      activateKeepAwakeAsync('lyrics-tab');
+    } else {
+      deactivateKeepAwake('lyrics-tab');
+    }
+    return () => {
+      deactivateKeepAwake('lyrics-tab');
+    };
+  }, [isVisible]);
 
   useEffect(() => {
     if (activeIndex < 0) return;

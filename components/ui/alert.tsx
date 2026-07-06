@@ -12,8 +12,9 @@ export interface AlertProps {
   title: string;
   description: string;
   confirmText?: string;
-  cancelText?: string;
+  cancelText?: string | null;
   onConfirm: () => void | Promise<void>;
+  onCancel?: () => void | Promise<void>;
   variant?: AlertVariant;
 }
 
@@ -25,6 +26,7 @@ export function Alert({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   onConfirm,
+  onCancel,
   variant = 'default',
 }: AlertProps) {
   const { colors, semiBoldFontFamily } = useAppTheme();
@@ -68,13 +70,18 @@ export function Alert({
               </Typography>
 
               <View style={styles.actions}>
-                <Button
-                  variant="ghost"
-                  size='sm'
-                  onPress={onClose}
-                  label={cancelText}
-                  style={styles.button}
-                />
+                {cancelText !== null && cancelText !== '' && (
+                  <Button
+                    variant="ghost"
+                    size='sm'
+                    onPress={async () => {
+                      onClose();
+                      if (onCancel) await onCancel();
+                    }}
+                    label={cancelText}
+                    style={styles.button}
+                  />
+                )}
                 <Button
                   variant={isDestructive ? 'destructive' : 'default'}
                   size='sm'

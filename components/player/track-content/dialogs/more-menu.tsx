@@ -24,6 +24,7 @@ interface MoreMenuProps {
   setShowQualityModal: (val: boolean) => void;
   setShowStatsModal: (val: boolean) => void;
   trackOptionsState: any;
+  handleArtistPress: () => void;
 }
 
 export function MoreMenu({
@@ -42,6 +43,7 @@ export function MoreMenu({
   setShowQualityModal,
   setShowStatsModal,
   trackOptionsState,
+  handleArtistPress,
 }: MoreMenuProps) {
   const { colors } = useAppTheme();
 
@@ -132,11 +134,11 @@ export function MoreMenu({
           </Pressable>
         )}
 
-        {track.artistId && (
+        {(track.artistId || (track.artists && track.artists.length > 0)) && (
           <Pressable
             onPress={() => {
-              handleGoToArtist();
               onClose();
+              setTimeout(() => handleArtistPress(), 250);
             }}
             android_ripple={{ color: colors.border }}
             style={styles.moreActionRow}

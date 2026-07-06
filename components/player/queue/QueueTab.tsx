@@ -287,9 +287,9 @@ export default function QueueTab({ track, onSkipToTrack, primaryColor, isVisible
         contentContainerStyle={styles.queueContent}
         showsVerticalScrollIndicator={false}
         activationDistance={10}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={5}
+        initialNumToRender={20}
+        maxToRenderPerBatch={20}
+        windowSize={15}
         removeClippedSubviews={false}
       />
     </View>

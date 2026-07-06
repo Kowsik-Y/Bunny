@@ -89,7 +89,8 @@ export async function updateDownloadNotification(
   trackId: string,
   title: string,
   progress: number = 0,
-  reason: string = ''
+  reason: string = '',
+  artworkUrl?: string
 ) {
   const notificationId = `download-${trackId}`;
   if (Platform.OS === 'android') {
@@ -99,7 +100,7 @@ export async function updateDownloadNotification(
           await Innertube.showDownloadProgressNotification(notificationId, title, progress, progressState.totalDownloadCount, progressState.currentDownloadIndex);
           break;
         case 'complete':
-          await Innertube.showDownloadCompleteNotification(notificationId, title);
+          await Innertube.showDownloadCompleteNotification(notificationId, title, artworkUrl || null);
           break;
         case 'paused':
           await Innertube.showDownloadPausedNotification(notificationId, title);

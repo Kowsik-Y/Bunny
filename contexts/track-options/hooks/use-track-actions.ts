@@ -1,4 +1,4 @@
-import { Share } from 'react-native';
+import { Share, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import TrackPlayer from 'react-native-track-player';
 import { type AppTrack } from '@/components/player/Tracks';
@@ -106,6 +106,7 @@ export function useTrackActions({
   const handleGoToAlbum = () => {
     if (!selectedTrack) return;
     setVisible(false);
+    DeviceEventEmitter.emit('collapse-player-modal');
     if (selectedTrack.albumId) {
       router.push(`/album/${selectedTrack.albumId}` as any);
     }
@@ -118,6 +119,7 @@ export function useTrackActions({
       setArtistOptions(selectedTrack.artists);
       setShowArtistSheet(true);
     } else if (selectedTrack.artistId) {
+      DeviceEventEmitter.emit('collapse-player-modal');
       router.push(`/artist/${selectedTrack.artistId}` as any);
     }
   };

@@ -33,7 +33,16 @@ export function usePlayerState() {
 
 export function useCurrentTrack(): AppTrack | undefined {
   const active = useActiveTrack();
-  return active as AppTrack | undefined;
+  const [current, setCurrent] = useState<AppTrack | undefined>(active as AppTrack | undefined);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCurrent(active as AppTrack | undefined);
+    }, 80);
+    return () => clearTimeout(t);
+  }, [active]);
+
+  return current;
 }
 
 export function usePlayerProgress() {

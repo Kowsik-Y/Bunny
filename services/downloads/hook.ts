@@ -9,12 +9,17 @@ import {
   queuedDownloadingTracks,
   activeDownloadingIds,
   pausedDownloadingIds,
+  pausedDownloadingTracks,
   DOWNLOADS_UPDATED_EVENT,
+  progressState,
+  downloadingSizes,
 } from './state';
 import {
   getDownloadedTracks,
   getDownloadLocation,
   setDownloadLocation,
+  getConcurrentLimit,
+  setConcurrentLimit,
 } from './storage';
 import {
   enqueueTrack,
@@ -22,6 +27,11 @@ import {
   pauseDownload,
   cancelDownload,
   clearAllDownloads,
+  pauseAllDownloads,
+  resumeAllDownloads,
+  cancelAllDownloads,
+  exportSongsToFolder,
+  checkExportDuplicates,
 } from './manager';
 
 export function useDownloads() {
@@ -31,6 +41,9 @@ export function useDownloads() {
   const [downloadingTracks, setDownloadingTracks] = useState<Record<string, AppTrack>>({});
   const [pausedDownloadingIdsState, setPausedDownloadingIdsState] = useState<Record<string, boolean>>({});
   const [downloadLocation, setDownloadLocationState] = useState<'internal' | 'cache'>('internal');
+  const [downloadSpeed, setDownloadSpeed] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
+  const [downloadingSizesState, setDownloadingSizesState] = useState<Record<string, number>>({});
 
   const isPendingRef = useRef(false);
   const nextLoadRef = useRef<(() => void) | null>(null);
@@ -48,10 +61,17 @@ export function useDownloads() {
       setDownloadedTracks(list);
       const loc = await getDownloadLocation();
       setDownloadLocationState(loc);
+      const limit = await getConcurrentLimit();
+      setConcurrentLimitState(limit);
       
-      const mergedTracks = { ...activeDownloadingTracks, ...queuedDownloadingTracks };
+      const mergedTracks = { ...activeDownloadingTracks, ...queuedDownloadingTracks, ...pausedDownloadingTracks };
       const mergedIds = { ...activeDownloadingIds };
       Object.keys(queuedDownloadingTracks).forEach(id => {
+        if (mergedIds[id] === undefined) {
+          mergedIds[id] = 0;
+        }
+      });
+      Object.keys(pausedDownloadingTracks).forEach(id => {
         if (mergedIds[id] === undefined) {
           mergedIds[id] = 0;
         }
@@ -60,6 +80,9 @@ export function useDownloads() {
       setDownloadingIds(mergedIds);
       setDownloadingTracks(mergedTracks);
       setPausedDownloadingIdsState({ ...pausedDownloadingIds });
+      setDownloadSpeed(progressState.downloadSpeed || 0);
+      setUploadSpeed(progressState.uploadSpeed || 0);
+      setDownloadingSizesState({ ...downloadingSizes });
       setLoading(false);
     } finally {
       isPendingRef.current = false;
@@ -84,7 +107,10 @@ export function useDownloads() {
     try {
       const settings = await Notifications.getPermissionsAsync();
       if (!settings.granted) {
-        toast.info(`Downloading "${track.title}"...`);
+        const req = await Notifications.requestPermissionsAsync();
+        if (!req.granted) {
+          DeviceEventEmitter.emit('show_notification_permission_alert');
+        }
       }
     } catch (_) {}
 
@@ -113,6 +139,13 @@ export function useDownloads() {
     await clearAllDownloads();
   };
 
+  const [concurrentLimit, setConcurrentLimitState] = useState<number>(3);
+
+  const changeConcurrentLimit = async (limit: number) => {
+    await setConcurrentLimit(limit);
+    setConcurrentLimitState(limit);
+  };
+
   const isDownloaded = useCallback((trackId: string) => {
     return downloadedTracks.some((d) => String(d.track.id) === String(trackId));
   }, [downloadedTracks]);
@@ -132,5 +165,15 @@ export function useDownloads() {
     clearDownloads,
     isDownloaded,
     refreshDownloads: load,
+    pauseAllDownloads,
+    resumeAllDownloads,
+    cancelAllDownloads,
+    concurrentLimit,
+    changeConcurrentLimit,
+    exportDownloads: exportSongsToFolder,
+    checkExportDuplicates,
+    downloadSpeed,
+    uploadSpeed,
+    downloadingSizes: downloadingSizesState,
   };
 }

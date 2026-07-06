@@ -34,6 +34,9 @@ dependencies {
   
   // Gson for easy high-level object serialization to React Native JS
   implementation "com.google.code.gson:gson:2.10.1"
+  
+  // Jaudiotagger for embedding lyrics and metadata into exported audio files
+  implementation "net.jthink:jaudiotagger:3.0.1"
 }
 
 android {

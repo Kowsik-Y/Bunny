@@ -13,7 +13,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kowsiky.Bunny",
+      "bundleIdentifier": "com.bunny",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -28,7 +28,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.kowsiky.Bunny"
+      "package": "com.bunny"
     },
     "web": {
       "output": "static",

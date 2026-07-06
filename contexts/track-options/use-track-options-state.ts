@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { type AppTrack } from '@/components/player/Tracks';
-import { useFavorites, useDownloads, usePlaylists } from '@/services';
+import { useFavorites, useDownloads, usePlaylists, useQueue } from '@/services';
 import { SelectedItemState } from './types';
 import { useTrackActions } from './hooks/use-track-actions';
 import { useCollectionActions } from './hooks/use-collection-actions';
@@ -16,6 +16,9 @@ export function useTrackOptionsState() {
   const { toggleFavorite, isFavorite, addFavorite } = useFavorites();
   const { startDownload, isDownloaded, downloadingIds, removeDownload } = useDownloads();
   const { playlists, addTrackToPlaylist, createPlaylist } = usePlaylists();
+  const queue = useQueue();
+
+  const isInQueue = selectedTrack ? queue.some(t => String(t.id) === String(selectedTrack.id)) : false;
 
   const [sheetScreen, setSheetScreen] = useState<'main' | 'playlists' | 'credits' | 'stats'>('main');
   const [newPlaylistVisible, setNewPlaylistVisible] = useState(false);
@@ -117,6 +120,7 @@ export function useTrackOptionsState() {
     isDownloaded,
     downloadingIds,
     playlists,
+    isInQueue,
     sheetScreen,
     setSheetScreen,
     newPlaylistVisible,

@@ -5,6 +5,8 @@ export {
   setDownloadLocation,
   getActiveDirectory,
   getLocalDownloadUri,
+  getConcurrentLimit,
+  setConcurrentLimit,
 } from './storage';
 export {
   enqueueTrack,
@@ -13,5 +15,10 @@ export {
   cancelDownload,
   deleteDownload,
   clearAllDownloads,
+  pauseAllDownloads,
+  resumeAllDownloads,
+  cancelAllDownloads,
+  exportSongsToFolder,
+  checkExportDuplicates,
 } from './manager';
 export { useDownloads } from './hook';

@@ -1,6 +1,8 @@
 import { LrcLine } from './types';
 import { cleanText, parseLrc } from './parser';
 import { LYRICS_CACHE } from './cache';
+import { getInfoAsync, readAsStringAsync } from 'expo-file-system/legacy';
+import { getActiveDirectory } from '../downloads/storage';
 
 async function queryLrcLibSearch(title: string, artist: string): Promise<LrcLine[]> {
   const cleanedTitle = cleanText(title);
@@ -48,6 +50,24 @@ export async function fetchLyricsFromApis(
 ): Promise<LrcLine[]> {
   if (videoId.startsWith('yt-')) {
     videoId = videoId.substring(3);
+  }
+
+  // Try reading local file cache first
+  try {
+    const activeDir = await getActiveDirectory();
+    const lrcUri = `${activeDir}${videoId}.lrc`;
+    const info = await getInfoAsync(lrcUri);
+    if (info.exists) {
+      const content = await readAsStringAsync(lrcUri);
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (__DEV__) console.log(`[lyricsService] Loaded lyrics from local downloaded file: ${lrcUri}`);
+        LYRICS_CACHE.set(videoId, parsed);
+        return parsed;
+      }
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('[lyricsService] Failed to read local lrc file:', err);
   }
 
   if (!force && LYRICS_CACHE.has(videoId)) {

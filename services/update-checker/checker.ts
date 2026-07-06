@@ -1,4 +1,4 @@
-import { Alert, Linking } from 'react-native';
+import { DeviceEventEmitter, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import packageJson from '../../package.json';
 
@@ -39,21 +39,30 @@ export async function checkAppUpdates(silent = false) {
       const apkAsset = data.assets?.find((a: any) => a.name.endsWith('.apk'));
       const downloadUrl = apkAsset ? apkAsset.browser_download_url : data.html_url;
 
-      Alert.alert(
-        'Update Available',
-        `A new version (${latestTag}) of Bunny is available! Your current version is ${packageJson.version}.\n\nWould you like to download the update now?`,
-        [
-          { text: 'Later', style: 'cancel' },
-          { text: 'Download Now', onPress: () => Linking.openURL(downloadUrl) }
-        ]
-      );
+      DeviceEventEmitter.emit('show_app_alert', {
+        title: 'Update Available',
+        description: `A new version (${latestTag}) of Bunny is available! Your current version is ${packageJson.version}.\n\nWould you like to download the update now?`,
+        confirmText: 'Download Now',
+        cancelText: 'Later',
+        onConfirm: () => Linking.openURL(downloadUrl)
+      });
     } else if (!silent) {
-      Alert.alert('App Update', 'Your app is up to date! (Version ' + packageJson.version + ')');
+      DeviceEventEmitter.emit('show_app_alert', {
+        title: 'App Update',
+        description: 'Your app is up to date! (Version ' + packageJson.version + ')',
+        confirmText: 'OK',
+        cancelText: null
+      });
     }
   } catch (e) {
     console.warn('Update check failed:', e);
     if (!silent) {
-      Alert.alert('Error', 'Failed to check for updates. Please try again later.');
+      DeviceEventEmitter.emit('show_app_alert', {
+        title: 'Error',
+        description: 'Failed to check for updates. Please try again later.',
+        confirmText: 'OK',
+        cancelText: null
+      });
     }
   }
 }

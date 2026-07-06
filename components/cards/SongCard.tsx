@@ -119,7 +119,7 @@ export function SongCard({
       {showRank && typeof index === 'number' && (
         <View style={styles.trackIndexContainer}>
           <Muted style={[styles.trackIndex, { fontWeight: '700' }, isActive && { color: colors.primary }]}>
-            {index + 1}
+            {String(index + 1).padStart(2, '0')}
           </Muted>
         </View>
       )}
@@ -127,7 +127,7 @@ export function SongCard({
       {showIndex && typeof index === 'number' && !showRank ? (
         <View style={styles.trackIndexContainer}>
           <Muted style={[styles.trackIndex, { fontWeight: '700' }, isActive && { color: colors.primary }]}>
-            {index + 1}
+            {String(index + 1).padStart(2, '0')}
           </Muted>
         </View>
       ) : imageUri ? (
