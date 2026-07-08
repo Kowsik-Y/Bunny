@@ -70,7 +70,7 @@ export function PlaylistHeader({
   return (
     <>
       <View style={styles.header}>
-        {/* Apple Music Style Ambient Background Glow */}
+        {/* Music Style Ambient Background Glow */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           {isLikedMusic ? (
             <LinearGradient
