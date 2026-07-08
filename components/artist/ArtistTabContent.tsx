@@ -24,7 +24,7 @@ export function ArtistTabContent({
   onTilePress,
 }: ArtistTabContentProps) {
   const { colors } = useAppTheme();
-  const { openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
+  const { openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions } = useTrackOptions();
   const currentTrack = useCurrentTrack();
   const { isPlaying, isBuffering } = usePlayerState();
 
@@ -48,6 +48,7 @@ export function ArtistTabContent({
           isPlaying={isPlaying || isBuffering}
           onPress={() => onSongPress(item)}
           onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
+          explicit={item.explicit}
           track={{
             id: trackId,
             title: item.title,
@@ -58,6 +59,7 @@ export function ArtistTabContent({
             duration: item.duration || 0,
             artistId: item.artistId || undefined,
             albumId: item.albumId || undefined,
+            explicit: item.explicit,
           }}
         />
       </Animated.View>
@@ -84,6 +86,18 @@ export function ArtistTabContent({
                   openPlaylistOptions({ id: item.id, name: item.title || item.name || '', artwork: item.thumbnail });
                 } else if (item.type === 'artist') {
                   openArtistOptions({ id: item.id, name: item.name || item.title || '', artwork: item.thumbnail });
+                } else if (item.type === 'video' || item.type === 'song') {
+                  openTrackOptions({
+                    id: item.id || item.videoId,
+                    title: item.title || item.name || 'Unknown Title',
+                    artist: item.artist || item.author || artistName || 'Unknown Artist',
+                    album: item.album || 'Single',
+                    artwork: item.thumbnail || item.artwork || '',
+                    url: item.url || `https://music.youtube.com/watch?v=${item.id || item.videoId}`,
+                    duration: item.duration || 0,
+                    artistId: item.artistId || undefined,
+                    albumId: item.albumId || undefined,
+                  });
                 }
               }}
             />
@@ -113,6 +127,18 @@ export function ArtistTabContent({
                   openPlaylistOptions({ id: item.id, name: item.title || item.name || '', artwork: item.thumbnail });
                 } else if (item.type === 'artist') {
                   openArtistOptions({ id: item.id, name: item.name || item.title || '', artwork: item.thumbnail });
+                } else if (item.type === 'video' || item.type === 'song') {
+                  openTrackOptions({
+                    id: item.id || item.videoId,
+                    title: item.title || item.name || 'Unknown Title',
+                    artist: item.artist || item.author || artistName || 'Unknown Artist',
+                    album: item.album || 'Single',
+                    artwork: item.thumbnail || item.artwork || '',
+                    url: item.url || `https://music.youtube.com/watch?v=${item.id || item.videoId}`,
+                    duration: item.duration || 0,
+                    artistId: item.artistId || undefined,
+                    albumId: item.albumId || undefined,
+                  });
                 }
               }}
             />
@@ -143,8 +169,8 @@ export function ArtistTabContent({
         badgeVal = about.views;
       } else if (typeof about.views === 'number') {
         badgeVal = String(about.views);
-      } else if (typeof about.views === 'object') {
-        badgeVal = about.views.text || String(about.views);
+      } else if (typeof about.views === 'object' && about.views !== null) {
+        badgeVal = about.views.text ?? about.views.label ?? about.views.runs?.[0]?.text ?? undefined;
       }
     }
 

@@ -23,7 +23,7 @@ import Reanimated, {
 import { RefreshCw, Share2 } from 'lucide-react-native';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { type LrcLine, fetchLyricsFromApis, LYRICS_CACHE } from '@/services';
+import { type LrcLine, fetchLyricsFromApis, LYRICS_CACHE, parseLrc } from '@/services';
 import { type AppTrack } from '../Tracks';
 import LyricLine from './LyricLine';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -38,7 +38,7 @@ function useSmoothPosition(position: number, isPlaying: boolean) {
   const smoothPosition = useSharedValue(position);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
+     
     lastUpdateTime.value = Date.now();
   }, []);
 
@@ -46,10 +46,10 @@ function useSmoothPosition(position: number, isPlaying: boolean) {
     const now = Date.now();
     const diff = Math.abs(smoothPosition.value - position);
     if (diff > 0.15) {
-      // eslint-disable-next-line react-hooks/immutability
+       
       smoothPosition.value = position;
     }
-    // eslint-disable-next-line react-hooks/immutability
+     
     lastPosition.value = position;
     // eslint-disable-next-line react-hooks/immutability
     lastUpdateTime.value = now;
@@ -67,7 +67,7 @@ function useSmoothPosition(position: number, isPlaying: boolean) {
       // eslint-disable-next-line react-hooks/immutability
       smoothPosition.value = lastPosition.value + elapsed;
     } else {
-      // eslint-disable-next-line react-hooks/immutability
+       
       smoothPosition.value = lastPosition.value;
     }
   }, true);
@@ -141,6 +141,21 @@ export default function LyricsTab({
 
   const fetchLyrics = useCallback((force = false) => {
     if (!trackId || trackId === 'no-track') return;
+
+    // Check if the track already has preloaded lyrics/lrc
+    if (!force && track && track.lrc) {
+      try {
+        const parsed = parseLrc(track.lrc);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLyricsLines(parsed);
+          setLyricsLoading(false);
+          LYRICS_CACHE.set(trackId, parsed);
+          return;
+        }
+      } catch (err) {
+        console.warn('[LyricsTab] Failed to parse track preloaded lrc:', err);
+      }
+    }
 
     // Check global in-memory cache first
     if (!force && LYRICS_CACHE.has(trackId)) {

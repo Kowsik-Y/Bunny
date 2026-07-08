@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, Text, Platform, Modal } from 'react-native';
 import { Stack } from 'expo-router';
-import { Folder, Trash2, Check, ChevronRight, Sliders } from 'lucide-react-native';
+import { Folder, Trash2, Check, ChevronRight, Sliders, Zap } from 'lucide-react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -18,8 +18,10 @@ const downloadLocationOptions = [
   { label: 'Temporary Cache', value: 'cache' },
 ] as const;
 
+
+
 export default function DownloadsSettingsScreen() {
-  const { colors, colorScheme } = useAppTheme();
+  const { colors, colorScheme, downloadQuality, setDownloadQuality } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const {
     downloadLocation,
@@ -57,11 +59,14 @@ export default function DownloadsSettingsScreen() {
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0, title: '' });
 
   const locationSheetRef = useRef<BottomSheetModal>(null);
-  const limitSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['30%'], []);
+  const limitSheetRef = useRef<BottomSheetModal>(null);
   const limitSnapPoints = useMemo(() => ['45%'], []);
+  const qualitySheetRef = useRef<BottomSheetModal>(null);
+  const qualitySnapPoints = useMemo(() => ['38%'], []);
 
   const currentLocationLabel = downloadLocationOptions.find((o) => o.value === downloadLocation)?.label ?? 'Internal Storage';
+  const currentQualityLabel = downloadQuality.charAt(0).toUpperCase() + downloadQuality.slice(1);
 
   const handleClearAll = () => {
     if (downloadedTracks.length === 0) {
@@ -210,6 +215,29 @@ export default function DownloadsSettingsScreen() {
           </BunnyCard>
         </Pressable>
 
+        {/* Download quality selection row */}
+        <Pressable onPress={() => qualitySheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Zap size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Download Quality</Typography>
+                <Muted>Select audio quality format for offline downloads</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {currentQualityLabel}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
+            </View>
+          </BunnyCard>
+        </Pressable>
+
+
+
         {/* Download Statistics & Details */}
         <H3 style={styles.sectionTitle}>Details</H3>
         <BunnyCard style={styles.navCard}>
@@ -304,7 +332,7 @@ export default function DownloadsSettingsScreen() {
       {/* ─── Save Location Bottom Sheet ─── */}
       <BottomSheetModal
         ref={locationSheetRef}
-        snapPoints={snapPoints}
+        snapPoints={snapPoints} 
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
         handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
@@ -374,6 +402,49 @@ export default function DownloadsSettingsScreen() {
           })}
         </BottomSheetView>
       </BottomSheetModal>
+
+      {/* ─── Download Quality Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={qualitySheetRef}
+        snapPoints={qualitySnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Select Download Quality</Typography>
+          </View>
+          {[
+            { label: 'High (Best Quality, 160-256kbps)', value: 'high' as const },
+            { label: 'Medium (Standard Quality, 128kbps)', value: 'medium' as const },
+            { label: 'Low (Data Saver, 50-70kbps)', value: 'low' as const },
+          ].map((item, index) => {
+            const selected = downloadQuality === item.value;
+            return (
+              <Pressable
+                key={item.value}
+                onPress={() => {
+                  setDownloadQuality(item.value);
+                  qualitySheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < 2 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+
 
       <Alert
         visible={promptVisible}

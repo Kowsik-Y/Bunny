@@ -3,6 +3,8 @@ import InnertubeModule from './src/InnertubeModule';
 import { pipedService } from '../../services/piped';
 
 export interface InnertubeInterface {
+  home(): Promise<any>;
+  homeContinuation(continuation: string): Promise<any>;
   searchSuggestions(query: string): Promise<any>;
   searchSummary(query: string): Promise<any>;
   search(query: string, filter: string): Promise<any>;
@@ -12,13 +14,52 @@ export interface InnertubeInterface {
   lyrics(browseId: string): Promise<any>;
   player(videoId: string): Promise<any>;
   showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void>;
-  showDownloadCompleteNotification(notificationId: string, title: string): Promise<void>;
+  showDownloadCompleteNotification(notificationId: string, title: string, body: string, artworkUrl?: string): Promise<void>;
   showDownloadCancelledNotification(notificationId: string): Promise<void>;
   showDownloadPausedNotification(notificationId: string, title: string): Promise<void>;
   showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void>;
 }
 
 const fallbackInnertube: InnertubeInterface = {
+  async home() {
+    // Fallback: build 3 sections from piped search
+    try {
+      const [songsData, albumsData] = await Promise.all([
+        pipedService.search('trending music 2024', 'music_songs'),
+        pipedService.search('new music albums 2024', 'music_albums'),
+      ]);
+      const sections: any[] = [];
+      if (songsData?.items?.length) {
+        sections.push({
+          title: 'Quick picks',
+          items: songsData.items.slice(0, 10).map((item: any) => ({
+            id: item.url?.split('v=')[1] || item.url?.split('/').pop() || '',
+            title: item.title,
+            artists: [{ name: item.uploaderName || 'Unknown' }],
+            thumbnail: item.thumbnail,
+            duration: item.duration,
+          })),
+        });
+      }
+      if (albumsData?.items?.length) {
+        sections.push({
+          title: 'New releases',
+          items: albumsData.items.slice(0, 10).map((item: any) => ({
+            id: item.url?.split('list=')[1] || item.url?.split('/').pop() || '',
+            title: item.name || item.title,
+            artists: [{ name: item.uploaderName || 'Unknown' }],
+            thumbnail: item.thumbnail,
+          })),
+        });
+      }
+      return { chips: null, sections, continuation: null };
+    } catch (e) {
+      return { chips: null, sections: [], continuation: null };
+    }
+  },
+  async homeContinuation(_continuation: string) {
+    return { chips: null, sections: [], continuation: null };
+  },
   async searchSuggestions(query: string) {
     try {
       const res = await fetch(
@@ -185,7 +226,7 @@ const fallbackInnertube: InnertubeInterface = {
   },
 
   async showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void> {},
-  async showDownloadCompleteNotification(notificationId: string, title: string): Promise<void> {},
+  async showDownloadCompleteNotification(notificationId: string, title: string, body: string, artworkUrl?: string): Promise<void> {},
   async showDownloadCancelledNotification(notificationId: string): Promise<void> {},
   async showDownloadPausedNotification(notificationId: string, title: string): Promise<void> {},
   async showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void> {},

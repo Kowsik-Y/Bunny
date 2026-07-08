@@ -33,9 +33,6 @@ export function PlaylistCard({
       onPress={onPress}
       onLongPress={onLongPress || onPress}
       delayLongPress={250}
-      android_ripple={{
-        color: colors.accent,
-      }}
     >
       {isLikedMusic ? (
         <LinearGradient

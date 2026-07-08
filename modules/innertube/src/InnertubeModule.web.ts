@@ -15,7 +15,7 @@ const webModulePlaceholder = {
   async lyrics(browseId: string): Promise<any> { return null; },
   async player(videoId: string): Promise<any> { return null; },
   async showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void> {},
-  async showDownloadCompleteNotification(notificationId: string, title: string): Promise<void> {},
+  async showDownloadCompleteNotification(notificationId: string, title: string, body: string, artworkUrl?: string): Promise<void> {},
   async showDownloadCancelledNotification(notificationId: string): Promise<void> {},
   async showDownloadPausedNotification(notificationId: string, title: string): Promise<void> {},
   async showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void> {},

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Typography, Muted } from '@/components/ui/typography';
-import { Heart, List } from 'lucide-react-native';
+import { ThumbsUp, List } from 'lucide-react-native';
 import { useAppTheme } from '@/contexts/app-theme-context';
 
 interface EmptyStateProps {
@@ -16,7 +16,7 @@ export function EmptyState({ tab }: EmptyStateProps) {
       {tab === 'queue' ? (
         <List size={48} color={colors.mutedForeground} />
       ) : (
-        <Heart fill={colors.mutedForeground} size={48} color={colors.mutedForeground} />
+        <ThumbsUp size={48} color={colors.mutedForeground} />
       )}
       <Typography variant='large' style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
         {tab === 'queue' ? 'Queue is empty' : 'No saved tracks yet'}
@@ -24,7 +24,7 @@ export function EmptyState({ tab }: EmptyStateProps) {
       <Muted style={{ textAlign: 'center' }}>
         {tab === 'queue'
           ? 'Search for music in Explore to add songs to your queue'
-          : 'Like songs to save them here'}
+          : 'Thumbs-up songs to save them here'}
       </Muted>
     </View>
   );

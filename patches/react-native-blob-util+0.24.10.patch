@@ -1,0 +1,76 @@
+diff --git a/node_modules/react-native-blob-util/android/.project b/node_modules/react-native-blob-util/android/.project
+new file mode 100644
+index 0000000..401dd5a
+--- /dev/null
++++ b/node_modules/react-native-blob-util/android/.project
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>react-native-blob-util</name>
++	<comment>Project react-native-blob-util created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++	<filteredResources>
++		<filter>
++			<id>1783440063580</id>
++			<name></name>
++			<type>30</type>
++			<matcher>
++				<id>org.eclipse.core.resources.regexFilterMatcher</id>
++				<arguments>node_modules|\.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
++			</matcher>
++		</filter>
++	</filteredResources>
++</projectDescription>
+diff --git a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
+index 51833d1..7ef7d55 100644
+--- a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
++++ b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
+@@ -475,7 +475,7 @@ public class ReactNativeBlobUtilReq extends BroadcastReceiver implements Runnabl
+                         else if (value.equalsIgnoreCase("utf8"))
+                             responseFormat = ResponseFormat.UTF8;
+                     } else {
+-                        builder.header(key.toLowerCase(Locale.ROOT), value);
++                        builder.header(key, value);
+                         mheaders.put(key.toLowerCase(Locale.ROOT), value);
+                     }
+                 }
+@@ -711,6 +711,7 @@ public class ReactNativeBlobUtilReq extends BroadcastReceiver implements Runnabl
+      * @param resp OkHttp response object
+      */
+     private void done(Response resp) {
++        android.util.Log.e("ReactNativeBlobUtil", "Response status: " + resp.code() + " headers: " + resp.headers());
+         boolean isBlobResp = isBlobResponse(resp);
+         WritableMap respmap = getResponseInfo(resp,isBlobResp);
+         emitStateEvent(respmap.copy());
+@@ -802,7 +803,7 @@ public class ReactNativeBlobUtilReq extends BroadcastReceiver implements Runnabl
+                         try { drainStream.close(); } catch (Exception ignored2) { }
+                     }
+                 } catch (Exception ignored) {
+-//                    ignored.printStackTrace();
++                    android.util.Log.e("ReactNativeBlobUtil", "Drain error", ignored);
+                 }
+ 
+                 ReactNativeBlobUtilFileResp ReactNativeBlobUtilFileResp;
+diff --git a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
+index a98bde3..b5f23a8 100644
+--- a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
++++ b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
+@@ -123,6 +123,7 @@ public class ReactNativeBlobUtilFileResp extends ResponseBody {
+                 bytesDownloaded += read > 0 ? read : 0;
+                 if (read > 0) {
+                     ofStream.write(bytes, 0, (int) read);
++                    sink.write(bytes, 0, (int) read);
+                 } else if (contentLength() == -1 && read == -1) {
+                     // End marker has been received for chunked download
+                     isEndMarkerReceived = true;

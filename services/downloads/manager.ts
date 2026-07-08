@@ -2,6 +2,7 @@ import { type AppTrack } from '@/components/player/Tracks';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requireNativeModule } from 'expo';
 import { createDownloadResumable, deleteAsync, EncodingType, getInfoAsync, readAsStringAsync, StorageAccessFramework, writeAsStringAsync, downloadAsync, copyAsync, cacheDirectory } from 'expo-file-system/legacy';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as Notifications from 'expo-notifications';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { fetchLyricsFromApis } from '../lyrics';
@@ -245,8 +246,22 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
 
     await updateDownloadNotification('progress', track.id, track.title, 0.0);
 
+    // Fetch download quality preference
     const videoId = track.id.startsWith('yt-') ? track.id.substring(3) : track.id;
-    const resolved = await resolveAudio(videoId);
+    let preferredQuality: 'low' | 'medium' | 'high' = 'high';
+    try {
+      const rawPrefs = await AsyncStorage.getItem('app-theme-preferences');
+      if (rawPrefs) {
+        const prefs = JSON.parse(rawPrefs);
+        if (prefs.downloadQuality) {
+          preferredQuality = prefs.downloadQuality;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load download quality preference:', e);
+    }
+
+    const resolved = await resolveAudio(videoId, false, preferredQuality);
     if (!resolved || !resolved.track || !resolved.track.url) {
       console.warn('Failed to resolve audio URL for download');
       await updateDownloadNotification('failed', track.id, track.title, 0, 'Could not resolve stream URL.');
@@ -267,35 +282,142 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
     const filename = `${track.id}${fileExtension}`;
     const localUri = `${activeDir}${filename}`;
 
-    const downloadResumable = createDownloadResumable(
-      downloadUrl,
-      localUri,
-      resolved.track.headers ? { headers: resolved.track.headers } : {},
-      (downloadProgress) => {
-        const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-        if (onProgress) onProgress(progress);
-        updateDownloadNotification('progress', track.id, track.title, progress);
-        const prev = activeBytesWritten[track.id] || 0;
-        const diff = downloadProgress.totalBytesWritten - prev;
-        if (diff > 0) {
-          globalTotalWritten += diff;
+    let resultUri: string | null = null;
+
+    try {
+      const destPath = localUri.replace('file://', '');
+      const fetchHeaders = { ...(resolved.track.headers || {}) };
+      if (!fetchHeaders['Accept-Encoding']) {
+        fetchHeaders['Accept-Encoding'] = 'identity';
+      }
+        
+        let totalSize = -1;
+        try {
+          if (__DEV__) console.log('[DEBUG] Trying JS fetch HEAD to get content length...');
+          const headRes = await fetch(downloadUrl, { method: 'HEAD', headers: fetchHeaders });
+          const cl = headRes.headers.get('content-length');
+          if (cl) totalSize = parseInt(cl, 10);
+          if (__DEV__) console.log(`[DEBUG] JS fetch HEAD status: ${headRes.status}, Content-Length: ${totalSize}`);
+        } catch (fetchErr) {
+          console.warn('[DEBUG] JS fetch HEAD failed:', fetchErr);
         }
-        activeBytesWritten[track.id] = downloadProgress.totalBytesWritten;
-        downloadingSizes[track.id] = downloadProgress.totalBytesExpectedToWrite;
-      },
-      pausedStates[track.id]
-    );
 
-    activeResumables[track.id] = downloadResumable;
-    delete pausedDownloadingIds[track.id];
-    delete pausedStates[track.id];
-    delete pausedDownloadingTracks[track.id];
-    DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
+        delete pausedDownloadingIds[track.id];
+        delete pausedStates[track.id];
+        delete pausedDownloadingTracks[track.id];
+        DeviceEventEmitter.emit(DOWNLOADS_UPDATED_EVENT);
+        startSpeedTracking();
 
-    startSpeedTracking();
-    const result = await downloadResumable.downloadAsync();
+        if (totalSize <= 0) {
+          // Fallback to normal download if we don't know the size
+          if (__DEV__) console.log('[DEBUG] Unknown size, falling back to standard download');
+          const task = ReactNativeBlobUtil.config({
+            path: destPath,
+            fileCache: true,
+            overwrite: true,
+            timeout: 1000 * 60 * 60,
+          }).fetch('GET', downloadUrl, fetchHeaders);
 
-    if (!result || !result.uri) {
+          task.progress({ interval: 250 }, (received, total) => {
+            const receivedNum = Number(received);
+            const totalNum = Number(total);
+            if (totalNum <= 0) return;
+            const progress = (receivedNum / totalNum) * 0.95;
+            if (onProgress) onProgress(progress);
+            updateDownloadNotification('progress', track.id, track.title, progress);
+            const prev = activeBytesWritten[track.id] || 0;
+            const diff = receivedNum - prev;
+            if (diff > 0) globalTotalWritten += diff;
+            activeBytesWritten[track.id] = receivedNum;
+            downloadingSizes[track.id] = totalNum;
+          });
+
+          activeResumables[track.id] = {
+            pauseAsync: async () => { task.cancel(); return {}; },
+            cancelAsync: async () => { task.cancel(); }
+          };
+
+          const res = await task;
+          if (res.info().status === 200) {
+            resultUri = localUri;
+          } else {
+            throw new Error(`HTTP ${res.info().status}`);
+          }
+        } else {
+          // Chunked Download Bypass
+          const CHUNK_SIZE = 1024 * 1024; // 1 MB chunks
+          let currentOffset = 0;
+          let isCancelled = false;
+          let currentTask: any = null;
+
+          activeResumables[track.id] = {
+            pauseAsync: async () => { isCancelled = true; if (currentTask) currentTask.cancel(); return {}; },
+            cancelAsync: async () => { isCancelled = true; if (currentTask) currentTask.cancel(); }
+          };
+
+          while (currentOffset < totalSize && !isCancelled) {
+            const endOffset = Math.min(currentOffset + CHUNK_SIZE - 1, totalSize - 1);
+            const chunkHeaders = { ...fetchHeaders, Range: `bytes=${currentOffset}-${endOffset}` };
+            
+            if (__DEV__) console.log(`[DEBUG] Downloading chunk ${currentOffset}-${endOffset}...`);
+            
+            const task = ReactNativeBlobUtil.config({
+              path: destPath,
+              fileCache: true,
+              overwrite: currentOffset === 0, // Overwrite on first chunk, append on subsequent
+              timeout: 1000 * 30, // 30s timeout per chunk
+            }).fetch('GET', downloadUrl, chunkHeaders);
+
+            currentTask = task;
+
+            task.progress({ interval: 250 }, (received, total) => {
+              const receivedNum = Number(received);
+              const totalDownloaded = currentOffset + receivedNum;
+              const progress = (totalDownloaded / totalSize) * 0.95;
+              if (onProgress) onProgress(progress);
+              updateDownloadNotification('progress', track.id, track.title, progress);
+              const prev = activeBytesWritten[track.id] || 0;
+              const diff = totalDownloaded - prev;
+              if (diff > 0) globalTotalWritten += diff;
+              activeBytesWritten[track.id] = totalDownloaded;
+              downloadingSizes[track.id] = totalSize;
+            });
+
+            try {
+              const res = await task;
+              if (res.info().status === 200 || res.info().status === 206) {
+                currentOffset = endOffset + 1;
+              } else {
+                throw new Error(`HTTP ${res.info().status}`);
+              }
+            } catch (err: any) {
+              if (isCancelled) {
+                break;
+              }
+              // If it fails (e.g. timeout), throw to retry or fail the whole download
+              throw err;
+            }
+          }
+
+          if (!isCancelled && currentOffset >= totalSize) {
+            resultUri = localUri;
+          } else if (!isCancelled) {
+            throw new Error('Download incomplete');
+          } else {
+             // Handle cancellation
+             throw new Error('Download cancelled');
+          }
+        }
+      } catch (err: any) {
+        if (__DEV__) {
+          console.warn('[DEBUG] rn-blob-util download failed!', err);
+          console.warn('[DEBUG] error keys:', Object.keys(err));
+          console.warn('[DEBUG] error message:', err.message);
+          if (err.status) console.warn('[DEBUG] error status:', err.status);
+        }
+      }
+
+    if (!resultUri) {
       if (pausedDownloadingIds[track.id]) {
         return false;
       }
@@ -315,7 +437,7 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
       return false;
     }
 
-    const fileInfo = await getInfoAsync(result.uri);
+    const fileInfo = await getInfoAsync(resultUri);
     const size = fileInfo.exists ? fileInfo.size : undefined;
 
     // Fetch and save artwork image locally
@@ -341,38 +463,18 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
       artwork: savedArtworkUri,
     };
 
-    const downloads = await getDownloadedTracks();
-    const newDownload: DownloadedTrack = {
-      track: updatedTrack,
-      localUri: result.uri,
-      downloadedAt: new Date().toISOString(),
-      size,
-    };
-    downloads.push(newDownload);
-    await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(downloads));
-
-    // Add to local 'Downloads' playlist
-    try {
-      const localPlaylists = await getLocalPlaylists();
-      let downloadsPlaylist = localPlaylists.find(p => p.name.toLowerCase() === 'downloads');
-      if (!downloadsPlaylist) {
-        downloadsPlaylist = await createLocalPlaylist('Downloads');
-      }
-      if (downloadsPlaylist) {
-        await addTrackToLocalPlaylist(downloadsPlaylist.id, updatedTrack);
-      }
-    } catch (err) {
-      if (__DEV__) console.warn('[downloadTrack] Failed to add track to local Downloads playlist:', err);
-    }
-
     // Fetch and save lyrics locally
+    if (onProgress) onProgress(0.96);
+    await updateDownloadNotification('progress', track.id, track.title, 0.96);
     let standardLrcText: string | null = null;
+    let hasLrc = false;
     try {
       const lrcLines = await fetchLyricsFromApis(track.title, track.artist, track.duration || 0, track.id);
       if (lrcLines && lrcLines.length > 0 && lrcLines[0].text !== 'Lyrics not found') {
         const lrcUri = `${activeDir}${track.id}.lrc`;
         await writeAsStringAsync(lrcUri, JSON.stringify(lrcLines));
         if (__DEV__) console.log(`[downloadTrack] Saved lyrics to: ${lrcUri}`);
+        hasLrc = true;
 
         const tags = [
           `[ti:${track.title}]`,
@@ -394,18 +496,44 @@ export async function downloadTrack(track: AppTrack, onProgress?: (progress: num
 
           return `[${mm}:${ss}.${xx}]${line.text || ''}`;
         });
-
         standardLrcText = [...tags, ...linesFormatted].join('\n');
       }
     } catch (lrcErr) {
       if (__DEV__) console.warn('[downloadTrack] Failed to fetch/save lyrics for download:', lrcErr);
     }
 
+    const downloads = await getDownloadedTracks();
+    const newDownload: DownloadedTrack = {
+      track: updatedTrack,
+      localUri: resultUri,
+      downloadedAt: new Date().toISOString(),
+      size,
+      hasLrc,
+    };
+    downloads.push(newDownload);
+    await AsyncStorage.setItem(DOWNLOADS_KEY, JSON.stringify(downloads));
+
+    // Add to local 'Downloads' playlist
+    try {
+      const localPlaylists = await getLocalPlaylists();
+      let downloadsPlaylist = localPlaylists.find(p => p.name.toLowerCase() === 'downloads');
+      if (!downloadsPlaylist) {
+        downloadsPlaylist = await createLocalPlaylist('Downloads');
+      }
+      if (downloadsPlaylist) {
+        await addTrackToLocalPlaylist(downloadsPlaylist.id, updatedTrack);
+      }
+    } catch (err) {
+      if (__DEV__) console.warn('[downloadTrack] Failed to add track to local Downloads playlist:', err);
+    }
+
     // Embed metadata, artwork, and lyrics directly in the local file path!
+    if (onProgress) onProgress(0.98);
+    await updateDownloadNotification('progress', track.id, track.title, 0.98);
     try {
       if (Platform.OS === 'android') {
         const nativeModule = requireNativeModule('Innertube');
-        const localFilePath = result.uri.replace('file://', '');
+        const localFilePath = resultUri.replace('file://', '');
         await nativeModule.embedMetadataAndLyrics(
           localFilePath,
           updatedTrack.title,

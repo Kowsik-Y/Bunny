@@ -1,6 +1,7 @@
 import { DeviceEventEmitter, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import packageJson from '../../package.json';
+import { showSystemNotification } from '../downloads/notifications';
 
 export async function checkAppUpdates(silent = false) {
   try {
@@ -46,6 +47,28 @@ export async function checkAppUpdates(silent = false) {
         cancelText: 'Later',
         onConfirm: () => Linking.openURL(downloadUrl)
       });
+
+      // Show system push notification if enabled
+      try {
+        const rawPrefs = await AsyncStorage.getItem('app-theme-preferences');
+        let updateNotifEnabled = true;
+        if (rawPrefs) {
+          const prefs = JSON.parse(rawPrefs);
+          if (prefs.updateNotificationsEnabled === false) {
+            updateNotifEnabled = false;
+          }
+        }
+
+        if (updateNotifEnabled) {
+          await showSystemNotification(
+            'Update Available',
+            `A new version (${latestTag}) of Bunny is available! Tap to check it out.`,
+            'app-update'
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to send update notification:', err);
+      }
     } else if (!silent) {
       DeviceEventEmitter.emit('show_app_alert', {
         title: 'App Update',

@@ -1,0 +1,25 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'com.bunny.nsd'
+version = '0.1.0'
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  compileOnly "com.facebook.react:react-native:+"
+}
+
+android {
+  namespace "com.bunny.nsd"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}

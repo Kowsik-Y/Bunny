@@ -29,6 +29,7 @@ export async function getAlbumDetails(id: string): Promise<any> {
         albumId: id,
         artistId: data.artistId,
         artists: data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined,
+        explicit: stream.explicit,
       };
     });
 
@@ -61,6 +62,7 @@ export async function getPlaylistDetails(id: string): Promise<any> {
         artistId: stream.artistId || data.artistId,
         albumId: stream.albumId || id,
         artists: stream.artists || (data.artistId ? [{ name: data.uploader || 'Unknown Artist', id: data.artistId }] : undefined),
+        explicit: stream.explicit,
       };
     });
 

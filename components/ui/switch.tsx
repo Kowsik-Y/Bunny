@@ -23,7 +23,7 @@ export function Switch({
   style,
   ...props
 }: SwitchProps) {
-  const { colors, semiBoldFontFamily } = useAppTheme();
+  const { colors, colorScheme, semiBoldFontFamily } = useAppTheme();
   const translateX = useRef(new Animated.Value(checked ? 20 : 2)).current;
 
   useEffect(() => {
@@ -46,7 +46,11 @@ export function Switch({
         style={[
           styles.track,
           {
-            backgroundColor: checked ? colors.primary : colors.muted,
+            backgroundColor: checked
+              ? colors.primary
+              : colorScheme === 'dark'
+              ? 'rgba(255, 255, 255, 0.2)'
+              : 'rgba(0, 0, 0, 0.12)',
           },
           disabled && { opacity: 0.5 },
         ]}

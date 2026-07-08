@@ -102,6 +102,28 @@ class InnertubeModule : Module() {
       }
     }
 
+    AsyncFunction("home") { ->
+      runBlocking {
+        val result = YouTube.home()
+        if (result.isSuccess) {
+          gson.toJson(result.getOrThrow())
+        } else {
+          throw Exception(result.exceptionOrNull()?.message ?: "Unknown error")
+        }
+      }
+    }
+
+    AsyncFunction("homeContinuation") { continuation: String ->
+      runBlocking {
+        val result = YouTube.home(continuation = continuation)
+        if (result.isSuccess) {
+          gson.toJson(result.getOrThrow())
+        } else {
+          throw Exception(result.exceptionOrNull()?.message ?: "Unknown error")
+        }
+      }
+    }
+
     AsyncFunction("searchSuggestions") { query: String ->
       runBlocking {
         val result = YouTube.searchSuggestions(query)
@@ -261,13 +283,13 @@ class InnertubeModule : Module() {
       updateGroupSummary(context, notificationManager)
     }
 
-    AsyncFunction("showDownloadCompleteNotification") { notificationId: String, title: String, artworkUrl: String? ->
+    AsyncFunction("showDownloadCompleteNotification") { notificationId: String, title: String, body: String, artworkUrl: String? ->
       val context = appContext.reactContext ?: return@AsyncFunction
       val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
       
       val builder = NotificationCompat.Builder(context, "bunny_downloads")
-        .setContentTitle("Download Complete")
-        .setContentText("\"$title\" has been saved offline.")
+        .setContentTitle(title)
+        .setContentText(body)
         .setSmallIcon(android.R.drawable.stat_sys_download_done)
         .setProgress(0, 0, false)
         .setOngoing(false)

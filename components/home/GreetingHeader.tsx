@@ -1,9 +1,11 @@
 import { StyleSheet, View } from 'react-native';
 import { Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useRouter } from 'expo-router';
 
 export function GreetingHeader() {
   const { colors } = useAppTheme();
+  const router = useRouter();
   const hour = new Date().getHours();
 
   let timeLabel = 'Morning';
@@ -49,5 +51,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 3,
     lineHeight: 36
-  }
+  },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
 });

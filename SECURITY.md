@@ -1,23 +1,58 @@
 # Security Policy
 
-## Reporting a Vulnerability
-
-We take the security of Bunny very seriously. If you find a security vulnerability, we strongly encourage you to let us know immediately through responsible disclosure.
-
-Please do not report security vulnerabilities through public GitHub issues. Instead, please email the developer directly or contact us through the private contact details listed in the repository profile.
-
 ## Supported Versions
 
-We actively support and fix security issues in the following versions of Bunny:
+We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported |
 | ------- | --------- |
-| 1.0.x   | Yes       |
-| < 1.0   | No        |
+| 3.x.x   | ✅        |
+| > 3.0   | ❌        |
 
-## Our Security Standards
+## Reporting a Vulnerability
 
-Bunny is designed with security-first guidelines:
-1. **No External Servers**: The app does not route your search requests, playback patterns, or user metadata through custom proxy servers. All requests go directly from your device to the official public endpoints (LrcLib, YouTube/InnerTube APIs).
-2. **Encrypted Network Traffic**: All network requests executed by the app use standard Transport Layer Security (TLS/HTTPS) protocols to protect against intercept and middleman tampering.
-3. **Sandbox Isolation**: Native components (such as file storage and background execution services) are fully confined within the Android system sandbox.
+If you discover a security vulnerability in Bunny, please report it responsibly:
+
+*   **Do NOT** create a public GitHub issue
+*   Include the following information:
+    *   Description of the vulnerability
+    *   Steps to reproduce
+    *   Potential impact
+    *   Any suggested fixes
+
+## Security Best Practices
+
+### For Developers
+*   **Never commit sensitive files**: API keys, tokens, and credentials should never be committed to version control.
+*   **Use environment variables**: Store sensitive configuration in environment variables or secure properties files.
+*   **Regular updates**: Keep dependencies updated to patch security vulnerabilities.
+*   **Code review**: All code changes should be reviewed before merging.
+
+### For Users
+*   **Download from official sources**: Only download APKs from official releases or trusted sources.
+*   **Keep the app updated**: Install updates promptly to receive security patches.
+*   **Review permissions**: Be aware of the permissions the app requests.
+
+## Sensitive Information
+
+The following files contain sensitive information and should never be committed:
+*   `google-services.json` - Firebase configuration with API keys
+*   `local.properties` - Local development configuration
+*   `*.keystore` / `*.jks` - App signing keys
+*   `secrets.properties` - API keys and secrets
+*   `**/assets/po_token.html` - YouTube authentication tokens
+
+## Data Privacy
+
+Bunny is committed to user privacy:
+*   **No personal data collection**: We don't collect personal information.
+*   **Local storage**: User data is stored locally on the device.
+*   **Analytics**: We collect minimal usage data and crash reports through Firebase Analytics to improve app stability and enhance the overall user experience.
+*   **Open source**: All code is available for review.
+
+## Contact
+
+For security-related questions or to report vulnerabilities:
+*   **GitHub**: Create a private security advisory
+
+Thank you for helping keep Bunny secure!

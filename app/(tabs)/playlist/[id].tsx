@@ -5,31 +5,96 @@ import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
+import { MINI_PLAYER_HEIGHT } from '@/constants/layout';
 import { PlayerActions, toast, useCurrentTrack, useDownloads, useFavorites, usePlayerState, usePlaylists } from '@/services';
 import { getLocalPlaylists } from '@/services/playlists';
 import { getPlaylistDetails, searchYtMusic } from '@/services/ytMusic';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Share } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Share, DeviceEventEmitter, View, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
+import { Typography } from '@/components/ui/typography';
 
 
 
 export default function PlaylistScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { colors } = useAppTheme();
-  const { favorites } = useFavorites();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
+  const navigation = useNavigation();
+  const { favorites, toggleFavorite } = useFavorites();
   const { startDownload, isDownloaded, downloadingIds, pausedDownloadingIds, pauseDownload, cancelDownload } = useDownloads();
   const currentTrack = useCurrentTrack();
   const { openPlaylistOptions } = useTrackOptions();
   const { isPlaying, isBuffering } = usePlayerState();
-  const { playlists, createPlaylist, addTrackToPlaylist } = usePlaylists();
-  const bottomSpacing = useBottomTabSpacing();
+  const { playlists, createPlaylist, addTrackToPlaylist, removeTrackFromPlaylist } = usePlaylists();
+  const bottomSpacing = MINI_PLAYER_HEIGHT + 10;
+
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const enterSelectMode = () => {
+    setIsSelectMode(true);
+    setSelectedIds([]);
+  };
+
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedIds([]);
+  };
+
+  const handleSelectAllToggle = () => {
+    if (selectedIds.length === playlistTracks.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(playlistTracks.map(t => t.id));
+    }
+  };
+
+  const handleMultipleRemove = () => {
+    if (selectedIds.length === 0) return;
+
+    Alert.alert(
+      'Remove Tracks',
+      `Are you sure you want to remove the ${selectedIds.length} selected tracks from this playlist?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            toast.info(`Removing ${selectedIds.length} tracks...`);
+            try {
+              if (id === 'liked') {
+                for (const trackId of selectedIds) {
+                  const track = playlistTracks.find(t => t.id === trackId);
+                  if (track) {
+                    await toggleFavorite(track);
+                  }
+                }
+              } else if (typeof id === 'string' && id.startsWith('local-')) {
+                for (const trackId of selectedIds) {
+                  await removeTrackFromPlaylist(id, trackId);
+                }
+              }
+              
+              toast.success(`Removed successfully`);
+              setSelectedIds([]);
+              setIsSelectMode(false);
+              loadPlaylistDetails();
+            } catch (err) {
+              console.warn('Failed to remove tracks:', err);
+              toast.error('Failed to remove some tracks');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const [playlistName, setPlaylistName] = useState<string>(typeof id === 'string' ? id : 'Playlist');
   const [playlistTracks, setPlaylistTracks] = useState<AppTrack[]>([]);
@@ -134,6 +199,33 @@ export default function PlaylistScreen() {
     }
   }, [id, favorites, loadPlaylistDetails]);
 
+  // Listen for screen focus to reload details
+  useEffect(() => {
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      if (id && id !== 'liked') {
+        loadPlaylistDetails();
+      }
+    });
+    return unsubscribeFocus;
+  }, [navigation, id, loadPlaylistDetails]);
+
+  // Listen for real-time updates while on screen
+  useEffect(() => {
+    if (!id || id === 'liked') return;
+
+    const onUpdate = () => {
+      loadPlaylistDetails();
+    };
+
+    const sub1 = DeviceEventEmitter.addListener('downloads_updated', onUpdate);
+    const sub2 = DeviceEventEmitter.addListener('playlists_updated', onUpdate);
+
+    return () => {
+      sub1.remove();
+      sub2.remove();
+    };
+  }, [id, loadPlaylistDetails]);
+
   const totalDuration = playlistTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
 
   const handleSharePress = async () => {
@@ -162,30 +254,43 @@ export default function PlaylistScreen() {
       (currentTrack.id && currentTrack.id.includes(trackId)) ||
       (trackId && trackId.includes(currentTrack.id))
     ));
+    const isSelected = selectedIds.includes(trackId);
+
     return (
       <SongCard
         title={item.title}
         artist={item.artist}
         album={item.album}
         artwork={item.artwork}
-        rightIcon="play"
+        rightIcon={isSelectMode ? 'none' : 'play'}
         isActive={isActive}
         isPlaying={isPlaying || isBuffering}
         index={index}
-        showRank={true}
-        onPress={() => PlayerActions.skipToTrackFromYt({
-          id: item.id,
-          title: item.title,
-          artist: item.artist,
-          album: item.album,
-          thumbnail: item.artwork,
-          url: item.url?.toString() || `https://music.youtube.com/watch?v=${item.id}`,
-          duration: item.duration,
-          type: 'song',
-          artistId: item.artistId,
-          albumId: item.albumId,
-        })}
-        onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
+        showRank={!isSelectMode}
+        isSelectMode={isSelectMode}
+        isSelected={isSelected}
+        onPress={() => {
+          if (isSelectMode) {
+            setSelectedIds(prev =>
+              prev.includes(trackId) ? prev.filter(id => id !== trackId) : [...prev, trackId]
+            );
+          } else {
+            PlayerActions.skipToTrackFromYt({
+              id: item.id,
+              title: item.title,
+              artist: item.artist,
+              album: item.album,
+              thumbnail: item.artwork,
+              url: item.url?.toString() || `https://music.youtube.com/watch?v=${item.id}`,
+              duration: item.duration,
+              type: 'song',
+              artistId: item.artistId,
+              albumId: item.albumId,
+              explicit: item.explicit,
+            });
+          }
+        }}
+        onTogglePress={isSelectMode ? undefined : () => PlayerActions.playPause(isPlaying || isBuffering)}
         track={item}
       />
     );
@@ -278,20 +383,41 @@ export default function PlaylistScreen() {
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
-        <Button
-          style={{
-            padding: 5,
-            borderRadius: 50,
-            backgroundColor: addAlpha(colors.background, 0.85),
-            borderColor: colors.border,
-            borderWidth: 0.8,
-            alignSelf: 'flex-start',
-            pointerEvents: 'auto',
-          }}
-          onPress={() => router.back()}
-          variant="secondary" size="icon">
-          <ChevronLeft size={20} color={colors.primary} />
-        </Button>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 5,paddingRight:10 }}>
+          <Button
+            style={{
+              padding: 5,
+              borderRadius: 50,
+              backgroundColor: addAlpha(colors.background, 0.85),
+              borderColor: colors.border,
+              borderWidth: 0.8,
+              pointerEvents: 'auto',
+            }}
+            onPress={() => (isSelectMode ? exitSelectMode() : router.back())}
+            variant="secondary" size="icon">
+            <ChevronLeft size={20} color={colors.primary} />
+          </Button>
+
+          {(id === 'liked' || (typeof id === 'string' && id.startsWith('local-'))) && playlistTracks.length > 0 && (
+            <Button
+              style={{
+                paddingHorizontal: 12,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: isSelectMode ? colors.primary : addAlpha(colors.background, 0.85),
+                borderColor: colors.border,
+                borderWidth: 0.8,
+                pointerEvents: 'auto',
+              }}
+              onPress={() => (isSelectMode ? exitSelectMode() : enterSelectMode())}
+              variant="secondary"
+            >
+              <Typography style={{ fontSize: 13, fontWeight: '700', color: isSelectMode ? '#fff' : colors.primary }}>
+                {isSelectMode ? 'Cancel' : 'Select'}
+              </Typography>
+            </Button>
+          )}
+        </View>
       </SafeAreaView>
 
       <FlatList
@@ -387,6 +513,47 @@ export default function PlaylistScreen() {
         style={[styles.bottomGradient, { height: bottomSpacing + 25 }]}
         pointerEvents="none"
       />
+
+      {/* Floating Select Mode Action Bar */}
+      {isSelectMode && (
+        <View
+          style={[
+            styles.selectActionBar,
+            {
+              backgroundColor: isDark ? 'rgba(21, 21, 23, 0.95)' : 'rgba(242, 242, 247, 0.95)',
+              borderColor: colors.border,
+              bottom: bottomSpacing + 15,
+            }
+          ]}
+        >
+          <Typography style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>
+            {selectedIds.length} Selected
+          </Typography>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={handleSelectAllToggle}
+              style={{ height: 32, borderRadius: 16, paddingHorizontal: 12 }}
+            >
+              <Typography style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
+                {selectedIds.length === playlistTracks.length ? 'Deselect All' : 'Select All'}
+              </Typography>
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onPress={handleMultipleRemove}
+              style={{ height: 32, borderRadius: 16, paddingHorizontal: 12 }}
+              disabled={selectedIds.length === 0}
+            >
+              <Typography style={{ fontSize: 12, color: '#fff', fontWeight: '700' }}>
+                Remove
+              </Typography>
+            </Button>
+          </View>
+        </View>
+      )}
     </ThemedView>
   );
 }
@@ -423,5 +590,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  selectActionBar: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });

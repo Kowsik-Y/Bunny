@@ -72,6 +72,12 @@ export function parseCardShelf(renderer: any, filter: string): any {
       albumId = albumRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
     }
 
+    const isExplicit = renderer.badges?.some(
+      (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+    ) || renderer.subtitleBadges?.some(
+      (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+    ) || false;
+
     return {
       type: 'stream',
       url: `watch?v=${videoId}`,
@@ -83,6 +89,7 @@ export function parseCardShelf(renderer: any, filter: string): any {
       albumId,
       thumbnail,
       duration: 0,
+      explicit: isExplicit,
     };
   }
 
@@ -195,6 +202,12 @@ export function parseResponsiveListItem(renderer: any, filter: string): any {
       albumId = albumRuns.find((r: any) => r.navigationEndpoint?.browseEndpoint?.browseId)?.navigationEndpoint?.browseEndpoint?.browseId;
     }
 
+    const isExplicit = renderer.badges?.some(
+      (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+    ) || renderer.subtitleBadges?.some(
+      (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+    ) || false;
+
     return {
       type: 'stream',
       url: `watch?v=${videoId}`,
@@ -206,6 +219,7 @@ export function parseResponsiveListItem(renderer: any, filter: string): any {
       albumId,
       thumbnail,
       duration: duration ?? 0,
+      explicit: isExplicit,
     };
   }
 

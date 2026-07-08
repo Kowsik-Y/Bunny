@@ -1,7 +1,15 @@
-import TrackPlayer, { State } from 'react-native-track-player';
 import { type AppTrack } from '@/components/player/Tracks';
-import { resolveAudio } from '../useYouTubeAudio';
+import TrackPlayer, { State } from 'react-native-track-player';
 import { getLocalDownloadUri } from '../downloads';
+import { resolveAudio } from '../useYouTubeAudio';
+
+const cleanTrackForPlayer = (t: AppTrack): any => {
+  const cleaned = { ...t };
+  if (!cleaned.artwork || typeof cleaned.artwork !== 'string' || cleaned.artwork.trim() === '') {
+    delete (cleaned as any).artwork;
+  }
+  return cleaned;
+};
 
 export const PlayerActions = {
   playPause: async (isPlaying: boolean) => {
@@ -29,7 +37,7 @@ export const PlayerActions = {
   addTrack: async (track: AppTrack, playNow = false) => {
     const localUri = await getLocalDownloadUri(track.id);
     const trackWithUrl = localUri ? { ...track, url: localUri } : track;
-    await TrackPlayer.add([trackWithUrl]);
+    await TrackPlayer.add([cleanTrackForPlayer(trackWithUrl)]);
     if (playNow) {
       await PlayerActions.skipToTrack(String(track.id));
     }
@@ -40,7 +48,7 @@ export const PlayerActions = {
     const tracksWithUrls = [];
     for (const t of tracks) {
       const localUri = await getLocalDownloadUri(t.id);
-      tracksWithUrls.push(localUri ? { ...t, url: localUri } : t);
+      tracksWithUrls.push(cleanTrackForPlayer(localUri ? { ...t, url: localUri } : t));
     }
     await TrackPlayer.add(tracksWithUrls);
   },
@@ -51,7 +59,7 @@ export const PlayerActions = {
     const tracksWithUrls = [];
     for (const t of tracks) {
       const localUri = await getLocalDownloadUri(t.id);
-      tracksWithUrls.push(localUri ? { ...t, url: localUri } : t);
+      tracksWithUrls.push(cleanTrackForPlayer(localUri ? { ...t, url: localUri } : t));
     }
     await TrackPlayer.add(tracksWithUrls);
     await TrackPlayer.play();
@@ -88,18 +96,19 @@ export const PlayerActions = {
       const localUri = await getLocalDownloadUri(ytTrack.id);
       if (localUri) {
         const newTrack: AppTrack = {
-          id:       ytTrack.id,
-          url:      localUri,
-          title:    ytTrack.title || 'Unknown',
-          artist:   ytTrack.artist || 'Unknown Artist',
-          album:    ytTrack.album || 'Single',
+          id: ytTrack.id,
+          url: localUri,
+          title: ytTrack.title || 'Unknown',
+          artist: ytTrack.artist || 'Unknown Artist',
+          album: ytTrack.album || 'Single',
           duration: ytTrack.duration || 0,
-          artwork:  ytTrack.thumbnail || ytTrack.artwork || 'https://picsum.photos/400/400',
+          artwork: ytTrack.thumbnail || ytTrack.artwork || 'https://picsum.photos/400/400',
           artistId: ytTrack.artistId || ytTrack.authorId || undefined,
-          albumId:  ytTrack.albumId || undefined,
-          artists:  ytTrack.artists || undefined,
+          albumId: ytTrack.albumId || undefined,
+          artists: ytTrack.artists || undefined,
+          explicit: ytTrack.explicit || undefined,
         };
-        await TrackPlayer.add([newTrack]);
+        await TrackPlayer.add([cleanTrackForPlayer(newTrack)]);
         const newQueue = await TrackPlayer.getQueue();
         await TrackPlayer.skip(newQueue.length - 1);
         await TrackPlayer.play();
@@ -109,26 +118,27 @@ export const PlayerActions = {
       const result = await resolveAudio(ytTrack.id);
 
       const newTrack: AppTrack = {
-        id:       ytTrack.id,
-        url:      result.track.url,
-        title:    result.title    || ytTrack.title   || 'Unknown',
-        artist:   result.artist   || ytTrack.artist  || 'Unknown Artist',
-        album:    ytTrack.album   || 'Single',
+        id: ytTrack.id,
+        url: result.track.url,
+        title: result.title || ytTrack.title || 'Unknown',
+        artist: result.artist || ytTrack.artist || 'Unknown Artist',
+        album: ytTrack.album || 'Single',
         duration: result.duration || ytTrack.duration || 0,
-        artwork:  result.thumbnail || ytTrack.thumbnail || 'https://picsum.photos/400/400',
-        headers:  result.track.headers,
+        artwork: result.thumbnail || ytTrack.thumbnail || 'https://picsum.photos/400/400',
+        headers: result.track.headers,
         userAgent: result.track.userAgent,
         videoUrl: result.videoUrl ?? undefined,
         artistId: result.track.artistId || ytTrack.artistId || ytTrack.authorId || undefined,
-        albumId:  (result.track as any).albumId || ytTrack.albumId || undefined,
-        artists:  (result.track as any).artists || ytTrack.artists || undefined,
+        albumId: (result.track as any).albumId || ytTrack.albumId || undefined,
+        artists: (result.track as any).artists || ytTrack.artists || undefined,
         allAudio: result.track.allAudio || undefined,
         activeItag: result.track.activeItag || undefined,
         allVideo: result.track.allVideo || undefined,
         activeVideoItag: result.track.activeVideoItag || undefined,
+        explicit: ytTrack.explicit || result.track.explicit || undefined,
       };
 
-      await TrackPlayer.add([newTrack]);
+      await TrackPlayer.add([cleanTrackForPlayer(newTrack)]);
       const newQueue = await TrackPlayer.getQueue();
       await TrackPlayer.skip(newQueue.length - 1);
       await TrackPlayer.play();

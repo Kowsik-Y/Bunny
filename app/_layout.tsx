@@ -3,11 +3,9 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { LogBox } from 'react-native';
-import 'react-native-reanimated';
+import { LogBox , DeviceEventEmitter, Linking, AppState } from 'react-native';
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import '../global.css';
-
-LogBox.ignoreLogs(['InteractionManager has been deprecated']);
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
@@ -27,11 +25,17 @@ import { checkAppUpdates } from '@/services';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DeviceEventEmitter, Linking, AppState } from 'react-native';
 import { Alert } from '@/components/ui/alert';
 import TrackPlayer from 'react-native-track-player';
 import { NetworkProvider } from '@/contexts/network-context';
 import { NetworkStatusBanner } from '@/components/network/NetworkStatusBanner';
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
+
+LogBox.ignoreLogs(['InteractionManager has been deprecated']);
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => { });
@@ -53,6 +57,8 @@ function RootLayoutWithTheme() {
       SplashScreen.hideAsync().catch(() => { });
     }
   }, [fontsLoaded]);
+
+
 
   // Eagerly initialize TrackPlayer and check for app updates in background
   useEffect(() => {

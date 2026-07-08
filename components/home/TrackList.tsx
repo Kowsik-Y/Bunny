@@ -149,9 +149,25 @@ export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTra
 
                   {/* Info */}
                   <View style={styles.info}>
-                    <Typography numberOfLines={1} style={[styles.trackName, { color: isActive ? colors.primary : colors.text}]}>
-                      {track.title}
-                    </Typography>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Typography numberOfLines={1} style={[styles.trackName, { color: isActive ? colors.primary : colors.text, flexShrink: 1 }]}>
+                        {track.title}
+                      </Typography>
+                      {track.explicit && (
+                        <View style={{
+                          backgroundColor: colors.mutedForeground,
+                          paddingHorizontal: 4,
+                          paddingVertical: 1,
+                          borderRadius: 3,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}>
+                          <Typography style={{ fontSize: 9, fontWeight: '800', color: colors.background, lineHeight: 11 }}>
+                            E
+                          </Typography>
+                        </View>
+                      )}
+                    </View>
                     <Muted numberOfLines={1} style={styles.artist}>
                       {track.artist}
                     </Muted>
@@ -165,10 +181,7 @@ export function TrackList({ title, tracks, loading, onPlayTracks, onLongPressTra
                   </View>
                 </Pressable>
 
-                {/* Divider */}
-                {i < shown.length - 1 && (
-                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                )}
+                {/* Space between items is handled by list gap */}
               </Animated.View>
             );
           })}
@@ -198,7 +211,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   list: {
-    gap: 0,
+    gap: 4,
   },
   row: {
     flexDirection: 'row',

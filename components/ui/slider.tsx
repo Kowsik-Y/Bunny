@@ -14,7 +14,9 @@ interface SliderProps extends ViewProps {
   min?: number;
   max?: number;
   onValueChange?: (value: number) => void;
+  onSlidingComplete?: (value: number) => void;
   disabled?: boolean;
+  vertical?: boolean;
 }
 
 export function Slider({
@@ -22,57 +24,99 @@ export function Slider({
   min = 0,
   max = 100,
   onValueChange,
+  onSlidingComplete,
   disabled,
+  vertical = false,
   style,
   ...props
 }: SliderProps) {
   const { colors } = useAppTheme();
-  const trackWidth = useSharedValue(0);
-  const position = useSharedValue(((value - min) / (max - min)) * 100);
+  const trackSize = useSharedValue(0);
+  const position = useSharedValue(clamp(((value - min) / (max - min)) * 100, 0, 100));
 
   React.useEffect(() => {
-    position.value = ((value - min) / (max - min)) * 100;
+    position.value = clamp(((value - min) / (max - min)) * 100, 0, 100);
   }, [value, min, max]);
 
   const pan = Gesture.Pan()
     .enabled(!disabled)
     .onUpdate((e) => {
-      const ratio = clamp(e.x / trackWidth.value, 0, 1);
+      if (trackSize.value === 0) return;
+      const val = vertical ? e.y : e.x;
+      const ratio = clamp(vertical ? (1 - val / trackSize.value) : (val / trackSize.value), 0, 1);
       position.value = ratio * 100;
       if (onValueChange) {
         runOnJS(onValueChange)(min + ratio * (max - min));
+      }
+    })
+    .onEnd(() => {
+      if (onSlidingComplete) {
+        const ratio = position.value / 100;
+        runOnJS(onSlidingComplete)(min + ratio * (max - min));
       }
     });
 
   const tap = Gesture.Tap()
     .enabled(!disabled)
     .onEnd((e) => {
-      const ratio = clamp(e.x / trackWidth.value, 0, 1);
+      if (trackSize.value === 0) return;
+      const val = vertical ? e.y : e.x;
+      const ratio = clamp(vertical ? (1 - val / trackSize.value) : (val / trackSize.value), 0, 1);
       position.value = ratio * 100;
       if (onValueChange) {
         runOnJS(onValueChange)(min + ratio * (max - min));
       }
+      if (onSlidingComplete) {
+        runOnJS(onSlidingComplete)(min + ratio * (max - min));
+      }
     });
 
-  const thumbStyle = useAnimatedStyle(() => ({
-    left: `${position.value}%`,
-  }));
+  const thumbStyle = useAnimatedStyle(() => {
+    if (vertical) {
+      return {
+        bottom: `${position.value}%`,
+        left: '50%',
+        marginLeft: -10, // Center thumb horizontally relative to vertical track
+        marginBottom: -10, // Center thumb vertically on current position
+      };
+    }
+    return {
+      left: `${position.value}%`,
+    };
+  });
 
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${position.value}%`,
-  }));
+  const progressStyle = useAnimatedStyle(() => {
+    if (vertical) {
+      return {
+        height: `${position.value}%`,
+        width: '100%',
+        bottom: 0,
+      };
+    }
+    return {
+      width: `${position.value}%`,
+      height: '100%',
+    };
+  });
 
   return (
     <View
-      style={[styles.container, style]}
-      onLayout={(e) => (trackWidth.value = e.nativeEvent.layout.width)}
+      style={[
+        vertical ? styles.containerVertical : styles.container,
+        style
+      ]}
+      onLayout={(e) => {
+        trackSize.value = vertical 
+          ? e.nativeEvent.layout.height 
+          : e.nativeEvent.layout.width;
+      }}
       {...props}
     >
       <GestureDetector gesture={Gesture.Simultaneous(pan, tap)}>
-        <View style={styles.hitSlop}>
+        <View style={vertical ? styles.hitSlopVertical : styles.hitSlop}>
           <View
             style={[
-              styles.track,
+              vertical ? styles.trackVertical : styles.track,
               { backgroundColor: colors.secondary },
               disabled && { opacity: 0.5 },
             ]}
@@ -107,10 +151,22 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
   },
+  containerVertical: {
+    height: '100%',
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   hitSlop: {
     height: '100%',
     justifyContent: 'center',
     paddingHorizontal: 0,
+  },
+  hitSlopVertical: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   track: {
     height: 6,
@@ -119,8 +175,13 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
   },
-  progress: {
+  trackVertical: {
+    width: 6,
     height: '100%',
+    borderRadius: 3,
+    position: 'relative',
+  },
+  progress: {
     borderRadius: 3,
     position: 'absolute',
     left: 0,

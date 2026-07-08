@@ -38,6 +38,7 @@ export function SegmentedControl<T extends string>({
   const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
   const measuredCount = useRef(0);
   const [ready, setReady] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
   const startX = useRef(0);
   const lastTargetIndex = useRef(-1);
@@ -49,9 +50,16 @@ export function SegmentedControl<T extends string>({
   const isScrollable = options.length > 4;
 
   useEffect(() => {
-    tabLayouts.current = {};
-    measuredCount.current = 0;
-    setReady(false);
+    const allMeasured = options.length > 0 && options.every(opt => tabLayouts.current[opt.value] !== undefined);
+    if (allMeasured) {
+      setReady(true);
+      setTimeout(() => {
+        slideTo(selectedValue, false);
+        autoScrollToTab(selectedValue);
+      }, 0);
+    } else {
+      setReady(false);
+    }
   }, [optionsString]);
 
   const slideTo = (val: T, animate = true) => {
@@ -63,6 +71,8 @@ export function SegmentedControl<T extends string>({
       pillW.setValue(layout.width);
       return;
     }
+
+    setIsMoving(true);
 
     RNAnimated.parallel([
       RNAnimated.spring(pillX, {
@@ -77,7 +87,11 @@ export function SegmentedControl<T extends string>({
         damping: 18,
         stiffness: 150,
       }),
-    ]).start();
+    ]).start((finished) => {
+      if (finished) {
+        setIsMoving(false);
+      }
+    });
   };
 
   const autoScrollToTab = (val: T) => {
@@ -91,14 +105,16 @@ export function SegmentedControl<T extends string>({
   };
 
   const onTabLayout = (val: T, e: LayoutChangeEvent) => {
-    if (tabLayouts.current[val]) return;
-
     const { x, width } = e.nativeEvent.layout;
-    tabLayouts.current[val] = { x, width };
-    measuredCount.current += 1;
+    
+    const current = tabLayouts.current[val];
+    if (current && current.x === x && current.width === width) return;
 
-    if (measuredCount.current === options.length) {
-      setReady(true);
+    tabLayouts.current[val] = { x, width };
+
+    const allMeasured = options.length > 0 && options.every(opt => tabLayouts.current[opt.value] !== undefined);
+    if (allMeasured) {
+      if (!ready) setReady(true);
       setTimeout(() => {
         slideTo(selectedValue, false);
         autoScrollToTab(selectedValue);
@@ -118,6 +134,7 @@ export function SegmentedControl<T extends string>({
     .activeOffsetX([-10, 10])
     .runOnJS(true)
     .onStart(() => {
+      setIsMoving(true);
       const activeLayout = tabLayouts.current[selectedValue];
       if (activeLayout) {
         startX.current = activeLayout.x;
@@ -204,14 +221,20 @@ export function SegmentedControl<T extends string>({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         const layout = tabLayouts.current[selectedValue];
         if (layout) {
-          RNAnimated.spring(pillX, {
-            toValue: layout.x,
-            useNativeDriver: false,
-          }).start();
-          RNAnimated.spring(pillW, {
-            toValue: layout.width,
-            useNativeDriver: false,
-          }).start();
+          RNAnimated.parallel([
+            RNAnimated.spring(pillX, {
+              toValue: layout.x,
+              useNativeDriver: false,
+            }),
+            RNAnimated.spring(pillW, {
+              toValue: layout.width,
+              useNativeDriver: false,
+            })
+          ]).start(() => {
+            setIsMoving(false);
+          });
+        } else {
+          setIsMoving(false);
         }
       }
     });
@@ -305,7 +328,9 @@ export function SegmentedControl<T extends string>({
                     style={[
                       styles.tabLabel,
                       {
-                        color: isActive ? colors.primaryForeground : colors.mutedForeground,
+                        color: isActive
+                          ? (isMoving ? colors.text : colors.primaryForeground)
+                          : colors.mutedForeground,
                         fontWeight: isActive ? '700' : '600',
                       },
                     ]}

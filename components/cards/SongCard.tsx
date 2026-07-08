@@ -2,7 +2,7 @@ import { type AppTrack } from '@/components/player/Tracks';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
-import { ChevronRight, Pause, Play, CheckCircle2, Loader2 } from 'lucide-react-native';
+import { ChevronRight, Pause, Play, Save, Loader2, CheckCircle2, Circle } from 'lucide-react-native';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Muted, Typography } from '../ui/typography';
@@ -27,6 +27,9 @@ export interface SongCardProps {
   track?: AppTrack;
   artistId?: string;
   albumId?: string;
+  explicit?: boolean;
+  isSelected?: boolean;
+  isSelectMode?: boolean;
 }
 
 export function SongCard({
@@ -46,14 +49,19 @@ export function SongCard({
   track,
   artistId,
   albumId,
+  explicit,
+  isSelected = false,
+  isSelectMode = false,
 }: SongCardProps) {
   const { colors } = useAppTheme();
   const { openTrackOptions } = useTrackOptions();
-  const { isDownloaded, downloadingIds } = useDownloads();
+  const { isDownloaded, downloadingIds, hasDownloadedLrc } = useDownloads();
   const trackId = track?.id || (title + artist);
   const isDl = isDownloaded(trackId);
   const dlProgress = downloadingIds[trackId];
   const isDling = dlProgress !== undefined;
+  const hasLrc = hasDownloadedLrc(trackId);
+  const isExplicit = explicit || track?.explicit;
 
   const handleLongPress = () => {
     if (onLongPress) {
@@ -98,8 +106,9 @@ export function SongCard({
         color: colors.border
       }}
       onPress={() => {
-        // If already active: toggle play/pause instead of restarting
-        if (isActive) {
+        if (isSelectMode) {
+          onPress?.();
+        } else if (isActive) {
           if (onTogglePress) {
             onTogglePress();
           } else {
@@ -109,13 +118,23 @@ export function SongCard({
           onPress?.();
         }
       }}
-      onLongPress={handleLongPress}
+      onLongPress={isSelectMode ? undefined : handleLongPress}
       delayLongPress={250}
       style={[
         styles.trackItem,
-        isActive && { backgroundColor: addAlpha(colors.accent, 0.12), borderRadius: 14 }
+        isActive && !isSelectMode && { backgroundColor: addAlpha(colors.accent, 0.12), borderRadius: 14 },
+        isSelected && { backgroundColor: addAlpha(colors.primary, 0.08), borderRadius: 14 }
       ]}
     >
+      {isSelectMode && (
+        <View style={{ marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+          {isSelected ? (
+            <CheckCircle2 size={20} color={colors.primary} />
+          ) : (
+            <Circle size={20} color={colors.mutedForeground} />
+          )}
+        </View>
+      )}
       {showRank && typeof index === 'number' && (
         <View style={styles.trackIndexContainer}>
           <Muted style={[styles.trackIndex, { fontWeight: '700' }, isActive && { color: colors.primary }]}>
@@ -141,19 +160,48 @@ export function SongCard({
       )}
 
       <View style={styles.trackInfo}>
-        <Typography
-          numberOfLines={1}
-          style={[{ fontSize: 15, fontWeight: '600' }, isActive ? { color: colors.primary, fontWeight: '700' } : undefined]}
-        >
-          {title}
-        </Typography>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Typography
+            numberOfLines={1}
+            style={[{ fontSize: 15, fontWeight: '600', flexShrink: 1 }, isActive ? { color: colors.primary, fontWeight: '700' } : undefined]}
+          >
+            {title}
+          </Typography>
+          {isExplicit && (
+            <View style={{
+              backgroundColor: colors.mutedForeground,
+              paddingHorizontal: 4,
+              paddingVertical: 1,
+              borderRadius: 3,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Typography style={{ fontSize: 9, fontWeight: '800', color: colors.background, lineHeight: 11 }}>
+                E
+              </Typography>
+            </View>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
           {isDl && (
-            <CheckCircle2
+            <Save
               size={12}
               color="#34C759"
               style={{ marginRight: 4 }}
             />
+          )}
+          {hasLrc && (
+            <View style={{
+              backgroundColor: addAlpha(colors.primary, 0.12),
+              paddingHorizontal: 4,
+              paddingVertical: 1,
+              borderRadius: 4,
+              marginRight: 6,
+            }}>
+              <Typography style={{ fontSize: 9, fontWeight: '800', color: colors.primary, lineHeight: 11 }}>
+                LRC
+              </Typography>
+            </View>
           )}
           {isDling && (
             <Loader2
@@ -163,7 +211,13 @@ export function SongCard({
             />
           )}
           <Muted numberOfLines={1} style={{ flex: 1 }}>
-            {isDling ? `Downloading (${Math.round(dlProgress * 100)}%) • ` : ''}
+            {isDling
+              ? dlProgress >= 0.95
+                ? dlProgress >= 0.97
+                  ? 'Embedding metadata… • '
+                  : 'Getting LRC… • '
+                : `Downloading (${Math.round((dlProgress / 0.95) * 100)}%) • `
+              : ''}
             {artist}{album ? ` • ${album}` : ''}
           </Muted>
         </View>

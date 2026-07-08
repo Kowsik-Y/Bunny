@@ -5,4 +5,5 @@ export interface DownloadedTrack {
   localUri: string;
   downloadedAt: string;
   size?: number;
+  hasLrc?: boolean;
 }

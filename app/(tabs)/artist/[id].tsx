@@ -2,11 +2,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, View, Dimensions,
-  ScrollView, ActivityIndicator, Animated as RNAnimated, Pressable,
+  ScrollView, ActivityIndicator, Animated as RNAnimated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView , useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography as Text } from '@/components/ui/typography';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { PlayerActions } from '@/services/SetupService';
 import { getArtistDetails, searchYtMusic } from '@/services/ytMusic';
@@ -139,6 +138,7 @@ export default function ArtistScreen() {
         type: 'song',
         artistId: item.artistId || id as string,
         albumId: item.albumId,
+        explicit: item.explicit,
       });
     }
   };
@@ -194,6 +194,7 @@ export default function ArtistScreen() {
       type: 'song',
       artistId: item.artistId || id as string,
       albumId: item.albumId,
+      explicit: item.explicit,
     });
   };
 

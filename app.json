@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bunny",
     "slug": "Bunny",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "notification": {
@@ -44,9 +44,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#FEE2F1",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#FEE2F1"
           }
         }
       ],

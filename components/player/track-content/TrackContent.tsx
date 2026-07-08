@@ -1,18 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { VideoView } from 'expo-video';
+import {
+  Cast,
+  Ellipsis,
+  Film,
+  ListMusic,
+  Maximize,
+  Music2,
+  Pause,
+  Play,
+  Quote,
+  SkipBack,
+  SkipForward,
+  Square,
+  ThumbsUp
+} from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   Image,
-  Platform,
   Pressable,
   Share,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { VideoView } from 'expo-video';
 import Reanimated, {
   Easing as ReEasing,
   runOnJS,
@@ -21,45 +36,30 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Ellipsis,
-  Film,
-  Heart,
-  List,
-  Music2,
-  Pause,
-  Play,
-  SkipBack,
-  SkipForward,
-  Square,
-  Maximize,
-  Quote,
-  Cast,
-  ListMusic,
-} from 'lucide-react-native';
 
+import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBottomSheet';
 import SeekSlider from '@/components/SliderSeek';
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { toast, useDownloads, useFavorites, usePlaylists, useQueue } from '@/services';
-import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBottomSheet';
 
 import LyricsTab from '../lyrics/LyricsTab';
 import MarqueeText from '../MarqueeText';
 import QueueTab from '../QueueTab';
 
-import { useArtworkPalette, FALLBACK } from './hooks/use-artwork-palette';
-import { usePlayerSync } from './hooks/use-player-sync';
+import { useTrackOptionsState } from '@/contexts/track-options/use-track-options-state';
+import { AboutModal } from './dialogs/about-modal';
+import { ArtistSheet } from './dialogs/artist-sheet';
 import { DeviceModal } from './dialogs/device-modal';
 import { MoreMenu } from './dialogs/more-menu';
 import { PlaylistSelect } from './dialogs/playlist-select';
-import { AboutModal } from './dialogs/about-modal';
 import { QualityModal } from './dialogs/quality-modal';
-import { ArtistSheet } from './dialogs/artist-sheet';
+import { SleepTimerModal } from './dialogs/sleep-timer-modal';
 import { StatsModal } from './dialogs/stats-modal';
-import { TrackContentProps } from './types';
+import { useArtworkPalette } from './hooks/use-artwork-palette';
+import { usePlayerSync } from './hooks/use-player-sync';
 import { styles } from './styles';
-import { useTrackOptionsState } from '@/contexts/track-options/use-track-options-state';
+import { TrackContentProps } from './types';
 
 const { height } = Dimensions.get('window');
 
@@ -79,6 +79,8 @@ export function TrackContent({
   onPrev,
   onSeek,
   onSkipToTrack,
+  repeatOn,
+  onRepeat,
   panGesture,
   onCollapse,
   onVideoModeChange,
@@ -96,14 +98,28 @@ export function TrackContent({
   const artworkGesture = panGesture?.artwork || panGesture;
   const controlsGesture = panGesture?.controls || panGesture;
 
+  const triggerHaptic = (style = Haptics.ImpactFeedbackStyle.Light) => {
+    Haptics.impactAsync(style).catch(() => { });
+  };
+
+  const handleSwipeNext = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    onNext();
+  };
+
+  const handleSwipePrev = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    onPrev();
+  };
+
   const artworkSwipeGesture = Gesture.Pan()
     .activeOffsetX([-30, 30])
     .failOffsetY([-30, 30])
     .onEnd((e) => {
       if (e.translationX < -50) {
-        runOnJS(onNext)();
+        runOnJS(handleSwipeNext)();
       } else if (e.translationX > 50) {
-        runOnJS(onPrev)();
+        runOnJS(handleSwipePrev)();
       }
     });
 
@@ -111,10 +127,10 @@ export function TrackContent({
   const palette = useArtworkPalette(track.artwork as string | undefined, track, queue);
   const videoViewRef = useRef<VideoView>(null);
 
-  const [prevColors, setPrevColors] = useState<string[]>(globalPrevColors);
-  const [currentColors, setCurrentColors] = useState<string[]>(globalCurrentColors);
+  const [bgColors, setBgColors] = useState<string[]>(globalCurrentColors);
+  const [fgColors, setFgColors] = useState<string[]>(globalCurrentColors);
   const currentColorsRef = useRef<string[]>(globalCurrentColors);
-  const transitionVal = useSharedValue(1);
+  const transitionVal = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -145,26 +161,32 @@ export function TrackContent({
     globalCurrentColors = nextColors;
     currentColorsRef.current = nextColors;
 
-    // Reset opacity to 0 so previous gradient is visible, then fade in
+    // Set foreground to next colors
+    setFgColors(nextColors);
+    // Reset opacity to 0 to prepare for fade in
     // eslint-disable-next-line react-hooks/immutability
     transitionVal.value = 0;
-    setPrevColors(snapshotPrev);
-    setCurrentColors(nextColors);
 
     let cancelled = false;
     animationCancelRef.current = () => { cancelled = true; };
 
-    // eslint-disable-next-line react-hooks/immutability
+     
     transitionVal.value = withTiming(
       1,
       { duration: 900, easing: ReEasing.inOut(ReEasing.cubic) },
-      () => {
-        if (!cancelled) {
+      (finished) => {
+        if (finished && !cancelled) {
+          runOnJS(setBgColors)(nextColors);
           animationCancelRef.current = null;
         }
       },
     );
   }, [palette]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    transitionVal.value = 0;
+  }, [bgColors]);
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const isFav = isFavorite(track.id);
@@ -211,6 +233,7 @@ export function TrackContent({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
+  const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
   const router = useRouter();
 
   const { isDownloaded, startDownload, removeDownload, downloadingIds } = useDownloads();
@@ -265,7 +288,7 @@ export function TrackContent({
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showArtistSheet, setShowArtistSheet] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [artistOptions, setArtistOptions] = useState<Array<{ name: string; id: string }>>([]);
+  const [artistOptions, setArtistOptions] = useState<{ name: string; id: string }[]>([]);
 
   const handleAddToPlaylist = async (playlistId: string, playlistName: string) => {
     setShowPlaylistSelectModal(false);
@@ -304,12 +327,12 @@ export function TrackContent({
       ) : (
         <>
           <LinearGradient
-            colors={prevColors as [string, string]}
+            colors={bgColors as [string, string]}
             style={StyleSheet.absoluteFill}
           />
           <Reanimated.View style={[animatedStyle, StyleSheet.absoluteFill]}>
             <LinearGradient
-              colors={currentColors as [string, string]}
+              colors={fgColors as [string, string]}
               style={StyleSheet.absoluteFill}
             />
           </Reanimated.View>
@@ -449,9 +472,19 @@ export function TrackContent({
           <View style={styles.bottomSheet}>
             <View style={styles.metadataRow}>
               <View style={styles.metadataInfo}>
-                <MarqueeText speed={15} style={styles.titleText}>
-                  {track.title}
-                </MarqueeText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <MarqueeText
+                    speed={15}
+                    isExplicit={track.explicit}
+                    explicitBadgeStyle={{
+                      backgroundColor: 'rgba(255,255,255,0.65)',
+                      color: '#000',
+                    }}
+                    style={styles.titleText}
+                  >
+                    {track.title}
+                  </MarqueeText>
+                </View>
                 <Pressable
                   android_ripple={{
                     color: colors.border,
@@ -476,7 +509,7 @@ export function TrackContent({
                   onPress={() => toggleFavorite(track)}
                   style={{ ...styles.metaCircleBtn, backgroundColor: isFav ? '#FF3B3090' : 'rgba(255,255,255,0.1)' }}
                 >
-                  <Heart fill="rgba(255,255,255)" size={18} color="rgba(255,255,255,0.8)" />
+                  <ThumbsUp size={18} color="rgba(255,255,255,0.8)" />
                 </Pressable>
                 <Pressable
                   android_ripple={{
@@ -519,21 +552,30 @@ export function TrackContent({
                 />
               )}
 
-              {isLive ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30', marginRight: 6 }} />
-                  <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 }}>LIVE</Text>
-                </View>
-              ) : (
-                <View style={styles.timeLabels}>
-                  <Text style={styles.timeText}>
-                    {new Date((playerMode === 'video' ? videoTime : position) * 1000).toISOString().substr(14, 5)}
-                  </Text>
+              <View style={styles.timeLabels}>
+                <Text style={styles.timeText}>
+                  {new Date((playerMode === 'video' ? videoTime : position) * 1000).toISOString().substr(14, 5)}
+                </Text>
+                {isLive ? (
+                  <Pressable
+                    onPress={() => {
+                      if (typeof duration === 'number' && duration > 0) {
+                        onSeek(duration);
+                        toast.success('Seeking to Live');
+                      }
+                    }}
+                    android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true, radius: 24 }}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF3B30', marginRight: 4 }} />
+                    <Text style={{ color: '#FF3B30', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>LIVE</Text>
+                  </Pressable>
+                ) : (
                   <Text style={styles.timeText}>
                     -{new Date((duration - (playerMode === 'video' ? videoTime : position)) * 1000).toISOString().substr(14, 5)}
                   </Text>
-                </View>
-              )}
+                )}
+              </View>
             </View>
 
             <View style={styles.transportRow}>
@@ -546,7 +588,10 @@ export function TrackContent({
                 }}
                 className="active:scale-95"
                 hitSlop={10}
-                onPress={onPrev}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+                  onPrev();
+                }}
                 style={styles.transportBtn}
               >
                 <SkipBack fill="#fff" strokeWidth={3} size={36} color="#fff" />
@@ -561,6 +606,7 @@ export function TrackContent({
                 hitSlop={10}
                 className="active:scale-95"
                 onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
                   if (playerMode === 'video') {
                     if (isVideoPlaying) {
                       videoPlayer.pause();
@@ -594,7 +640,10 @@ export function TrackContent({
                 }}
                 hitSlop={10}
                 className="active:scale-95"
-                onPress={onNext}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+                  onNext();
+                }}
                 style={styles.transportBtn}
               >
                 <SkipForward fill="#fff" strokeWidth={3} size={36} color="#fff" />
@@ -656,6 +705,8 @@ export function TrackContent({
         track={track}
         isFav={isFav}
         isLive={isLive}
+        repeatOn={repeatOn}
+        onRepeat={onRepeat}
         downloadingIds={downloadingIds}
         isDownloaded={isDownloaded}
         toggleFavorite={toggleFavorite}
@@ -665,6 +716,7 @@ export function TrackContent({
         setShowAboutModal={setShowAboutModal}
         setShowQualityModal={setShowQualityModal}
         setShowStatsModal={setShowStatsModal}
+        setShowSleepTimerModal={setShowSleepTimerModal}
         trackOptionsState={trackOptionsState}
         handleArtistPress={handleArtistPress}
       />
@@ -722,6 +774,11 @@ export function TrackContent({
         visible={showStatsModal}
         onClose={() => setShowStatsModal(false)}
         track={track}
+      />
+
+      <SleepTimerModal
+        visible={showSleepTimerModal}
+        onClose={() => setShowSleepTimerModal(false)}
       />
     </View>
   );

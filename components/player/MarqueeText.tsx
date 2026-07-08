@@ -13,6 +13,8 @@ type Props = {
   children: string;
   style?: StyleProp<TextStyle>;
   speed?: number; // px/sec
+  isExplicit?: boolean;
+  explicitBadgeStyle?: StyleProp<TextStyle>;
 };
 
 const GAP = 40;
@@ -131,13 +133,19 @@ function ChildrenScroller({
   );
 }
 
-export default function MarqueeText({ children, style, speed = 40 }: Props) {
+export default function MarqueeText({
+  children,
+  style,
+  speed = 40,
+  isExplicit,
+  explicitBadgeStyle,
+}: Props) {
   const [parentWidth, setParentWidth] = useState(0);
   const [childrenWidth, setChildrenWidth] = useState(0);
   const [childrenHeight, setChildrenHeight] = useState(0);
   const active = useSharedValue(false);
 
-  const { font, fontFamily, headingFontFamily, semiBoldFontFamily } = useAppTheme();
+  const { colors, font, fontFamily, headingFontFamily, semiBoldFontFamily } = useAppTheme();
 
   const outerStyle: any[] = [{}];
   const innerStyle: any[] = [];
@@ -185,7 +193,7 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [font, fontFamily, headingFontFamily, semiBoldFontFamily, textStyleKey]);
 
-  const contentKey = `${children}::${textStyleKey}`;
+  const contentKey = `${children}::${isExplicit}::${textStyleKey}`;
 
   useEffect(() => {
     setChildrenWidth(0);
@@ -212,6 +220,38 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
     setChildrenHeight((prev) => (height > prev ? height : prev));
   };
 
+  const renderContent = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text numberOfLines={1} style={resolvedStyle}>
+        {children}
+      </Text>
+      {isExplicit && (
+        <View style={{
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginLeft: 6,
+        }}>
+          <Text style={[
+            {
+              backgroundColor: colors.mutedForeground,
+              color: colors.background,
+              fontSize: 9,
+              fontWeight: '800',
+              lineHeight: 11,
+              paddingHorizontal: 4,
+              paddingVertical: 1,
+              borderRadius: 3,
+              overflow: 'hidden',
+            },
+            explicitBadgeStyle,
+          ]}>
+            E
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <View
       style={outerStyle}
@@ -230,22 +270,46 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
         key={contentKey}
       >
         <MeasureElement onLayout={handleMeasure}>
-          <Text numberOfLines={1} style={resolvedStyle}>
-            {children}
-          </Text>
+          {renderContent()}
         </MeasureElement>
 
         {!overflow ? (
-          <Text
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={[
-              resolvedStyle,
-              { position: 'absolute', left: 0, top: 0, width: parentWidth || '100%' },
-            ]}
-          >
-            {children}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', position: 'absolute', left: 0, top: 0 }}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[
+                resolvedStyle,
+                { flexShrink: 1 },
+              ]}
+            >
+              {children}
+            </Text>
+            {isExplicit && (
+              <View style={{
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginLeft: 6,
+              }}>
+                <Text style={[
+                  {
+                    backgroundColor: colors.mutedForeground,
+                    color: colors.background,
+                    fontSize: 9,
+                    fontWeight: '800',
+                    lineHeight: 11,
+                    paddingHorizontal: 4,
+                    paddingVertical: 1,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                  },
+                  explicitBadgeStyle,
+                ]}>
+                  E
+                </Text>
+              </View>
+            )}
+          </View>
         ) : (
           childrenWidth > 0 &&
           parentWidth > 0 && (
@@ -257,9 +321,7 @@ export default function MarqueeText({ children, style, speed = 40 }: Props) {
               active={active}
               holdMs={START_DELAY}
             >
-              <Text numberOfLines={1} style={resolvedStyle}>
-                {children}
-              </Text>
+              {renderContent()}
             </ChildrenScroller>
           )
         )}

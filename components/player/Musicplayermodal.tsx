@@ -24,6 +24,7 @@ import Animated, {
 import { MINI_PLAYER_HEIGHT } from '@/constants/layout';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
+import TrackPlayer, { RepeatMode } from 'react-native-track-player';
 import MiniPlayerControls from './Miniplayercontrols';
 import TrackContent from './Trackcontent';
 import { type AppTrack } from './Tracks';
@@ -81,6 +82,13 @@ const MusicPlayerModal = ({
     const [shuffleOn, setShuffleOn] = useState(false);
     const [repeatOn, setRepeatOn] = useState(false);
 
+    useEffect(() => {
+        const mode = repeatOn ? RepeatMode.Track : RepeatMode.Off;
+        TrackPlayer.setRepeatMode(mode).catch((err) => {
+            console.warn('[Musicplayermodal] Failed to set repeat mode:', err);
+        });
+    }, [repeatOn]);
+
     const [isExpandedJS, setIsExpandedJS] = useState(false);
     // SharedValue mirror of isExpandedJS so worklets can read it on the UI thread
     const isExpanded = useSharedValue(false);
@@ -110,7 +118,8 @@ const MusicPlayerModal = ({
         if (!track) return; // ignore undefined flashes during track resolution swap
         const snap = () => {
             const currentHeight = Dimensions.get('window').height;
-            const newSnap = currentHeight - MINI_PLAYER_HEIGHT - bottomOffset.value;
+            const extraSpace = bottomOffset.value === 0 ? 20 : 0;
+            const newSnap = currentHeight - MINI_PLAYER_HEIGHT - bottomOffset.value - extraSpace;
             snapCollapsed.value = newSnap;
             if (!isExpanded.value) {
                 translateY.value = withSpring(newSnap, SPRING_CONFIG);
@@ -138,7 +147,8 @@ const MusicPlayerModal = ({
     useAnimatedReaction(
         () => bottomOffset.value,
         (offset) => {
-            const newSnap = height - MINI_PLAYER_HEIGHT - offset;
+            const extraSpace = offset === 0 ? 20 : 0;
+            const newSnap = height - MINI_PLAYER_HEIGHT - offset - extraSpace;
             snapCollapsed.value = newSnap;
             if (!isExpanded.value) {
                 translateY.value = withSpring(newSnap, SPRING_CONFIG);
@@ -325,6 +335,8 @@ const MusicPlayerModal = ({
                                     track={activeTrack}
                                     isPlaying={isPlaying}
                                     isBuffering={isBuffering}
+                                    position={position}
+                                    duration={duration}
                                     onPlayPause={handleMiniPlayPause}
                                     onNext={onNext}
                                     onExpand={expand}

@@ -8,14 +8,17 @@ import {
   Play,
   Radio,
   RefreshCw,
+  Languages,
+  Bell,
+  FileText,
+  Users,
 } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View , Text } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { BunnyCard } from '@/components/ui/bunny-card';
 import { Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { Text } from 'react-native';
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();
@@ -79,6 +82,54 @@ export default function SettingsScreen() {
             </BunnyCard>
           </Pressable>
 
+          {/* Music Party Row */}
+          <Pressable onPress={() => router.push('/settings/party' as any)}>
+            <BunnyCard style={styles.navCard}>
+              <View style={styles.navSettingRow}>
+                <View style={styles.iconContainer}>
+                  <Users size={20} color={colors.primary} />
+                </View>
+                <View style={styles.settingInfo}>
+                  <Typography variant="large">Music Party</Typography>
+                  <Muted>Sync playback and stream audio with other devices</Muted>
+                </View>
+                <ChevronRight size={20} color={colors.mutedForeground} />
+              </View>
+            </BunnyCard>
+          </Pressable>
+
+          {/* Content & Languages Row */}
+          <Pressable onPress={() => router.push('/settings/content' as any)}>
+            <BunnyCard style={styles.navCard}>
+               <View style={styles.navSettingRow}>
+                 <View style={styles.iconContainer}>
+                   <Languages size={20} color={colors.primary} />
+                 </View>
+                 <View style={styles.settingInfo}>
+                   <Typography variant="large">Content & Languages</Typography>
+                   <Muted>Filter explicit music and select recommendation languages</Muted>
+                 </View>
+                 <ChevronRight size={20} color={colors.mutedForeground} />
+               </View>
+            </BunnyCard>
+          </Pressable>
+
+          {/* Notifications Row */}
+          <Pressable onPress={() => router.push('/settings/notifications' as any)}>
+            <BunnyCard style={styles.navCard}>
+              <View style={styles.navSettingRow}>
+                <View style={styles.iconContainer}>
+                  <Bell size={20} color={colors.primary} />
+                </View>
+                <View style={styles.settingInfo}>
+                  <Typography variant="large">Notifications</Typography>
+                  <Muted>Manage app updates and download alert notifications</Muted>
+                </View>
+                <ChevronRight size={20} color={colors.mutedForeground} />
+              </View>
+            </BunnyCard>
+          </Pressable>
+
           {/* Downloads Row */}
           <Pressable onPress={() => router.push('/settings/downloads')}>
             <BunnyCard style={styles.navCard}>
@@ -121,6 +172,22 @@ export default function SettingsScreen() {
                 <View style={styles.settingInfo}>
                   <Typography variant="large">App Updates</Typography>
                   <Muted>Check for updates and manage auto-updates</Muted>
+                </View>
+                <ChevronRight size={20} color={colors.mutedForeground} />
+              </View>
+            </BunnyCard>
+          </Pressable>
+
+          {/* Terms & Privacy Row */}
+          <Pressable onPress={() => router.push('/settings/terms-privacy' as any)}>
+            <BunnyCard style={styles.navCard}>
+              <View style={styles.navSettingRow}>
+                <View style={styles.iconContainer}>
+                  <FileText size={20} color={colors.primary} />
+                </View>
+                <View style={styles.settingInfo}>
+                  <Typography variant="large">Terms & Privacy</Typography>
+                  <Muted>Review app terms of service and privacy policy</Muted>
                 </View>
                 <ChevronRight size={20} color={colors.mutedForeground} />
               </View>

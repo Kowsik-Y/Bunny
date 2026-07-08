@@ -165,6 +165,11 @@ class PipedService {
                   artistsList.push({ name: aName, id: aId });
                 }
               });
+              const isExplicit = renderer.badges?.some(
+                (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+              ) || renderer.subtitleBadges?.some(
+                (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+              ) || false;
               items.push({
                 type: 'song',
                 id: videoId,
@@ -173,6 +178,7 @@ class PipedService {
                 thumbnail,
                 artistId: artistId || channelId,
                 artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
+                explicit: isExplicit,
               });
             } else if (isArtist) {
               const browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId;
@@ -240,6 +246,11 @@ class PipedService {
                     artistsList.push({ name: aName, id: aId });
                   }
                 });
+                const isExplicit = twoRow.badges?.some(
+                  (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+                ) || twoRow.subtitleBadges?.some(
+                  (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+                ) || false;
                 items.push({
                   type: 'song',
                   id: videoId,
@@ -248,6 +259,7 @@ class PipedService {
                   thumbnail,
                   artistId: artistId || channelId,
                   artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
+                  explicit: isExplicit,
                 });
               } else if (isArtist) {
                 const browseId = twoRow.navigationEndpoint?.browseEndpoint?.browseId;
@@ -293,6 +305,11 @@ class PipedService {
                   }
                 });
 
+                const isExplicit = listItem.badges?.some(
+                  (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+                ) || listItem.subtitleBadges?.some(
+                  (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+                ) || false;
                 items.push({
                   type: 'song',
                   id: videoId,
@@ -301,6 +318,7 @@ class PipedService {
                   thumbnail,
                   artistId: artistId || channelId,
                   artists: artistsList.length > 0 ? artistsList : [{ name: artistName, id: artistId || channelId }],
+                  explicit: isExplicit,
                 });
               }
             }
@@ -502,6 +520,12 @@ class PipedService {
           }
         }
 
+        const isExplicit = renderer.badges?.some(
+          (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+        ) || renderer.subtitleBadges?.some(
+          (b: any) => b?.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'
+        ) || false;
+
         relatedStreams.push({
           url: `watch?v=${videoId}`,
           title,
@@ -511,6 +535,7 @@ class PipedService {
           artists: artistsList.length > 0 ? artistsList : undefined,
           albumName,
           albumId,
+          explicit: isExplicit,
         });
       }
 

@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated , DeviceEventEmitter } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { Typography } from './typography';
 import { Info, AlertCircle, Check, AlertTriangle } from 'lucide-react-native';
-import { DeviceEventEmitter } from 'react-native';
 import { TOAST_EVENT, type ToastPayload } from '@/services/toast';
 
 type ToastType = 'default' | 'success' | 'error' | 'info' | 'warning';

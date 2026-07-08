@@ -20,6 +20,18 @@ export async function getDownloadedTracks(): Promise<DownloadedTrack[]> {
           }
         } catch (_) {}
       }
+      if (d.hasLrc === undefined) {
+        try {
+          const activeDir = d.localUri.substring(0, d.localUri.lastIndexOf('/') + 1);
+          const lrcUri = `${activeDir}${d.track.id}.lrc`;
+          const info = await getInfoAsync(lrcUri);
+          d.hasLrc = info.exists;
+          needsUpdate = true;
+        } catch (_) {
+          d.hasLrc = false;
+          needsUpdate = true;
+        }
+      }
     }
     
     if (needsUpdate) {

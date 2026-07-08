@@ -53,12 +53,12 @@ export default function AlbumScreen() {
       if (playlist && albumData.tracks) {
         for (const item of albumData.tracks) {
           const track: AppTrack = {
-            id: item.videoId,
-            title: item.name,
+            id: item.videoId || item.id,
+            title: item.name || item.title,
             artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
             album: albumData.name,
             artwork: albumData.thumbnails?.[0]?.url || '',
-            url: `https://music.youtube.com/watch?v=${item.videoId}`,
+            url: `https://music.youtube.com/watch?v=${item.videoId || item.id}`,
             duration: item.duration / 1000,
             artistId: albumData.artistId,
             albumId: id as string,
@@ -112,30 +112,32 @@ export default function AlbumScreen() {
         isActive={isActive}
         isPlaying={isPlaying || isBuffering}
         onPress={() => PlayerActions.skipToTrackFromYt({
-          id: item.videoId,
-          title: item.name,
+          id: item.videoId || item.id,
+          title: item.name || item.title,
           artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
           album: albumData.name,
           thumbnail: albumData.thumbnails?.[0]?.url,
-          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          url: `https://music.youtube.com/watch?v=${item.videoId || item.id}`,
           duration: item.duration / 1000,
           type: 'song',
           artistId: albumData.artistId,
           albumId: id as string,
           artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
+          explicit: item.explicit,
         })}
         onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
         track={{
-          id: item.videoId,
-          title: item.name,
+          id: item.videoId || item.id,
+          title: item.name || item.title,
           artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
           album: albumData.name,
           artwork: albumData.thumbnails?.[0]?.url || '',
-          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          url: `https://music.youtube.com/watch?v=${item.videoId || item.id}`,
           duration: item.duration / 1000,
           artistId: albumData.artistId,
           albumId: id as string,
           artists: albumData.artistId ? [{ name: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist', id: albumData.artistId }] : undefined,
+          explicit: item.explicit,
         }}
       />
     );
@@ -171,12 +173,12 @@ export default function AlbumScreen() {
     }
     if (albumData?.tracks && albumData.tracks.length > 0) {
       const tracksToPlay: AppTrack[] = albumData.tracks.map((t: any) => ({
-        id: t.videoId,
-        title: t.name,
+        id: t.videoId || t.id,
+        title: t.name || t.title,
         artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
         album: albumData.name,
         artwork: albumData.thumbnails?.[0]?.url || '',
-        url: `https://music.youtube.com/watch?v=${t.videoId}`,
+        url: `https://music.youtube.com/watch?v=${t.videoId || t.id}`,
         duration: t.duration / 1000,
         artistId: albumData.artistId,
         albumId: id as string,
@@ -189,12 +191,12 @@ export default function AlbumScreen() {
   const handleShufflePress = async () => {
     if (albumData?.tracks && albumData.tracks.length > 0) {
       const tracksToPlay: AppTrack[] = albumData.tracks.map((t: any) => ({
-        id: t.videoId,
-        title: t.name,
+        id: t.videoId || t.id,
+        title: t.name || t.title,
         artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
         album: albumData.name,
         artwork: albumData.thumbnails?.[0]?.url || '',
-        url: `https://music.youtube.com/watch?v=${t.videoId}`,
+        url: `https://music.youtube.com/watch?v=${t.videoId || t.id}`,
         duration: t.duration / 1000,
         artistId: albumData.artistId,
         albumId: id as string,
@@ -283,12 +285,12 @@ export default function AlbumScreen() {
     try {
       for (const item of albumData.tracks) {
         const track: AppTrack = {
-          id: item.videoId,
-          title: item.name,
+          id: item.videoId || item.id,
+          title: item.name || item.title,
           artist: typeof albumData.artist === 'string' ? albumData.artist : albumData.artist?.name || 'Unknown Artist',
           album: albumData.name,
           artwork: albumData.thumbnails?.[0]?.url || '',
-          url: `https://music.youtube.com/watch?v=${item.videoId}`,
+          url: `https://music.youtube.com/watch?v=${item.videoId || item.id}`,
           duration: item.duration / 1000,
           artistId: albumData.artistId,
           albumId: id as string,

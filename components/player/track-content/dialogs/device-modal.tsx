@@ -2,7 +2,8 @@ import { Slider } from '@/components/ui/slider';
 import { Typography as Text } from '@/components/ui/typography';
 import { addAlpha } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
-import { AudioLines, Bluetooth, Cast, Film, Headphones, Plug, Speaker, Volume1, Volume2 } from 'lucide-react-native';
+import { AudioLines, Bluetooth, Cast, Film, Headphones, Plug, Speaker, Volume1, Volume2, Sliders } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NativeModules, Pressable, StyleSheet, View } from 'react-native';
 import { useIsHeadphonesConnected, useIsWiredHeadphonesConnected } from 'react-native-device-info';
@@ -74,6 +75,7 @@ export function DeviceModal({
   onQualityPress,
 }: DeviceModalProps) {
   const { colors } = useAppTheme();
+  const router = useRouter();
 
   // Interactive Volume states
   const [volume, setVolume] = useState(0.65);
@@ -148,7 +150,7 @@ export function DeviceModal({
       id: 'cast',
       name: castDevice?.friendlyName || 'Google Cast',
       icon: Cast,
-      connected: isCastAvailable || isCasting,
+      connected: true, // Always show Cast in outputs list
       isActive: isCasting,
       onPress: () => {
         if (GoogleCastSafe) {
@@ -216,7 +218,7 @@ export function DeviceModal({
                       </Text>
                       {dev.id === 'cast' && (
                         <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
-                          {isItemActive ? 'Streaming audio' : 'Tap to stream audio'}
+                          {isItemActive ? 'Streaming audio' : !isCastAvailable ? 'No devices available' : 'Tap to stream audio'}
                         </Text>
                       )}
                     </View>
@@ -229,6 +231,10 @@ export function DeviceModal({
                         isConnectingCast ? (
                           <View style={[styles.connectedBadge, { backgroundColor: colors.background }]}>
                             <Text style={[styles.connectedBadgeText, { color: colors.primary }]}>Connecting</Text>
+                          </View>
+                        ) : !isCastAvailable ? (
+                          <View style={[styles.connectedBadge, { backgroundColor: colors.background }]}>
+                            <Text style={[styles.connectedBadgeText, { color: colors.mutedForeground }]}>Not Connected</Text>
                           </View>
                         ) : (
                           <Pressable
@@ -284,6 +290,40 @@ export function DeviceModal({
             <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Change</Text>
           </Pressable>
         </View>
+
+        {/* Equalizer Card */}
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => {
+              router.push('/settings/equalizer' as any);
+            }, 250);
+          }}
+          style={{
+            ...styles.qualityButtonCard,
+            backgroundColor: colors.muted,
+            borderColor: colors.border,
+            marginTop: 0,
+            marginBottom: 20,
+          }}
+        >
+          <View style={[styles.qualityIconCircle, { backgroundColor: addAlpha(colors.primary, 0.1) }]}>
+            <Sliders size={20} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text style={[styles.qualityCardLabel, { color: colors.mutedForeground }]}>
+              Equalizer Settings
+            </Text>
+            <Text style={[styles.qualityCardValue, { color: colors.text }]} numberOfLines={1}>
+              Adjust constellation controls & presets
+            </Text>
+          </View>
+          <View
+            style={[styles.changeBadge, { backgroundColor: addAlpha(colors.primary, 0.1), borderColor: addAlpha(colors.primary, 0.25) }]}
+          >
+            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Open</Text>
+          </View>
+        </Pressable>
         {/* Volume Slider Section */}
         <Text style={[styles.sectionHeader, { color: colors.mutedForeground, marginBottom: 6 }]}>
           Device Volume

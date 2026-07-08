@@ -4,7 +4,7 @@ import { H1, Muted, Typography } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Download, Heart, Pause, Play, Shuffle, Share2, Plus, User, Check, FolderPlus, XCircle } from 'lucide-react-native';
+import { Download, ThumbsUp, Pause, Play, Shuffle, Share2, Plus, User, Check, FolderPlus, XCircle } from 'lucide-react-native';
 import { Dimensions, Image, StyleSheet, View, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -133,7 +133,7 @@ export function PlaylistHeader({
                     colors={['#8E2DE2', '#4A00E0']}
                     style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
                   >
-                    <Heart size={64} color="#ffffff" fill="#ffffff" />
+                    <ThumbsUp size={64} color="#ffffff" />
                   </LinearGradient>
                 ) : artworkUrl && artworkUrl.trim() !== '' ? (
                   <Image source={{ uri: artworkUrl }} style={styles.artwork} />

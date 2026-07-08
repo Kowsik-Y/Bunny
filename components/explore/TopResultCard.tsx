@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, Play, Shuffle, Radio, List, Pause } from 'lucide-react-native';
 
 interface TopResultCardProps {
-  type: 'song' | 'artist' | 'album' | 'playlist';
+  type: 'song' | 'video' | 'artist' | 'album' | 'playlist';
   item: {
     id: string;
     name?: string;
@@ -19,6 +19,7 @@ interface TopResultCardProps {
     subscribers?: string;
     duration?: number;
     year?: string;
+    explicit?: boolean;
   };
   recommendedSong?: any; // ONLY used for artist type
   onPress: () => void;
@@ -49,7 +50,7 @@ export function TopResultCard({
   const { colors } = useAppTheme();
 
   const isArtist = type === 'artist';
-  const isSong = type === 'song';
+  const isSong = type === 'song' || type === 'video';
   const isAlbum = type === 'album' || type === 'playlist';
 
   const name = isArtist ? item.name : item.title;
@@ -57,6 +58,8 @@ export function TopResultCard({
   
   const subtitle = isArtist
     ? `Artist ${item.subscribers ? `• ${item.subscribers}` : ''}`
+    : type === 'video'
+    ? `Video • ${item.artist || 'Unknown Artist'} ${item.duration ? `• ${formatDuration(item.duration)}` : ''}`
     : isSong
     ? `Song • ${item.artist || 'Unknown Artist'} ${item.duration ? `• ${formatDuration(item.duration)}` : ''}`
     : type === 'playlist'
@@ -81,9 +84,25 @@ export function TopResultCard({
             style={[styles.topResultAvatar, { borderRadius: isArtist ? 32 : 12 }]}
           />
           <View style={styles.topResultDetails}>
-            <Typography variant="large" style={[styles.topResultName, { color: colors.text }]} numberOfLines={1}>
-              {name}
-            </Typography>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Typography variant="large" style={[styles.topResultName, { color: colors.text, flexShrink: 1 }]} numberOfLines={1}>
+                {name}
+              </Typography>
+              {isSong && item.explicit && (
+                <View style={{
+                  backgroundColor: colors.mutedForeground,
+                  paddingHorizontal: 4,
+                  paddingVertical: 1,
+                  borderRadius: 3,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Typography style={{ fontSize: 9, fontWeight: '800', color: colors.background, lineHeight: 11 }}>
+                    E
+                  </Typography>
+                </View>
+              )}
+            </View>
             <Typography variant="small" style={{ color: colors.mutedForeground, marginTop: 2 }} numberOfLines={1}>
               {subtitle}
             </Typography>
@@ -142,9 +161,25 @@ export function TopResultCard({
                 style={styles.songArtwork}
               />
               <View style={styles.songDetails}>
-                <Typography style={[styles.songTitle, { color: colors.text }]} numberOfLines={1}>
-                  {recommendedSong.title}
-                </Typography>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Typography style={[styles.songTitle, { color: colors.text, flexShrink: 1 }]} numberOfLines={1}>
+                    {recommendedSong.title}
+                  </Typography>
+                  {recommendedSong.explicit && (
+                    <View style={{
+                      backgroundColor: colors.mutedForeground,
+                      paddingHorizontal: 4,
+                      paddingVertical: 1,
+                      borderRadius: 3,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Typography style={{ fontSize: 9, fontWeight: '800', color: colors.background, lineHeight: 11 }}>
+                        E
+                      </Typography>
+                    </View>
+                  )}
+                </View>
                 <Typography variant="small" style={{ color: colors.mutedForeground, marginTop: 2 }} numberOfLines={1}>
                   Song • {recommendedSong.artist}
                 </Typography>

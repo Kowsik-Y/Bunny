@@ -2,18 +2,22 @@ import { CreatePlaylistBottomSheet } from '@/components/library/CreatePlaylistBo
 import { Alert } from '@/components/ui/alert';
 
 import { useRouter } from 'expo-router';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TrackPlayer from 'react-native-track-player';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import EqualizerModule from '@/modules/equalizer';
 
 
 
@@ -24,7 +28,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
 import { useBottomTabSpacing } from '@/hooks/use-bottom-tab-spacing';
 
-import { PlaylistCard } from '@/components/cards';
+import { PlaylistCard, SongCard } from '@/components/cards';
 import { type AppTrack } from '@/components/player/Tracks';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +40,7 @@ import {
   usePlaylists,
   useQueue,
 } from '@/services';
-import { Cog, Plus, Play, Pause, XCircle, Download } from 'lucide-react-native';
+import { Cog, Plus, Play, Pause, XCircle, Download, Folder, RefreshCw, Music } from 'lucide-react-native';
 import { addAlpha } from '@/constants/theme';
 
 function formatSpeed(bytesPerSec: number): string {
@@ -47,7 +51,7 @@ function formatSpeed(bytesPerSec: number): string {
   return parseFloat((bytesPerSec / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-type Tab = 'playlists' | 'downloading';
+type Tab = 'playlists' | 'local' | 'downloading';
 
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
@@ -86,6 +90,117 @@ export default function ProfileScreen() {
     uploadSpeed,
     downloadingSizes,
   } = useDownloads();
+
+  const [localSongs, setLocalSongs] = useState<AppTrack[]>([]);
+  const [localDirUri, setLocalDirUri] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  const scanDirectory = useCallback(async (dirUri: string) => {
+    setScanning(true);
+    try {
+      const files = await FileSystem.StorageAccessFramework.readDirectoryAsync(dirUri);
+      const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg'];
+      const audioFiles = files.filter(uri => {
+        const decoded = decodeURIComponent(uri.toLowerCase());
+        return audioExtensions.some(ext => decoded.endsWith(ext));
+      });
+
+      const tracks: AppTrack[] = await Promise.all(
+        audioFiles.map(async (uri, index) => {
+          const decoded = decodeURIComponent(uri);
+          let fileName = 'Local Track';
+          if (decoded.includes('/')) {
+            const lastPart = decoded.substring(decoded.lastIndexOf('/') + 1);
+            if (lastPart) {
+              fileName = lastPart.replace(/\.[^/.]+$/, ""); // Strip file extension
+            }
+          }
+
+          try {
+            const meta = await EqualizerModule.extractMetadata(uri);
+            return {
+              id: `local-file-${index}`,
+              url: uri,
+              title: meta.title || fileName,
+              artist: meta.artist || 'Unknown Artist',
+              album: meta.album || 'Local Audio',
+              duration: meta.duration ? meta.duration / 1000 : 0,
+              artwork: meta.artwork || '',
+              lrc: meta.lrc || '',
+            };
+          } catch (err) {
+            return {
+              id: `local-file-${index}`,
+              url: uri,
+              title: fileName,
+              artist: 'Local File',
+              album: 'Device Storage',
+              duration: 0,
+              artwork: '',
+              lrc: '',
+            };
+          }
+        })
+      );
+
+      setLocalSongs(tracks);
+    } catch (err) {
+      console.warn('Failed to scan local folder:', err);
+    } finally {
+      setScanning(false);
+    }
+  }, []);
+
+  const loadLocalDirectory = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@bunny_local_songs_dir');
+      if (stored) {
+        setLocalDirUri(stored);
+        await scanDirectory(stored);
+      }
+    } catch (e) {
+      console.warn('Failed to load local directory preference', e);
+    }
+  }, [scanDirectory]);
+
+  useEffect(() => {
+    loadLocalDirectory();
+  }, [loadLocalDirectory]);
+
+  const selectLocalFolder = async () => {
+    try {
+      if (Platform.OS !== 'android') {
+        alert('Scanning device folders is currently only supported on Android.');
+        return;
+      }
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const directoryUri = permissions.directoryUri;
+        setLocalDirUri(directoryUri);
+        await AsyncStorage.setItem('@bunny_local_songs_dir', directoryUri);
+        await scanDirectory(directoryUri);
+      }
+    } catch (err) {
+      console.warn('Failed to select local folder:', err);
+    }
+  };
+
+  const clearLocalFolder = async () => {
+    try {
+      await AsyncStorage.removeItem('@bunny_local_songs_dir');
+      setLocalDirUri(null);
+      setLocalSongs([]);
+    } catch (e) {}
+  };
+
+  const handleLocalTrackPress = useCallback(async (index: number, track: AppTrack) => {
+    try {
+      await PlayerActions.playCollection(localSongs);
+      await PlayerActions.skipToTrack(String(track.id));
+    } catch (e) {
+      console.warn('Failed to play local track', e);
+    }
+  }, [localSongs]);
 
   const totalDownloadsSize = useMemo(() => {
     const totalBytes = downloadedTracks.reduce((acc, curr) => acc + (curr.size || 0), 0);
@@ -152,6 +267,7 @@ export default function ProfileScreen() {
         <SegmentedControl
           options={[
             { value: 'playlists', label: 'Playlists', badge: playlists.length + 1 },
+            { value: 'local', label: 'Local', badge: localSongs.length },
             { value: 'downloading', label: 'Downloading', badge: Object.keys(downloadingIds).length },
           ]}
           selectedValue={activeTab}
@@ -219,6 +335,82 @@ export default function ProfileScreen() {
                   />
                 ))}
               </View>
+            </View>
+          ) : activeTab === 'local' ? (
+            <View style={styles.listSection}>
+              {!localDirUri ? (
+                <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 }}>
+                  <Folder size={48} color={colors.mutedForeground} style={{ marginBottom: 15, opacity: 0.5 }} />
+                  <Typography style={{ fontWeight: '600', fontSize: 16, textAlign: 'center', marginBottom: 8 }}>
+                    Import Local Songs
+                  </Typography>
+                  <Muted style={{ textAlign: 'center', marginBottom: 20, fontSize: 14 }}>
+                    Select a folder on your device containing audio files to scan and play them offline.
+                  </Muted>
+                  <Button
+                    variant="secondary"
+                    onPress={selectLocalFolder}
+                    style={{ borderRadius: 20, height: 40, width: "100%", alignSelf: 'stretch' }}
+                  >
+                    <Typography numberOfLines={1} style={{ color: colors.primary, fontWeight: '800', fontSize: 14 }}>
+                      Select Folder
+                    </Typography>
+                  </Button>
+                </View>
+              ) : (
+                <View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Typography style={{ fontWeight: '700', fontSize: 15 }} numberOfLines={1}>
+                        Local Scanned Folder
+                      </Typography>
+                      <Muted style={{ fontSize: 11 }} numberOfLines={1}>
+                        {decodeURIComponent(localDirUri)}
+                      </Muted>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <TouchableOpacity onPress={() => scanDirectory(localDirUri)} style={{ padding: 6 }}>
+                        <RefreshCw size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={clearLocalFolder} style={{ padding: 6 }}>
+                        <XCircle size={18} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {scanning ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                      <Typography style={{ fontSize: 14, color: colors.mutedForeground }}>
+                        Scanning files...
+                      </Typography>
+                    </View>
+                  ) : localSongs.length === 0 ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+                      <Music size={48} color={colors.mutedForeground} style={{ marginBottom: 15, opacity: 0.5 }} />
+                      <Typography style={{ fontWeight: '600', fontSize: 16 }}>No audio files found</Typography>
+                      <Muted style={{ fontSize: 13, marginTop: 4 }}>Try scanning another folder.</Muted>
+                    </View>
+                  ) : (
+                    localSongs.map((track, idx) => {
+                      const isActive = currentTrack && String(currentTrack.id) === String(track.id);
+                      return (
+                        <SongCard
+                          key={track.id}
+                          track={track}
+                          title={track.title}
+                          artist={track.artist}
+                          album={track.album}
+                          artwork={track.artwork}
+                          index={idx}
+                          isActive={isActive}
+                          isPlaying={isActive && isPlaying}
+                          onPress={() => handleLocalTrackPress(idx, track)}
+                        />
+                      );
+                    })
+                  )}
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.listSection}>
@@ -291,7 +483,13 @@ export default function ProfileScreen() {
                         {track.title}
                       </Typography>
                       <Muted style={{ fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                        {isPaused ? 'Paused' : `Downloading... ${Math.round(progress * 100)}%${downloadingSizes[trackId] ? ` (${formatTrackBytes(downloadingSizes[trackId])})` : ''}`}
+                        {isPaused
+                          ? 'Paused'
+                          : progress >= 0.95
+                            ? progress >= 0.97
+                              ? 'Embedding metadata…'
+                              : 'Getting LRC…'
+                            : `Downloading... ${Math.round((progress / 0.95) * 100)}%${downloadingSizes[trackId] ? ` (${formatTrackBytes(downloadingSizes[trackId])})` : ''}`}
                       </Muted>
                       <View style={styles.progressBarContainer}>
                         <View style={[

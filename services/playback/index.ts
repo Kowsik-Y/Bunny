@@ -6,6 +6,7 @@ import { fetchLyricsFromApis } from '../lyrics';
 import { toast } from '../toast';
 import { trimHistory } from './trim';
 import { getRadioQueue } from './radio';
+import { SleepTimerManager } from '../sleepTimer';
 
 const retryCounts = new Map<string, number>();
 let lastTrackId: string | undefined = undefined;
@@ -18,7 +19,76 @@ export function setVideoQualityChanging(value: boolean) {
   suppressNextAutoPlay = value;
 }
 
+let isCrossfadeEnabled = false;
+let crossfadeDurationSec = 3;
+let fadeInTimer: any = null;
+let fadeOutTimer: any = null;
+let fadeOutTriggeredForTrack: string | null = null;
+let skipTriggeredForTrack: string | null = null;
+
+async function loadCrossfadePrefs() {
+  try {
+    const raw = await AsyncStorage.getItem('app-theme-preferences');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      isCrossfadeEnabled = !!parsed.crossfadeEnabled;
+      crossfadeDurationSec = typeof parsed.crossfadeDuration === 'number' ? parsed.crossfadeDuration : 3;
+    }
+  } catch (_) {}
+}
+
+function executeFadeIn() {
+  if (fadeInTimer) clearInterval(fadeInTimer);
+  if (fadeOutTimer) {
+    clearInterval(fadeOutTimer);
+    fadeOutTimer = null;
+  }
+  
+  let vol = 0;
+  TrackPlayer.setVolume(vol).catch(() => {});
+  
+  const intervalTime = 50;
+  const steps = (crossfadeDurationSec * 1000) / intervalTime;
+  const delta = 1.0 / (steps > 0 ? steps : 1);
+  
+  fadeInTimer = setInterval(async () => {
+    vol += delta;
+    if (vol >= 1.0) {
+      vol = 1.0;
+      clearInterval(fadeInTimer);
+      fadeInTimer = null;
+    }
+    TrackPlayer.setVolume(vol).catch(() => {});
+  }, intervalTime);
+}
+
+function executeFadeOut(remainingTime: number) {
+  if (fadeOutTimer) clearInterval(fadeOutTimer);
+  if (fadeInTimer) {
+    clearInterval(fadeInTimer);
+    fadeInTimer = null;
+  }
+  
+  let vol = 1.0;
+  const intervalTime = 50;
+  const steps = (remainingTime * 1000) / intervalTime;
+  const delta = 1.0 / (steps > 0 ? steps : 1);
+  
+  fadeOutTimer = setInterval(async () => {
+    vol -= delta;
+    if (vol <= 0.0) {
+      vol = 0.0;
+      clearInterval(fadeOutTimer);
+      fadeOutTimer = null;
+    }
+    TrackPlayer.setVolume(vol).catch(() => {});
+  }, intervalTime);
+}
+
 export async function PlaybackService() {
+  loadCrossfadePrefs().catch(() => {});
+  let lastPosition = 0;
+
   TrackPlayer.addEventListener(Event.RemotePause, () => {
     TrackPlayer.pause();
   });
@@ -73,8 +143,16 @@ export async function PlaybackService() {
     if (currentId && lastTrackId && lastTrackId !== currentId) {
       console.log('[PlaybackService] Resetting retry count for', currentId);
       retryCounts.delete(currentId);
+      SleepTimerManager.getInstance().handlePlaybackStateOrTrackChange();
     }
     lastTrackId = currentId;
+
+    fadeOutTriggeredForTrack = null;
+    skipTriggeredForTrack = null;
+    await loadCrossfadePrefs();
+    if (isCrossfadeEnabled && currentId) {
+      executeFadeIn();
+    }
 
     const idx = await TrackPlayer.getActiveTrackIndex();
     if (typeof idx === 'number') {
@@ -97,6 +175,10 @@ export async function PlaybackService() {
           const currentActiveTrack = currentTrack;
           if (currentActiveTrack && currentActiveTrack.url && currentActiveTrack.url.toString().includes('dummy.com')) {
             console.log(`[PlaybackService] Active track is a placeholder: ${currentActiveTrack.title}. Resolving immediately...`);
+            
+            const stateBeforeResolve = await TrackPlayer.getState();
+            const wasPlayingBeforeResolve = stateBeforeResolve === State.Playing || stateBeforeResolve === State.Buffering;
+
             resolveAudio(String(currentActiveTrack.id))
               .then(async (resolved) => {
                 const liveActiveIndex = await TrackPlayer.getActiveTrackIndex();
@@ -129,11 +211,11 @@ export async function PlaybackService() {
                     if (position > 0) {
                       await TrackPlayer.seekTo(position);
                     }
-                    if (!suppressNextAutoPlay) {
+                    if (wasPlayingBeforeResolve && !suppressNextAutoPlay) {
                       await TrackPlayer.play();
                     } else {
                       suppressNextAutoPlay = false;
-                      console.log('[PlaybackService] Suppressed auto-play (video quality change).');
+                      console.log('[PlaybackService] Suppressed auto-play (initially paused or app opening).');
                     }
                     console.log(`[PlaybackService] Active track resolution complete: ${currentActiveTrack.title}`);
                   }
@@ -272,8 +354,49 @@ export async function PlaybackService() {
     }
   });
 
-  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, async (event) => {
     savePlayerPosition(event.position);
+
+    // Detect loop/restart (when position jumps back to 0 or starts over)
+    if (event.position < lastPosition && lastPosition > event.duration - 5) {
+      console.log('[PlaybackService] Loop/restart detected. Position reset from', lastPosition, 'to', event.position);
+      fadeOutTriggeredForTrack = null;
+      skipTriggeredForTrack = null;
+      if (isCrossfadeEnabled) {
+        executeFadeIn();
+      } else {
+        TrackPlayer.setVolume(1.0).catch(() => {});
+      }
+    }
+    lastPosition = event.position;
+
+    if (isCrossfadeEnabled && event.duration > 0) {
+      const remaining = event.duration - event.position;
+
+      // 1. Trigger Fade Out
+      if (remaining <= crossfadeDurationSec) {
+        const active = await TrackPlayer.getActiveTrack();
+        if (active && active.id && fadeOutTriggeredForTrack !== active.id) {
+          fadeOutTriggeredForTrack = active.id;
+          executeFadeOut(remaining);
+        }
+      }
+
+      // 2. Trigger Early Skip (0.8s remaining) to mix seamlessly
+      if (remaining <= 0.8) {
+        const active = await TrackPlayer.getActiveTrack();
+        if (active && active.id && skipTriggeredForTrack !== active.id) {
+          skipTriggeredForTrack = active.id;
+          const queue = await TrackPlayer.getQueue();
+          const activeIndex = await TrackPlayer.getActiveTrackIndex();
+          if (activeIndex !== undefined && activeIndex < queue.length - 1) {
+            console.log('[PlaybackService] Cross song mix: skipping early to next track.');
+            await TrackPlayer.skipToNext();
+            await TrackPlayer.play();
+          }
+        }
+      }
+    }
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
@@ -315,6 +438,9 @@ export async function PlaybackService() {
           }
           retryCounts.set(trackId, attempts + 1);
 
+          const stateBeforeResolve = await TrackPlayer.getState();
+          const wasPlayingBeforeResolve = stateBeforeResolve === State.Playing || stateBeforeResolve === State.Buffering;
+
           const isYtTrack = activeTrack.id.length === 11 || activeTrack.album === 'YouTube Music' || activeTrack.album === 'Single' || activeTrack.url?.toString().includes('googlevideo.com') || activeTrack.url?.toString().includes('dummy.com');
           if (isYtTrack) {
             console.log(`[PlaybackService] Bad HTTP status or Source error on track ${activeTrack.title}. Refreshing stream URL (attempt ${attempts + 1}/2)...`);
@@ -349,7 +475,11 @@ export async function PlaybackService() {
                 console.log(`[PlaybackService] Seeking to last known position: ${position.toFixed(1)}s`);
                 await TrackPlayer.seekTo(position);
               }
-              await TrackPlayer.play();
+              if (wasPlayingBeforeResolve) {
+                await TrackPlayer.play();
+              } else {
+                console.log('[PlaybackService] Recovery complete. Player was paused, keeping paused.');
+              }
             }
           }
         }

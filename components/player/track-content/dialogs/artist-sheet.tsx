@@ -8,7 +8,7 @@ import { PlayerSheet } from './player-sheet';
 interface ArtistSheetProps {
   visible: boolean;
   onClose: () => void;
-  artistOptions: Array<{ name: string; id: string }>;
+  artistOptions: { name: string; id: string }[];
   onSelectArtist: (id: string) => void;
 }
 

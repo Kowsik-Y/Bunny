@@ -1,5 +1,4 @@
 const SAAVN_SERVERS = [
-  'https://saavn.echomusic.fun',
   'https://jiosaavn-api.pc-adityadav9532.workers.dev',
   'https://jiosaavn-api.mac-adityadav9532.workers.dev',
 ];
@@ -13,7 +12,7 @@ async function fetchSaavn(endpoint: string, params: Record<string, string>): Pro
       const res = await fetch(url, {
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'EchoMusic/1.0',
+          'User-Agent': 'Bunny/1.0',
         },
       });
       if (res.ok) {
@@ -178,7 +177,7 @@ export async function resolveJioSaavn(
     allAudio: [bestFormat],
     videoUrl: null,
     client: 'JIOSAAVN_FALLBACK',
-    streamUA: 'EchoMusic/1.0',
+    streamUA: 'Bunny/1.0',
     track: {
       id: videoId,
       url: streamUrl,
@@ -186,12 +185,13 @@ export async function resolveJioSaavn(
       artist: (bestMatch.artists?.primary || []).map((a: any) => a.name).join(', '),
       artwork: thumbnail || undefined,
       duration,
+      explicit: !!bestMatch.explicitContent || undefined,
       allAudio: [bestFormat],
       activeItag: 0,
       allVideo: [],
       activeVideoItag: undefined,
-      headers: { 'User-Agent': 'EchoMusic/1.0' },
-      userAgent: 'EchoMusic/1.0',
+      headers: { 'User-Agent': 'Bunny/1.0' },
+      userAgent: 'Bunny/1.0',
     },
   };
 }

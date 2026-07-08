@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated as RNAnimated, Easing, Pressable, View, LayoutChangeEvent, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, interpolate, Extrapolate } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, interpolate, Extrapolate, useSharedValue, withTiming } from 'react-native-reanimated';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
 import { type BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
@@ -22,6 +22,11 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const isDark = colorScheme === 'dark';
   const { translateY, snapCollapsed, bottomOffset } = usePlayerAnimation();
 
+  const activeRouteName = state.routes[state.index].name;
+  const isTabBarVisible = VISIBLE_ROUTES.includes(activeRouteName);
+  
+  const tabVisibility = useSharedValue(isTabBarVisible ? 1 : 0);
+
   const outerGradient: [string, string] = isDark 
     ? [colors.border, colors.background] 
     : ['#FFFFFF', colors.border];
@@ -33,11 +38,12 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
     : ['#FFFFFF', colors.border];
 
   useEffect(() => {
-    bottomOffset.value = PLAYER_BOTTOM_OFFSET;
+    tabVisibility.value = withTiming(isTabBarVisible ? 1 : 0, { duration: 250 });
+    bottomOffset.value = isTabBarVisible ? PLAYER_BOTTOM_OFFSET : 0;
     return () => {
       bottomOffset.value = 0;
     };
-  }, []);
+  }, [isTabBarVisible]);
 
   const pillX = useRef(new RNAnimated.Value(0)).current;
   const pillW = useRef(new RNAnimated.Value(0)).current;
@@ -47,8 +53,6 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
   const measuredCount = useRef(0);
   const [ready, setReady] = useState(false);
-
-  const activeRouteName = state.routes[state.index].name;
 
   const startX = useRef(0);
   const lastTargetIndex = useRef(-1);
@@ -182,29 +186,40 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   const tabContainerStyle = useAnimatedStyle(() => {
+    const expansionTranslateY = interpolate(
+      translateY.value,
+      [0, snapCollapsed.value],
+      [150, 0],
+      Extrapolate.CLAMP
+    );
+    const expansionOpacity = interpolate(
+      translateY.value,
+      [0, snapCollapsed.value * 0.5],
+      [0, 1],
+      Extrapolate.CLAMP
+    );
+
+    const routeTranslateY = interpolate(
+      tabVisibility.value,
+      [0, 1],
+      [150, 0],
+      Extrapolate.CLAMP
+    );
+    const routeOpacity = tabVisibility.value;
+
     return {
       transform: [
         {
-          translateY: interpolate(
-            translateY.value,
-            [0, snapCollapsed.value],
-            [150, 0],
-            Extrapolate.CLAMP
-          ),
+          translateY: expansionTranslateY + routeTranslateY,
         },
       ],
-      opacity: interpolate(
-        translateY.value,
-        [0, snapCollapsed.value * 0.5],
-        [0, 1],
-        Extrapolate.CLAMP
-      ),
+      opacity: expansionOpacity * routeOpacity,
     };
   });
 
 
   return (
-    <Animated.View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0 }, tabContainerStyle]}>
+    <Animated.View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0 }, tabContainerStyle]} pointerEvents={isTabBarVisible ? "auto" : "none"}>
       <GestureDetector gesture={tabPanGesture}>
         <View
           style={{

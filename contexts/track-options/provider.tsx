@@ -12,6 +12,8 @@ import { TrackOptionsContext } from './context';
 import { useTrackOptionsState } from './use-track-options-state';
 import { SheetsContent } from './sheets-content';
 import { Button } from '@/components/ui/button';
+import { CreditsSheet } from './sheets/credits-sheet';
+import { type AppTrack } from '@/components/player/Tracks';
 
 
 export function TrackOptionsProvider({ children }: { children: React.ReactNode }) {
@@ -23,6 +25,8 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
     setVisible,
     selectedItem,
     sheetScreen,
+    creditsVisible,
+    setCreditsVisible,
     newPlaylistVisible,
     setNewPlaylistVisible,
     newPlaylistName,
@@ -38,11 +42,32 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
     openAlbumOptions,
     openPlaylistOptions,
     openArtistOptions,
+    setSelectedTrack,
+    setSelectedItem,
     router,
   } = state;
 
+
+  const openCreditsSheet = (track: AppTrack) => {
+    setSelectedTrack(track);
+    setSelectedItem({
+      type: 'track',
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      artwork: track.artwork,
+    });
+    setCreditsVisible(true);
+  };
+
   return (
-    <TrackOptionsContext.Provider value={{ openTrackOptions, openAlbumOptions, openPlaylistOptions, openArtistOptions }}>
+    <TrackOptionsContext.Provider value={{ 
+      openTrackOptions, 
+      openAlbumOptions, 
+      openPlaylistOptions, 
+      openArtistOptions,
+      openCreditsSheet
+    }}>
       {children}
 
       {selectedItem && (
@@ -109,6 +134,17 @@ export function TrackOptionsProvider({ children }: { children: React.ReactNode }
           ))}
         </BottomSheetScrollView>
       </SwipeBottomSheet>
+
+
+      {selectedItem && (
+        <SwipeBottomSheet
+          visible={creditsVisible}
+          onClose={() => setCreditsVisible(false)}
+          backgroundColor={colors.card}
+        >
+          <CreditsSheet state={state} />
+        </SwipeBottomSheet>
+      )}
 
       <Alert
         visible={dismissQueueVisible}

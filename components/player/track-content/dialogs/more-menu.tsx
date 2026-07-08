@@ -1,12 +1,15 @@
 import { View, Image, Pressable, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { Typography as Text } from '@/components/ui/typography';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
-import { Heart, ListMusic, AudioLines, Disc, User, CheckCircle2, Download, Share2, Info, BarChart2, ListX } from 'lucide-react-native';
+import { ThumbsUp, ListMusic, AudioLines, Disc, User, CheckCircle2, Download, Share2, Info, BarChart2, ListX, Clock, Save, SlidersHorizontal, Repeat, Sliders, PhoneCall } from 'lucide-react-native';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
+import { useSleepTimer } from '@/services/sleepTimer';
+import { useTrackOptions } from '@/contexts/track-options';
 
 interface MoreMenuProps {
   visible: boolean;
@@ -14,6 +17,8 @@ interface MoreMenuProps {
   track: AppTrack;
   isFav: boolean;
   isLive: boolean;
+  repeatOn?: boolean;
+  onRepeat?: () => void;
   downloadingIds: Record<string, number>;
   isDownloaded: (id: string) => boolean;
   toggleFavorite: (track: AppTrack) => void;
@@ -23,6 +28,7 @@ interface MoreMenuProps {
   setShowAboutModal: (val: boolean) => void;
   setShowQualityModal: (val: boolean) => void;
   setShowStatsModal: (val: boolean) => void;
+  setShowSleepTimerModal: (val: boolean) => void;
   trackOptionsState: any;
   handleArtistPress: () => void;
 }
@@ -33,6 +39,8 @@ export function MoreMenu({
   track,
   isFav,
   isLive,
+  repeatOn = false,
+  onRepeat,
   downloadingIds,
   isDownloaded,
   toggleFavorite,
@@ -42,10 +50,20 @@ export function MoreMenu({
   setShowAboutModal,
   setShowQualityModal,
   setShowStatsModal,
+  setShowSleepTimerModal,
   trackOptionsState,
   handleArtistPress,
 }: MoreMenuProps) {
   const { colors } = useAppTheme();
+  const router = useRouter();
+  const { secondsRemaining, stopAtTrackEnd, cancelTimer } = useSleepTimer();
+  const { openCreditsSheet } = useTrackOptions();
+
+  const formatRemainingTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}m ${secs}s`;
+  };
 
   const {
     handlePlayNext,
@@ -59,6 +77,14 @@ export function MoreMenu({
   } = trackOptionsState;
 
   const isLiked = track ? isFavorite(track.id) : false;
+
+
+  const handleCreditsClick = () => {
+    onClose();
+    setTimeout(() => {
+      openCreditsSheet(track);
+    }, 250);
+  };
 
   return (
     <PlayerSheet visible={visible} onClose={onClose}>
@@ -90,9 +116,23 @@ export function MoreMenu({
           android_ripple={{ color: colors.border }}
           style={styles.moreActionRow}
         >
-          <Heart size={18} color={isLiked ? '#FF3B30' : colors.text} fill={isLiked ? '#FF3B30' : 'none'} />
+          <ThumbsUp size={18} color={isLiked ? '#FF3B30' : colors.text} />
           <Text style={[styles.moreActionText, { color: isLiked ? '#FF3B30' : colors.text }]}>
             {isLiked ? 'Remove from library' : 'Save to library'}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            onRepeat?.();
+            onClose();
+          }}
+          android_ripple={{ color: colors.border }}
+          style={styles.moreActionRow}
+        >
+          <Repeat size={18} color={repeatOn ? colors.primary : colors.text} />
+          <Text style={[styles.moreActionText, { color: repeatOn ? colors.primary : colors.text }]}>
+            {repeatOn ? 'Repeat Mode: On' : 'Repeat Mode: Off'}
           </Text>
         </Pressable>
 
@@ -158,13 +198,17 @@ export function MoreMenu({
             {downloadingIds[track.id] !== undefined ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : isDownloaded(track.id) ? (
-              <CheckCircle2 size={18} color="#34C759" />
+              <Save size={18} color="#34C759" />
             ) : (
               <Download size={18} color={colors.text} />
             )}
             <Text style={[styles.moreActionText, { color: isDownloaded(track.id) ? '#34C759' : colors.text }]}>
               {downloadingIds[track.id] !== undefined
-                ? `Downloading (${Math.round(downloadingIds[track.id] * 100)}%)`
+                ? downloadingIds[track.id] >= 0.95
+                  ? downloadingIds[track.id] >= 0.97
+                    ? 'Embedding metadata…'
+                    : 'Getting LRC…'
+                  : `Downloading (${Math.round((downloadingIds[track.id] / 0.95) * 100)}%)`
                 : isDownloaded(track.id)
                   ? 'Downloaded'
                   : 'Download Song'}
@@ -181,11 +225,43 @@ export function MoreMenu({
           <Text style={[styles.moreActionText, { color: colors.text }]}>Share Song</Text>
         </Pressable>
 
+
         <Pressable
           onPress={() => {
             onClose();
-            setTimeout(() => setShowAboutModal(true), 250);
+            setTimeout(() => setShowSleepTimerModal(true), 250);
           }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <Clock size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>
+            {secondsRemaining !== null
+              ? `Sleep Timer (${formatRemainingTime(secondsRemaining)})`
+              : stopAtTrackEnd
+                ? 'Sleep Timer (End of Track)'
+                : 'Sleep Timer'}
+          </Text>
+        </Pressable>
+
+        {(secondsRemaining !== null || stopAtTrackEnd) && (
+          <Pressable
+            onPress={() => {
+              cancelTimer();
+              onClose();
+            }}
+            style={styles.moreActionRow}
+            android_ripple={{ color: colors.border }}
+          >
+            <Clock size={18} color="#FF3B30" />
+            <Text style={[styles.moreActionText, { color: '#FF3B30', fontWeight: '700' }]}>
+              Stop Sleep Timer
+            </Text>
+          </Pressable>
+        )}
+
+        <Pressable
+          onPress={handleCreditsClick}
           style={styles.moreActionRow}
           android_ripple={{ color: colors.border }}
         >
@@ -203,6 +279,20 @@ export function MoreMenu({
         >
           <BarChart2 size={20} color={colors.text} />
           <Text style={[styles.moreActionText, { color: colors.text }]}>Stats for nerds</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => {
+              router.push('/settings/equalizer' as any);
+            }, 250);
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <Sliders size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Equalizer & Bass</Text>
         </Pressable>
 
         <Pressable

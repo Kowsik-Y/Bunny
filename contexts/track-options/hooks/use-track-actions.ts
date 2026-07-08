@@ -2,12 +2,13 @@ import { Share, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import TrackPlayer from 'react-native-track-player';
 import { type AppTrack } from '@/components/player/Tracks';
-import { PlayerActions, toast } from '@/services';
+import { PlayerActions, toast, usePinnedTracks } from '@/services';
+import { type SelectedItemState } from '../types';
 
 interface TrackActionsParams {
   selectedTrack: AppTrack | null;
   setVisible: (visible: boolean) => void;
-  setArtistOptions: (options: Array<{ name: string; id: string }>) => void;
+  setArtistOptions: (options: { name: string; id: string }[]) => void;
   setShowArtistSheet: (show: boolean) => void;
   setDismissQueueVisible: (visible: boolean) => void;
   toggleFavorite: (track: AppTrack) => Promise<void>;
@@ -16,6 +17,7 @@ interface TrackActionsParams {
   isDownloaded: (id: string) => boolean;
   downloadingIds: Record<string, number>;
   removeDownload: (id: string) => Promise<void>;
+  selectedItem: SelectedItemState | null;
 }
 
 export function useTrackActions({
@@ -30,8 +32,10 @@ export function useTrackActions({
   isDownloaded,
   downloadingIds,
   removeDownload,
+  selectedItem,
 }: TrackActionsParams) {
   const router = useRouter();
+  const { togglePinTrack } = usePinnedTracks();
 
   const handlePlayNext = async () => {
     if (!selectedTrack) return;
@@ -147,9 +151,33 @@ export function useTrackActions({
     toast.success('Queue cleared');
   };
 
-  const handlePinListenAgain = () => {
+  const handlePinListenAgain = async () => {
+    const itemToPin = selectedItem || (selectedTrack ? {
+      id: selectedTrack.id,
+      type: 'track' as const,
+      title: selectedTrack.title,
+      artist: selectedTrack.artist,
+      artwork: selectedTrack.artwork,
+    } : null);
+
+    if (!itemToPin) return;
     setVisible(false);
-    toast.success('Pinned to Listen Again');
+    try {
+      const pinned = await togglePinTrack({
+        id: itemToPin.id,
+        type: itemToPin.type,
+        title: itemToPin.title,
+        artist: itemToPin.artist,
+        artwork: itemToPin.artwork,
+      });
+      if (pinned) {
+        toast.success('Pinned to Speed Dial');
+      } else {
+        toast.success('Unpinned from Speed Dial');
+      }
+    } catch (e) {
+      toast.error('Failed to update pin state');
+    }
   };
 
   return {

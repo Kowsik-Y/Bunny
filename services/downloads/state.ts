@@ -3,6 +3,7 @@ import { type AppTrack } from '@/components/player/Tracks';
 export const DOWNLOADS_KEY = '@bunny_downloads';
 export const DOWNLOAD_LOCATION_KEY = '@bunny_download_location';
 export const CONCURRENT_LIMIT_KEY = '@bunny_concurrent_limit';
+export const DOWNLOAD_ENGINE_KEY = '@bunny_download_engine';
 export const DOWNLOADS_UPDATED_EVENT = 'downloads_updated';
 
 // Global active download task registry

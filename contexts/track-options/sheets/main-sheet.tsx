@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Image, Text, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
-import { Heart, ListVideo, ListPlus, Bookmark, Loader2, CheckCircle2, Download, ListMusic, MinusCircle, Disc, User, Info, Share2, Pin, BarChart2, ListX, FolderPlus, Trash2, Shuffle } from 'lucide-react-native';
+import { ThumbsUp, ListVideo, ListPlus, Bookmark, Loader2, CheckCircle2, Download, ListMusic, MinusCircle, Disc, User, Info, Share2, Pin, BarChart2, ListX, FolderPlus, Trash2, Shuffle, Save, PhoneCall } from 'lucide-react-native';
 import { Alert } from '@/components/ui/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheetScrollView } from '@/components/player/SwipeBottomSheet';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { searchYtMusic } from '@/services/ytMusic';
-import { PlayerActions, usePlaylists, useCurrentTrack } from '@/services';
+import { PlayerActions, usePlaylists, useCurrentTrack, useDownloads } from '@/services';
 import { ActionRow } from '../action-row';
 import { TrackOptionsState } from '../use-track-options-state';
 import { styles } from '../styles';
@@ -18,6 +18,7 @@ interface MainSheetProps {
 export function MainSheet({ state }: MainSheetProps) {
   const { colors } = useAppTheme();
   const { deletePlaylist } = usePlaylists();
+  const { hasDownloadedLrc } = useDownloads();
   const [deleteAlertVisible, setDeleteAlertVisible] = React.useState(false);
   const currentTrack = useCurrentTrack();
   const {
@@ -43,9 +44,19 @@ export function MainSheet({ state }: MainSheetProps) {
     handleShareCollection,
     handleGoToArtistFromCollection,
     setSheetScreen,
+    setCreditsVisible,
+    setVisible,
   } = state;
 
   if (!selectedItem) return null;
+
+
+  const handleCreditsPress = () => {
+    setVisible(false);
+    setTimeout(() => {
+      setCreditsVisible(true);
+    }, 350);
+  };
 
   const isCurrentTrackActive = !!(
     currentTrack &&
@@ -65,7 +76,7 @@ export function MainSheet({ state }: MainSheetProps) {
             colors={['#8E2DE2', '#4A00E0']}
             style={[styles.artwork, { alignItems: 'center', justifyContent: 'center' }]}
           >
-            <Heart fill="#ffffff" size={24} color="#ffffff" />
+            <ThumbsUp size={24} color="#ffffff" />
           </LinearGradient>
         ) : (
           <Image
@@ -118,7 +129,7 @@ export function MainSheet({ state }: MainSheetProps) {
               </>
             )}
             <ActionRow
-              icon={<Heart fill={isLiked ? '#FF3B30' : colors.text} size={18} color={isLiked ? '#FF3B30' : colors.text} />}
+              icon={<ThumbsUp size={18} color={isLiked ? '#FF3B30' : colors.text} />}
               label={isLiked ? 'Remove from library' : 'Save to library'}
               onPress={handleToggleLike}
               color={isLiked ? '#FF3B30' : undefined}
@@ -128,19 +139,26 @@ export function MainSheet({ state }: MainSheetProps) {
               const dlProgress = downloadingIds[trackId];
               const dlDone = isDownloaded(trackId);
               const isInProgress = dlProgress !== undefined;
+              const hasLrc = hasDownloadedLrc(trackId);
 
               const iconEl = isInProgress ? (
                 <Loader2 size={20} color={colors.primary} />
               ) : dlDone ? (
-                <CheckCircle2 size={18} color="#34C759" />
+                <Save size={18} color="#34C759" />
               ) : (
                 <Download size={18} color={colors.text} />
               );
 
               const labelEl = isInProgress
-                ? `Downloading… ${Math.round(dlProgress * 100)}%`
+                ? dlProgress >= 0.95
+                  ? dlProgress >= 0.97
+                    ? 'Embedding metadata…'
+                    : 'Getting LRC…'
+                  : `Downloading… ${Math.round((dlProgress / 0.95) * 100)}%`
                 : dlDone
-                  ? 'Downloaded  •  Tap to remove'
+                  ? hasLrc
+                    ? 'Downloaded • LRC'
+                    : 'Downloaded'
                   : 'Download';
 
               const labelColor = isInProgress
@@ -193,18 +211,12 @@ export function MainSheet({ state }: MainSheetProps) {
             <ActionRow
               icon={<Info size={18} color={colors.text} />}
               label="View song credits"
-              onPress={() => setSheetScreen('credits')}
+              onPress={handleCreditsPress}
             />
             <ActionRow
               icon={<Share2 size={18} color={colors.text} />}
               label="Share"
               onPress={handleShare}
-            />
-            <ActionRow
-              icon={<Pin size={20} color={colors.text} />}
-              label="Pin to Listen again"
-              onPress={state.handlePinListenAgain}
-              last={!isCurrentTrackActive}
             />
             {isCurrentTrackActive && (
               <ActionRow
@@ -237,7 +249,7 @@ export function MainSheet({ state }: MainSheetProps) {
               onPress={handleAddToQueueCollection}
             />
             <ActionRow
-              icon={<Heart fill={colors.text} size={18} color={colors.text} />}
+              icon={<ThumbsUp fill={colors.text} size={18} color={colors.text} />}
               label="Save album to library"
               onPress={handleSaveAlbumToLibrary}
             />
@@ -348,6 +360,13 @@ export function MainSheet({ state }: MainSheetProps) {
             />
           </>
         )}
+
+        <ActionRow
+          icon={<Pin size={20} color={state.isTrackPinned(selectedItem.id) ? colors.primary : colors.text} fill={state.isTrackPinned(selectedItem.id) ? colors.primary : 'none'} />}
+          label={state.isTrackPinned(selectedItem.id) ? "Unpin from Speed Dial" : "Pin to Speed Dial"}
+          onPress={state.handlePinListenAgain}
+          last
+        />
       </BottomSheetScrollView>
 
       <Alert

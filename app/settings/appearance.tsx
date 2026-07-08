@@ -11,13 +11,13 @@ import { Muted, Typography } from '@/components/ui/typography';
 import { ThemeVariantOptions, getFontFamilies, type ThemeFontName, type ThemeMode } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 
-const themeModes: Array<{ label: string; value: ThemeMode }> = [
+const themeModes: { label: string; value: ThemeMode }[] = [
   { label: 'System', value: 'system' },
   { label: 'Light', value: 'light' },
   { label: 'Dark', value: 'dark' },
 ];
 
-const themeFonts: Array<{ label: string; value: ThemeFontName }> = [
+const themeFonts: { label: string; value: ThemeFontName }[] = [
   { label: 'Sans', value: 'sans' },
   { label: 'Serif', value: 'serif' },
   { label: 'Rounded', value: 'rounded' },

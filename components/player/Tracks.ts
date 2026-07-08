@@ -20,6 +20,8 @@ export type AppTrack = Track & {
   website?: string;
   streamHost?: string;
   isAutoplay?: boolean;
+  explicit?: boolean;
+  lrc?: string;
 };
 
 const tracks: AppTrack[] = [];

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { type AppTrack } from '@/components/player/Tracks';
-import { useFavorites, useDownloads, usePlaylists, useQueue } from '@/services';
+import { useFavorites, useDownloads, usePlaylists, useQueue, usePinnedTracks } from '@/services';
 import { SelectedItemState } from './types';
 import { useTrackActions } from './hooks/use-track-actions';
 import { useCollectionActions } from './hooks/use-collection-actions';
@@ -17,14 +17,16 @@ export function useTrackOptionsState() {
   const { startDownload, isDownloaded, downloadingIds, removeDownload } = useDownloads();
   const { playlists, addTrackToPlaylist, createPlaylist } = usePlaylists();
   const queue = useQueue();
+  const { isTrackPinned } = usePinnedTracks();
 
   const isInQueue = selectedTrack ? queue.some(t => String(t.id) === String(selectedTrack.id)) : false;
 
-  const [sheetScreen, setSheetScreen] = useState<'main' | 'playlists' | 'credits' | 'stats'>('main');
+  const [sheetScreen, setSheetScreen] = useState<'main' | 'playlists' | 'stats'>('main');
+  const [creditsVisible, setCreditsVisible] = useState(false);
   const [newPlaylistVisible, setNewPlaylistVisible] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [showArtistSheet, setShowArtistSheet] = useState(false);
-  const [artistOptions, setArtistOptions] = useState<Array<{ name: string; id: string }>>([]);
+  const [artistOptions, setArtistOptions] = useState<{ name: string; id: string }[]>([]);
   const [dismissQueueVisible, setDismissQueueVisible] = useState(false);
 
   const openTrackOptions = (track: AppTrack) => {
@@ -90,6 +92,7 @@ export function useTrackOptionsState() {
     isDownloaded,
     downloadingIds,
     removeDownload,
+    selectedItem,
   });
 
   const collectionActions = useCollectionActions({
@@ -115,14 +118,19 @@ export function useTrackOptionsState() {
     visible,
     setVisible,
     selectedTrack,
+    setSelectedTrack,
     selectedItem,
+    setSelectedItem,
     isFavorite,
     isDownloaded,
     downloadingIds,
     playlists,
     isInQueue,
+    isTrackPinned,
     sheetScreen,
     setSheetScreen,
+    creditsVisible,
+    setCreditsVisible,
     newPlaylistVisible,
     setNewPlaylistVisible,
     newPlaylistName,

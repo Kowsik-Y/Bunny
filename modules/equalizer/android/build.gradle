@@ -1,0 +1,26 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'com.bunny.equalizer'
+version = '0.1.0'
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  compileOnly project(':react-native-track-player')
+  compileOnly "com.facebook.react:react-native:+"
+}
+
+android {
+  namespace "com.bunny.equalizer"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}

@@ -61,8 +61,8 @@ export function ArtistHero({
 
   const isSmallHeader = height < 150;
   const contentPaddingTop = isSmallHeader ? insets.top + 5 : insets.top + 44;
-  const nameFontSize = isSmallHeader ? 22 : 32;
-  const nameLineHeight = isSmallHeader ? 26 : 36;
+  const nameFontSize = isSmallHeader ? 22 : 44;
+  const nameLineHeight = isSmallHeader ? 26 : 48;
 
   const [dominantHex, setDominantHex] = useState<string | null>(null);
 
@@ -100,7 +100,7 @@ export function ArtistHero({
 
   // Text should be white when gradient base is dark, dark when gradient base is light
   const useWhiteText = isDark || lum < 0.55;
-  const textColor = colors.text;
+  const textColor = useWhiteText ? '#FFFFFF' : colors.text;
   const pillBg = useWhiteText ? 'rgba(0,0,0)' : 'rgba(0,0,0,0.12)';
 
   const resolvedSubscribers = typeof subscribers === 'string'
@@ -138,7 +138,12 @@ export function ArtistHero({
 
       {/* Dynamic bottom gradient overlay so text is readable and it fades into content */}
       <LinearGradient
-        colors={isDark ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', colors.background] : ['rgba(255,255,255,0)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0.1)', colors.background]}
+        colors={[
+          withAlpha(colors.background, 0),
+          withAlpha(colors.background, 0.45),
+          withAlpha(colors.background, 0.85),
+          colors.background,
+        ]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -182,10 +187,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   artistName: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontWeight: '900',
+    letterSpacing: -1.0,
+    textShadowColor: 'rgba(0, 0, 0, 0.45)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },

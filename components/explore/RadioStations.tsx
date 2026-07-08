@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Typography, Muted } from '@/components/ui/typography';

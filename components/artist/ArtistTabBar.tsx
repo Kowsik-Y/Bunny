@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Animated as RNAnimated, LayoutChangeEvent, Pressable } from 'react-native';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { StyleSheet, View, Animated as RNAnimated, LayoutChangeEvent, Pressable, ScrollView } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Shuffle, Radio } from 'lucide-react-native';
@@ -61,15 +61,60 @@ export function ArtistTabBar({
   const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
   const measuredCount = useRef(0);
   const [ready, setReady] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
   const startX = useRef(0);
   const lastTargetIndex = useRef(-1);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const autoScrollRAF = useRef<number | null>(null);
+  const autoScrollDirection = useRef<'left' | 'right' | null>(null);
+  const autoScrollStartTime = useRef<number>(0);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRAF.current !== null) {
+      cancelAnimationFrame(autoScrollRAF.current);
+      autoScrollRAF.current = null;
+    }
+    autoScrollDirection.current = null;
+  }, []);
+
+  const startAutoScroll = useCallback((direction: 'left' | 'right') => {
+    // If already scrolling in the same direction, keep going
+    if (autoScrollDirection.current === direction) return;
+    // Direction changed or starting fresh — cancel old loop first
+    if (autoScrollRAF.current !== null) {
+      cancelAnimationFrame(autoScrollRAF.current);
+      autoScrollRAF.current = null;
+    }
+    autoScrollDirection.current = direction;
+    autoScrollStartTime.current = performance.now();
+
+    const step = (now: number) => {
+      if (autoScrollDirection.current !== direction) return; // direction changed, stop
+      // Accelerate: 8px → 28px over 600ms
+      const elapsed = now - autoScrollStartTime.current;
+      const speed = Math.min(8 + (elapsed / 600) * 20, 28);
+      const delta = direction === 'right' ? speed : -speed;
+      scrollOffsetRef.current = Math.max(0, scrollOffsetRef.current + delta);
+      scrollViewRef.current?.scrollTo({ x: scrollOffsetRef.current, animated: false });
+      autoScrollRAF.current = requestAnimationFrame(step);
+    };
+    autoScrollRAF.current = requestAnimationFrame(step);
+  }, []);
 
   const tabKeysString = availableTabs.join(',');
   useEffect(() => {
-    tabLayouts.current = {};
-    measuredCount.current = 0;
-    setReady(false);
+    const allMeasured = availableTabs.length > 0 && availableTabs.every(tab => tabLayouts.current[tab] !== undefined);
+    if (allMeasured) {
+      setReady(true);
+      setTimeout(() => {
+        slideTo(activeTab, false);
+      }, 0);
+    } else {
+      setReady(false);
+    }
   }, [tabKeysString]);
 
   const slideTo = (tabName: string, animate = true) => {
@@ -81,6 +126,8 @@ export function ArtistTabBar({
       pillW.setValue(layout.width);
       return;
     }
+
+    setIsMoving(true);
 
     RNAnimated.parallel([
       RNAnimated.spring(pillX, {
@@ -95,18 +142,24 @@ export function ArtistTabBar({
         damping: 18,
         stiffness: 150,
       }),
-    ]).start();
+    ]).start((finished) => {
+      if (finished) {
+        setIsMoving(false);
+      }
+    });
   };
 
   const onTabLayout = (tabName: string, e: LayoutChangeEvent) => {
-    if (tabLayouts.current[tabName]) return;
-
     const { x, width } = e.nativeEvent.layout;
-    tabLayouts.current[tabName] = { x, width };
-    measuredCount.current += 1;
+    
+    const current = tabLayouts.current[tabName];
+    if (current && current.x === x && current.width === width) return;
 
-    if (measuredCount.current === availableTabs.length) {
-      setReady(true);
+    tabLayouts.current[tabName] = { x, width };
+
+    const allMeasured = availableTabs.length > 0 && availableTabs.every(tab => tabLayouts.current[tab] !== undefined);
+    if (allMeasured) {
+      if (!ready) setReady(true);
       setTimeout(() => {
         slideTo(activeTab, false);
       }, 0);
@@ -123,6 +176,7 @@ export function ArtistTabBar({
     .activeOffsetX([-10, 10])
     .runOnJS(true)
     .onStart(() => {
+      setIsMoving(true);
       const activeLayout = tabLayouts.current[activeTab];
       if (activeLayout) {
         startX.current = activeLayout.x;
@@ -151,6 +205,19 @@ export function ArtistTabBar({
         }
 
         pillX.setValue(nextX);
+
+        // Auto-scroll when dragging near the edges of the visible area
+        const EDGE_ZONE = 50;
+        const absoluteX = e.absoluteX;
+        if (containerWidth > 0) {
+          if (absoluteX < EDGE_ZONE) {
+            startAutoScroll('left');
+          } else if (absoluteX > containerWidth - EDGE_ZONE) {
+            startAutoScroll('right');
+          } else {
+            stopAutoScroll();
+          }
+        }
 
         let closestIndex = lastTargetIndex.current;
         let minDiff = Infinity;
@@ -183,6 +250,7 @@ export function ArtistTabBar({
       }
     })
     .onEnd((e) => {
+      stopAutoScroll();
       RNAnimated.spring(pillScale, {
         toValue: 1,
         useNativeDriver: false,
@@ -208,14 +276,20 @@ export function ArtistTabBar({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         const layout = tabLayouts.current[activeTab];
         if (layout) {
-          RNAnimated.spring(pillX, {
-            toValue: layout.x,
-            useNativeDriver: false,
-          }).start();
-          RNAnimated.spring(pillW, {
-            toValue: layout.width,
-            useNativeDriver: false,
-          }).start();
+          RNAnimated.parallel([
+            RNAnimated.spring(pillX, {
+              toValue: layout.x,
+              useNativeDriver: false,
+            }),
+            RNAnimated.spring(pillW, {
+              toValue: layout.width,
+              useNativeDriver: false,
+            })
+          ]).start(() => {
+            setIsMoving(false);
+          });
+        } else {
+          setIsMoving(false);
         }
       }
     });
@@ -247,6 +321,7 @@ export function ArtistTabBar({
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.capsuleOuter}
+            onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
           >
             <LinearGradient
               colors={innerGradient}
@@ -262,59 +337,72 @@ export function ArtistTabBar({
                 />
               </View>
 
-              <View style={styles.tabsContainer}>
-                {ready && (
-                  <RNAnimated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.slidingPill,
-                      {
-                        left: pillX,
-                        width: pillW,
-                        transform: [{ scale: pillScale }],
-                      },
-                    ]}
-                  >
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, borderRadius: 20 }]} />
-                    <LinearGradient
-                      colors={isDark ? ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'] : ['rgba(255,255,255,0.22)', 'rgba(0,0,0,0.15)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
-                    />
-                    <LinearGradient
-                      colors={isDark ? ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.07)'] : ['rgba(0,0,0,0.10)', 'rgba(255,255,255,0.12)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: 19 }]}
-                    />
-                  </RNAnimated.View>
-                )}
-
-                {availableTabs.map((tab) => {
-                  const isActive = activeTab === tab;
-                  return (
-                    <Pressable
-                      key={tab}
-                      onPress={() => onTabChange(tab)}
-                      onLayout={(e) => onTabLayout(tab, e)}
-                      style={styles.tabBtn}
+              <ScrollView
+                ref={scrollViewRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                bounces={false}
+                scrollEventThrottle={16}
+                onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.x; }}
+                style={{ flexGrow: 0, flexShrink: 0 }}
+                contentContainerStyle={{ flexGrow: 0, alignItems: 'center' }}
+              >
+                <View style={styles.tabsContainer}>
+                  {ready && (
+                    <RNAnimated.View
+                      pointerEvents="none"
+                      style={[
+                        styles.slidingPill,
+                        {
+                          left: pillX,
+                          width: pillW,
+                          transform: [{ scale: pillScale }],
+                        },
+                      ]}
                     >
-                      <Typography
-                        style={[
-                          styles.tabLabel,
-                          {
-                            color: isActive ? colors.primaryForeground : colors.mutedForeground,
-                            fontWeight: isActive ? '700' : '600',
-                          },
-                        ]}
+                      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, borderRadius: 20 }]} />
+                      <LinearGradient
+                        colors={isDark ? ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.18)'] : ['rgba(255,255,255,0.22)', 'rgba(0,0,0,0.15)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+                      />
+                      <LinearGradient
+                        colors={isDark ? ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.07)'] : ['rgba(0,0,0,0.10)', 'rgba(255,255,255,0.12)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={[StyleSheet.absoluteFill, { margin: 1, borderRadius: 19 }]}
+                      />
+                    </RNAnimated.View>
+                  )}
+
+                  {availableTabs.map((tab) => {
+                    const isActive = activeTab === tab;
+                    return (
+                      <Pressable
+                        key={tab}
+                        onPress={() => onTabChange(tab)}
+                        onLayout={(e) => onTabLayout(tab, e)}
+                        style={styles.tabBtn}
                       >
-                        {tab}
-                      </Typography>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <Typography
+                          style={[
+                            styles.tabLabel,
+                            {
+                              color: isActive
+                                ? (isMoving ? colors.text : colors.primaryForeground)
+                                : colors.mutedForeground,
+                              fontWeight: isActive ? '700' : '600',
+                            },
+                          ]}
+                        >
+                          {tab}
+                        </Typography>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </LinearGradient>
           </LinearGradient>
         </View>
@@ -342,22 +430,28 @@ const styles = StyleSheet.create({
   },
   tabBarWrapper: {
     paddingBottom: 8,
+    paddingTop: 4,
+    alignSelf: 'stretch',
   },
   capsuleContainer: {
     alignSelf: 'center',
-    marginVertical: 4,
+    marginVertical: 0,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
+    height: 48,
   },
   capsuleOuter: {
     borderRadius: 24,
     padding: 1.2,
     overflow: 'hidden',
+    height: 48,
   },
   capsuleInner: {
     borderRadius: 22.8,
     overflow: 'hidden',
+    height: '100%',
+    justifyContent: 'center',
   },
   tabsContainer: {
     flexDirection: 'row',

@@ -26,6 +26,56 @@ function withAndroidManifestPackage(config) {
   return withAndroidManifest(config, async (config) => {
     // Explicitly add package name to manifest for React Native CLI autolinking compatibility
     config.modResults.manifest.$['package'] = 'com.bunny';
+
+    // Add permissions for network service discovery (NSD) and TCP
+    if (!config.modResults.manifest['uses-permission']) {
+      config.modResults.manifest['uses-permission'] = [];
+    }
+    const permissions = [
+      'android.permission.ACCESS_WIFI_STATE',
+      'android.permission.CHANGE_WIFI_MULTICAST_STATE',
+    ];
+    permissions.forEach((permission) => {
+      const hasPermission = config.modResults.manifest['uses-permission'].some(
+        (p) => p.$['android:name'] === permission
+      );
+      if (!hasPermission) {
+        config.modResults.manifest['uses-permission'].push({
+          $: { 'android:name': permission },
+        });
+      }
+    });
+
+
+    const mainActivity = config.modResults.manifest.application[0].activity.find(
+      (activity) => activity.$['android:name'] === '.MainActivity'
+    );
+
+    if (mainActivity) {
+      if (!mainActivity['intent-filter']) {
+        mainActivity['intent-filter'] = [];
+      }
+
+      const hasAudioIntent = mainActivity['intent-filter'].some((filter) =>
+        filter.data && filter.data.some((d) => d.$ && d.$['android:mimeType'] === 'audio/*')
+      );
+
+      if (!hasAudioIntent) {
+        mainActivity['intent-filter'].push({
+          action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+          category: [
+            { $: { 'android:name': 'android.intent.category.DEFAULT' } },
+            { $: { 'android:name': 'android.intent.category.BROWSABLE' } },
+          ],
+          data: [
+            { $: { 'android:scheme': 'file' } },
+            { $: { 'android:scheme': 'content' } },
+            { $: { 'android:mimeType': 'audio/*' } },
+          ],
+        });
+      }
+    }
+
     return config;
   });
 }
@@ -79,7 +129,22 @@ function withAndroidProguardRules(config) {
         '-keep class com.bunny.youtubeextractor.** { *; }',
         '-keep class com.bunny.innertube.** { *; }',
         '-keep class com.music.innertube.** { *; }',
-        '-keep class com.bunny.** { *; }'
+        '-keep class com.bunny.nsd.** { *; }',
+        '-keep class com.bunny.** { *; }',
+        '',
+        '# Keep react-native-track-player and kotlin-audio classes and members for Equalizer reflection',
+        '-keepclassmembers class com.doublesymmetry.trackplayer.service.MusicService { *** player; }',
+        '-keep class com.doublesymmetry.kotlinaudio.** { *; }',
+        '-keep interface com.doublesymmetry.kotlinaudio.** { *; }',
+        `-keepclassmembers class * {
+    *** getAudioSessionId(...);
+    *** audioSessionId;
+    *** setSkipSilenceEnabled(...);
+}`,
+        '',
+        '# Keep class names implementing ExoPlayer/Media3 Player interfaces to allow reflection by interfaces',
+        '-keep class * implements com.google.android.exoplayer2.Player',
+        '-keep class * implements androidx.media3.common.Player'
       ];
 
       let modified = false;

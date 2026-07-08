@@ -1,5 +1,5 @@
 export type YtMusicSearchResult = {
-  type: 'song' | 'artist' | 'album' | 'playlist';
+  type: 'song' | 'video' | 'artist' | 'album' | 'playlist';
   id: string;
   title?: string;
   name?: string;
@@ -12,10 +12,12 @@ export type YtMusicSearchResult = {
   artistId?: string;
   albumId?: string;
   artists?: { name: string; id: string }[];
+  explicit?: boolean;
 };
 
 export type CategorizedSearchResults = {
   songs: YtMusicSearchResult[];
+  videos: YtMusicSearchResult[];
   artists: YtMusicSearchResult[];
   albums: YtMusicSearchResult[];
   playlists: YtMusicSearchResult[];

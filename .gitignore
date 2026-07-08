@@ -42,8 +42,6 @@ app-example
 /ios
 /android
 
-# nested cloned repositories
-Echo-Music/
 
 # Android Studio / IntelliJ
 .idea/
@@ -63,4 +61,4 @@ local.properties
 .gemini/
 antigravity-ide/
 .agents/
-Echo-Music/
+

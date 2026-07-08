@@ -13,7 +13,7 @@ interface QueueTrackRowProps {
   isActive: boolean;
   isPlaying: boolean;
   onPress: () => void;
-  onRemove: () => void;
+  onRemove?: () => void;
   fileSize?: string;
 }
 
@@ -92,7 +92,7 @@ export function QueueTrackRow({
         </View>
         <Muted style={styles.duration}>{formatDuration(track.duration)}</Muted>
       </TouchableOpacity>
-      {!isActive && (
+      {!isActive && onRemove && (
         <TouchableOpacity
           onPress={onRemove}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

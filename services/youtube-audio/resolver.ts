@@ -6,12 +6,17 @@ import { getVisitorData, invalidateVisitorData } from './visitorData';
 import { getSignatureTimestamp } from './signature';
 import { resolveJioSaavn } from './jiosaavn';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDownloadedTracks, getLocalDownloadUri } from '../downloads/storage';
 
 const PLAYER_URL =
   'https://music.youtube.com/youtubei/v1/player?prettyPrint=false';
 
-export async function resolveAudio(videoId: string, forcePiped = false) {
+export async function resolveAudio(
+  videoId: string, 
+  forcePiped = false, 
+  preferredQuality?: 'low' | 'medium' | 'high'
+) {
   // First, check if the song is downloaded locally!
   try {
     const downloads = await getDownloadedTracks();
@@ -48,6 +53,7 @@ export async function resolveAudio(videoId: string, forcePiped = false) {
             artistId: found.track.artistId,
             albumId: (found.track as any).albumId,
             artists: (found.track as any).artists,
+            explicit: found.track.explicit,
             allAudio: [bestFormat],
             activeItag: 0,
             allVideo: [],
@@ -62,10 +68,18 @@ export async function resolveAudio(videoId: string, forcePiped = false) {
     if (__DEV__) console.warn('[resolveAudio] Failed to check local download cache:', err);
   }
 
-  let quality: 'low' | 'medium' | 'high' = 'medium';
-  try {
-    const rawPrefs = await TrackPlayer.getQueue(); // Just check if TrackPlayer works
-  } catch (e) {}
+  let quality: 'low' | 'medium' | 'high' = preferredQuality || 'medium';
+  if (!preferredQuality) {
+    try {
+      const rawPrefs = await AsyncStorage.getItem('app-theme-preferences');
+      if (rawPrefs) {
+        const prefs = JSON.parse(rawPrefs);
+        if (prefs.audioQuality) {
+          quality = prefs.audioQuality;
+        }
+      }
+    } catch (e) {}
+  }
 
   const errors: string[] = [];
   const sts = await getSignatureTimestamp(videoId);
@@ -197,7 +211,15 @@ export async function resolveAudio(videoId: string, forcePiped = false) {
           const bIsWebm = b.format === 'WEBM';
           if (aIsWebm && !bIsWebm) return -1;
           if (!aIsWebm && bIsWebm) return 1;
-          return (quality as string) === 'low' ? a.bitrate - b.bitrate : b.bitrate - a.bitrate;
+          
+          if (quality === 'low') {
+            return a.bitrate - b.bitrate;
+          } else if (quality === 'medium') {
+            const target = 128000;
+            return Math.abs(a.bitrate - target) - Math.abs(b.bitrate - target);
+          } else {
+            return b.bitrate - a.bitrate;
+          }
         });
 
         const targetDataForVideo = videoData || data;

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Innertube from '@/modules/innertube';
 import { progressState } from './state';
 
@@ -92,7 +93,22 @@ export async function updateDownloadNotification(
   reason: string = '',
   artworkUrl?: string
 ) {
+  // Check user settings before showing notifications
+  try {
+    const rawPrefs = await AsyncStorage.getItem('app-theme-preferences');
+    if (rawPrefs) {
+      const prefs = JSON.parse(rawPrefs);
+      if (prefs.downloadNotificationsEnabled === false) {
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to read download notifications preference:', e);
+  }
+
   const notificationId = `download-${trackId}`;
+  const bodyText = 'Download complete';
+
   if (Platform.OS === 'android') {
     try {
       switch (type) {
@@ -100,7 +116,7 @@ export async function updateDownloadNotification(
           await Innertube.showDownloadProgressNotification(notificationId, title, progress, progressState.totalDownloadCount, progressState.currentDownloadIndex);
           break;
         case 'complete':
-          await Innertube.showDownloadCompleteNotification(notificationId, title, artworkUrl || null);
+          await Innertube.showDownloadCompleteNotification(notificationId, title, bodyText, artworkUrl);
           break;
         case 'paused':
           await Innertube.showDownloadPausedNotification(notificationId, title);
@@ -124,7 +140,7 @@ export async function updateDownloadNotification(
       await showProgressNotification(trackId, title, progress);
       break;
     case 'complete':
-      await showSystemNotification('Download Complete', `"${title}" has been saved offline.`, notificationId);
+      await showSystemNotification(title, bodyText, notificationId);
       break;
     case 'paused':
       await showSystemNotification('Download Paused', `Download for "${title}" is paused.`, notificationId);

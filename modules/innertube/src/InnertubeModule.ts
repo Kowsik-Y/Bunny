@@ -1,6 +1,8 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
 declare class InnertubeModule extends NativeModule {
+  home(): Promise<string>;
+  homeContinuation(continuation: string): Promise<string>;
   searchSuggestions(query: string): Promise<string>;
   searchSummary(query: string): Promise<string>;
   search(query: string, filter: string): Promise<string>;
@@ -10,7 +12,7 @@ declare class InnertubeModule extends NativeModule {
   lyrics(browseId: string): Promise<string | null>;
   player(videoId: string): Promise<string>;
   showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number): Promise<void>;
-  showDownloadCompleteNotification(notificationId: string, title: string): Promise<void>;
+  showDownloadCompleteNotification(notificationId: string, title: string, body: string, artworkUrl?: string): Promise<void>;
   showDownloadCancelledNotification(notificationId: string): Promise<void>;
   showDownloadPausedNotification(notificationId: string, title: string): Promise<void>;
   showDownloadFailedNotification(notificationId: string, title: string, reason: string): Promise<void>;
@@ -20,6 +22,14 @@ const nativeModule = requireNativeModule<InnertubeModule>('Innertube');
 
 // Helper to parse JSON string results from native module
 export default {
+  async home() {
+    const res = await nativeModule.home();
+    return JSON.parse(res);
+  },
+  async homeContinuation(continuation: string) {
+    const res = await nativeModule.homeContinuation(continuation);
+    return JSON.parse(res);
+  },
   async searchSuggestions(query: string) {
     const res = await nativeModule.searchSuggestions(query);
     return JSON.parse(res);
@@ -54,8 +64,8 @@ export default {
   async showDownloadProgressNotification(notificationId: string, title: string, progress: number, totalSongs: number, currentSongIndex: number) {
     await nativeModule.showDownloadProgressNotification(notificationId, title, progress, totalSongs, currentSongIndex);
   },
-  async showDownloadCompleteNotification(notificationId: string, title: string) {
-    await nativeModule.showDownloadCompleteNotification(notificationId, title);
+  async showDownloadCompleteNotification(notificationId: string, title: string, body: string, artworkUrl?: string) {
+    await nativeModule.showDownloadCompleteNotification(notificationId, title, body, artworkUrl);
   },
   async showDownloadCancelledNotification(notificationId: string) {
     await nativeModule.showDownloadCancelledNotification(notificationId);

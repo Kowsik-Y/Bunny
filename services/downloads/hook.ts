@@ -44,6 +44,7 @@ export function useDownloads() {
   const [downloadSpeed, setDownloadSpeed] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [downloadingSizesState, setDownloadingSizesState] = useState<Record<string, number>>({});
+  const [concurrentLimit, setConcurrentLimitState] = useState<number>(3);
 
   const isPendingRef = useRef(false);
   const nextLoadRef = useRef<(() => void) | null>(null);
@@ -139,15 +140,17 @@ export function useDownloads() {
     await clearAllDownloads();
   };
 
-  const [concurrentLimit, setConcurrentLimitState] = useState<number>(3);
-
-  const changeConcurrentLimit = async (limit: number) => {
+  const changeConcurrentLimit = useCallback(async (limit: number) => {
     await setConcurrentLimit(limit);
     setConcurrentLimitState(limit);
-  };
+  }, []);
 
   const isDownloaded = useCallback((trackId: string) => {
     return downloadedTracks.some((d) => String(d.track.id) === String(trackId));
+  }, [downloadedTracks]);
+
+  const hasDownloadedLrc = useCallback((trackId: string) => {
+    return downloadedTracks.some((d) => String(d.track.id) === String(trackId) && d.hasLrc === true);
   }, [downloadedTracks]);
 
   return {
@@ -164,6 +167,7 @@ export function useDownloads() {
     changeDownloadLocation,
     clearDownloads,
     isDownloaded,
+    hasDownloadedLrc,
     refreshDownloads: load,
     pauseAllDownloads,
     resumeAllDownloads,

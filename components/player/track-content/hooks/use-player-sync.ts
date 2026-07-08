@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { useVideoPlayer } from 'expo-video';
 import { type AppTrack } from '../../Tracks';
@@ -26,6 +27,13 @@ export function usePlayerSync(
       setIsVideoPlaying(!!event?.isPlaying);
     });
     return () => subscription.remove();
+  }, [videoPlayer]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('sleep-timer-pause', () => {
+      videoPlayer.pause();
+    });
+    return () => sub.remove();
   }, [videoPlayer]);
 
   useEffect(() => {

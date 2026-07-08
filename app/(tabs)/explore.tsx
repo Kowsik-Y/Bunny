@@ -8,7 +8,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerActions } from '@/services/SetupService';
 import { useCurrentTrack, usePlayerState, toast } from '@/services';
-import { searchYtMusic, getSearchSuggestions, YtMusicSearchResult, CategorizedSearchResults } from '@/services/ytMusic';
+import { searchYtMusic, getSearchSuggestions, YtMusicSearchResult, CategorizedSearchResults, searchCategoryYtMusic } from '@/services/ytMusic';
 import { pipedService } from '@/services/piped';
 import { SongCard, AlbumCard, AlbumRowCard, ArtistCard, PlaylistCard } from '@/components/cards';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,7 +65,7 @@ function getSearchScore(query: string, target: string): number {
 }
 
 export default function ExploreScreen() {
-  const { colors } = useAppTheme();
+  const { colors, explicitContentEnabled, recommendationLanguages } = useAppTheme();
   const { isConnected } = useNetworkState();
   const bottomSpacing = useBottomTabSpacing();
   const currentTrack = useCurrentTrack();
@@ -75,7 +75,7 @@ export default function ExploreScreen() {
   const searchInputRef = useRef<TextInput>(null);
   const [search, setSearch] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [results, setResults] = useState<CategorizedSearchResults>({ songs: [], artists: [], albums: [], playlists: [] });
+  const [results, setResults] = useState<CategorizedSearchResults>({ songs: [], videos: [], artists: [], albums: [], playlists: [] });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [locationCity, setLocationCity] = useState<string>('');
   const [localHits, setLocalHits] = useState<YtMusicSearchResult[]>([]);
@@ -84,10 +84,10 @@ export default function ExploreScreen() {
 
   // Find the dynamically best matching top result candidate
   const topResult = useMemo(() => {
-    if (!results.songs.length && !results.artists.length && !results.albums.length && !results.playlists?.length) {
+    if (!results.songs.length && (!results.videos || !results.videos.length) && !results.artists.length && !(results.albums?.length) && !results.playlists?.length) {
       return null;
     }
-    const candidates: { type: 'song' | 'artist' | 'album' | 'playlist'; item: any; score: number }[] = [];
+    const candidates: { type: 'song' | 'video' | 'artist' | 'album' | 'playlist'; item: any; score: number }[] = [];
 
     if (results.artists.length > 0) {
       candidates.push({
@@ -103,7 +103,14 @@ export default function ExploreScreen() {
         score: getSearchScore(search, results.songs[0].title || ''),
       });
     }
-    if (results.albums.length > 0) {
+    if (results.videos && results.videos.length > 0) {
+      candidates.push({
+        type: 'video',
+        item: results.videos[0],
+        score: getSearchScore(search, results.videos[0].title || ''),
+      });
+    }
+    if (results.albums?.length > 0) {
       candidates.push({
         type: 'album',
         item: results.albums[0],
@@ -135,40 +142,44 @@ export default function ExploreScreen() {
       let searchSuffix = 'hits';
       let placeId = '';
 
-      try {
-        const ipRes = await fetch('http://ip-api.com/json');
-        if (ipRes.ok) {
-          const ipData = await ipRes.json();
-          if (ipData && ipData.status === 'success') {
-            city = ipData.city || 'Local';
-            const region = ipData.regionName || '';
-            const country = ipData.country || '';
-            
-            if (ipData.countryCode === 'IN') {
-              if (region.toLowerCase().includes('tamil')) {
-                searchSuffix = 'Tamil hits';
-              } else if (region.toLowerCase().includes('karnataka')) {
-                searchSuffix = 'Kannada hits';
-              } else if (region.toLowerCase().includes('telangana') || region.toLowerCase().includes('andhra')) {
-                searchSuffix = 'Telugu hits';
-              } else if (region.toLowerCase().includes('kerala')) {
-                searchSuffix = 'Malayalam hits';
-              } else if (region.toLowerCase().includes('maharashtra')) {
-                searchSuffix = 'Marathi hits';
-              } else if (region.toLowerCase().includes('punjab')) {
-                searchSuffix = 'Punjabi hits';
-              } else if (region.toLowerCase().includes('bengal') || region.toLowerCase().includes('kolkata')) {
-                searchSuffix = 'Bengali hits';
+      if (recommendationLanguages && recommendationLanguages.length > 0) {
+        searchSuffix = `${recommendationLanguages.join(' ')} hits`;
+      } else {
+        try {
+          const ipRes = await fetch('http://ip-api.com/json');
+          if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            if (ipData && ipData.status === 'success') {
+              city = ipData.city || 'Local';
+              const region = ipData.regionName || '';
+              const country = ipData.country || '';
+
+              if (ipData.countryCode === 'IN') {
+                if (region.toLowerCase().includes('tamil')) {
+                  searchSuffix = 'Tamil hits';
+                } else if (region.toLowerCase().includes('karnataka')) {
+                  searchSuffix = 'Kannada hits';
+                } else if (region.toLowerCase().includes('telangana') || region.toLowerCase().includes('andhra')) {
+                  searchSuffix = 'Telugu hits';
+                } else if (region.toLowerCase().includes('kerala')) {
+                  searchSuffix = 'Malayalam hits';
+                } else if (region.toLowerCase().includes('maharashtra')) {
+                  searchSuffix = 'Marathi hits';
+                } else if (region.toLowerCase().includes('punjab')) {
+                  searchSuffix = 'Punjabi hits';
+                } else if (region.toLowerCase().includes('bengal') || region.toLowerCase().includes('kolkata')) {
+                  searchSuffix = 'Bengali hits';
+                } else {
+                  searchSuffix = 'Hindi trending';
+                }
               } else {
-                searchSuffix = 'Hindi trending';
+                searchSuffix = `${region || country} hits`;
               }
-            } else {
-              searchSuffix = `${region || country} hits`;
             }
           }
+        } catch (err) {
+          console.warn('[Explore] ip-api geolocation failed:', err);
         }
-      } catch (err) {
-        console.warn('[Explore] ip-api geolocation failed:', err);
       }
 
       setLocationCity(city);
@@ -177,7 +188,11 @@ export default function ExploreScreen() {
       try {
         const res = await searchYtMusic(`${city} ${searchSuffix}`);
         if (res && res.songs) {
-          setLocalHits(res.songs.slice(0, 10));
+          let songs = res.songs;
+          if (!explicitContentEnabled) {
+            songs = songs.filter(s => !s.explicit);
+          }
+          setLocalHits(songs.slice(0, 10));
         }
       } catch (err) {
         console.warn('[Explore] Failed to fetch local songs:', err);
@@ -241,7 +256,7 @@ export default function ExploreScreen() {
   const isSearchingRef = useRef(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [provider] = useState<SearchProvider>('ytmusic');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'songs' | 'artists' | 'albums' | 'playlists'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'songs' | 'videos' | 'artists' | 'albums' | 'playlists'>('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -269,6 +284,43 @@ export default function ExploreScreen() {
     }
   }, [search]);
 
+  // Load category-specific items when activeFilter changes
+  useEffect(() => {
+    if (!search.trim() || activeFilter === 'all') return;
+
+    let isMounted = true;
+    const fetchCategoryResults = async () => {
+      const categoryKey = activeFilter;
+      const currentItems = results[categoryKey] || [];
+      if (currentItems.length > 5) return; // already loaded full list or previously loaded
+
+      setLoading(true);
+      try {
+        const cat = activeFilter.slice(0, -1) as any; // 'songs' -> 'song', 'videos' -> 'video', etc.
+        const items = await searchCategoryYtMusic(search, cat);
+        let filtered = items;
+        if (!explicitContentEnabled) {
+          filtered = items.filter(item => !item.explicit);
+        }
+        if (isMounted) {
+          setResults(prev => ({
+            ...prev,
+            [categoryKey]: filtered,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load category results:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchCategoryResults();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeFilter, search, explicitContentEnabled]);
+
   const clearRecentSearches = async () => {
     try {
       setRecentSearches([]);
@@ -290,7 +342,19 @@ export default function ExploreScreen() {
     try {
       if (provider === 'ytmusic') {
         const res = await searchYtMusic(query);
-        setResults(res);
+        if (!explicitContentEnabled) {
+          res.songs = (res.songs || []).filter(s => !s.explicit);
+          res.videos = (res.videos || []).filter(v => !v.explicit);
+          res.albums = (res.albums || []).filter(a => !a.explicit);
+          res.playlists = (res.playlists || []).filter(p => !p.explicit);
+        }
+        setResults({
+          songs: res.songs || [],
+          videos: res.videos || [],
+          artists: res.artists || [],
+          albums: res.albums || [],
+          playlists: res.playlists || [],
+        });
       } else {
         const pipedResults = await pipedService.search(query, 'all');
         const formatted: CategorizedSearchResults = {
@@ -307,12 +371,17 @@ export default function ExploreScreen() {
                 duration: i.duration,
                 url: `https://music.youtube.com/watch?v=${videoId}`,
                 provider: 'piped',
+                explicit: i.explicit,
               };
             }),
+          videos: [],
           artists: [],
           albums: [],
           playlists: [],
         };
+        if (!explicitContentEnabled) {
+          formatted.songs = formatted.songs.filter(s => !s.explicit);
+        }
         setResults(formatted);
       }
     } catch (e) {
@@ -428,6 +497,35 @@ export default function ExploreScreen() {
       (currentTrack.id && currentTrack.id.includes(trackId)) ||
       (trackId && trackId.includes(currentTrack.id))
     ));
+
+    if (item.type === 'video') {
+      return (
+        <SongCard
+          title={item.title || item.name || ''}
+          artist={item.artist ? `Video • ${item.artist}` : 'Video'}
+          artwork={item.thumbnail || ''}
+          rightIcon="play"
+          isActive={isActive}
+          isPlaying={isPlaying || isBuffering}
+          onPress={() => PlayerActions.skipToTrackFromYt(item)}
+          onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
+          explicit={item.explicit}
+          track={{
+            id: trackId,
+            title: item.title || item.name || '',
+            artist: item.artist || '',
+            album: item.album || 'Single',
+            artwork: item.thumbnail || '',
+            url: `https://music.youtube.com/watch?v=${trackId}`,
+            duration: item.duration || 0,
+            artistId: (item as any).artistId,
+            albumId: (item as any).albumId,
+            explicit: item.explicit,
+          }}
+        />
+      );
+    }
+
     return (
       <SongCard
         title={item.title || item.name || ''}
@@ -438,6 +536,7 @@ export default function ExploreScreen() {
         isPlaying={isPlaying || isBuffering}
         onPress={() => PlayerActions.skipToTrackFromYt(item)}
         onTogglePress={() => PlayerActions.playPause(isPlaying || isBuffering)}
+        explicit={item.explicit}
         track={{
           id: trackId,
           title: item.title || item.name || '',
@@ -448,6 +547,7 @@ export default function ExploreScreen() {
           duration: item.duration || 0,
           artistId: (item as any).artistId,
           albumId: (item as any).albumId,
+          explicit: item.explicit,
         }}
       />
     );
@@ -501,7 +601,7 @@ export default function ExploreScreen() {
                     setShowSuggestions(false);
                     setIsSearching(false);
                     isSearchingRef.current = false;
-                    setResults({ songs: [], artists: [], albums: [], playlists: [] });
+                    setResults({ songs: [], videos: [], artists: [], albums: [], playlists: [] });
                     setActiveFilter('all');
                   }}
                 >
@@ -529,7 +629,7 @@ export default function ExploreScreen() {
             <View style={styles.resultsContainer}>
               {/* Horizontal Filter Chips */}
               <ArtistTabBar
-                availableTabs={['All', 'Songs', 'Artists', 'Albums', 'Playlists']}
+                availableTabs={['All', 'Songs', 'Videos', 'Artists', 'Albums', 'Playlists']}
                 activeTab={activeFilter === 'all' ? 'All' : activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
                 onTabChange={(tab) => setActiveFilter(tab.toLowerCase() as any)}
                 containerStyle={{ marginHorizontal: 0, marginVertical: 0 }}
@@ -630,6 +730,23 @@ export default function ExploreScreen() {
                         </View>
                       )}
 
+                      {/* Top Videos */}
+                      {results.videos && results.videos.length > 0 && (
+                        <View style={styles.resultsSection}>
+                          <Typography variant="small" style={styles.sectionLabel}>VIDEOS</Typography>
+                          <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                            {results.videos.slice(0, 5).map((item, index) => (
+                              <View key={item.id}>
+                                {renderSearchResult({ item })}
+                                {index < Math.min(5, results.videos.length) - 1 && (
+                                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                                )}
+                              </View>
+                            ))}
+                          </BunnyCard>
+                        </View>
+                      )}
+
                       {/* Top Albums */}
                       {results.albums.length > 0 && (
                         <View style={styles.resultsSection}>
@@ -700,6 +817,23 @@ export default function ExploreScreen() {
                     </View>
                   )}
 
+                  {/* Videos Filter Mode */}
+                  {activeFilter === 'videos' && results.videos && results.videos.length > 0 && (
+                    <View style={styles.resultsSection}>
+                      <Typography variant="small" style={styles.sectionLabel}>VIDEOS</Typography>
+                      <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
+                        {results.videos.map((item, index) => (
+                          <View key={item.id}>
+                            {renderSearchResult({ item })}
+                            {index < results.videos.length - 1 && (
+                              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                        ))}
+                      </BunnyCard>
+                    </View>
+                  )}
+
                   {/* Artists Filter Mode */}
                   {activeFilter === 'artists' && results.artists.length > 0 && (
                     <View style={styles.resultsSection}>
@@ -718,7 +852,7 @@ export default function ExploreScreen() {
                   )}
 
                   {/* Albums Filter Mode */}
-                  {activeFilter === 'albums' && results.albums.length > 0 && (
+                  {activeFilter === 'albums' && (results.albums?.length ?? 0) > 0 && (
                     <View style={styles.resultsSection}>
                       <Typography variant="small" style={styles.sectionLabel}>ALBUMS</Typography>
                       <BunnyCard glass={true} elevated={true} contentContainerStyle={{ padding: 0 }}>
@@ -752,10 +886,11 @@ export default function ExploreScreen() {
                   )}
 
                   {/* Empty State */}
-                  {((activeFilter === 'all' && results.songs.length === 0 && results.artists.length === 0 && results.albums.length === 0 && (!results.playlists || results.playlists.length === 0)) ||
+                  {((activeFilter === 'all' && results.songs.length === 0 && (!results.videos || results.videos.length === 0) && results.artists.length === 0 && !(results.albums?.length) && (!results.playlists || results.playlists.length === 0)) ||
                     (activeFilter === 'songs' && results.songs.length === 0) ||
+                    (activeFilter === 'videos' && (!results.videos || results.videos.length === 0)) ||
                     (activeFilter === 'artists' && results.artists.length === 0) ||
-                    (activeFilter === 'albums' && results.albums.length === 0) ||
+                    (activeFilter === 'albums' && !(results.albums?.length)) ||
                     (activeFilter === 'playlists' && (!results.playlists || results.playlists.length === 0))) && (
                       <View style={styles.center}>
                         <Muted>No results found</Muted>
@@ -955,7 +1090,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 4,
   },
   searchBox: {
     flexDirection: 'row',

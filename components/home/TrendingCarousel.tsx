@@ -60,6 +60,7 @@ export interface QuickTrack {
   artistId?: string;
   albumId?: string;
   artists?: { name: string; id: string }[];
+  explicit?: boolean;
 }
 
 interface TrendingCarouselProps {
@@ -181,9 +182,25 @@ export function TrendingCarousel({ title, trending, loading, onPlayTracks, onLon
                   {/* Bottom info */}
                   <View style={styles.infoRow}>
                     <View style={{ flex: 1 }}>
-                      <Typography numberOfLines={1} style={styles.trackTitle}>
-                        {track.title}
-                      </Typography>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Typography numberOfLines={1} style={[styles.trackTitle, { flexShrink: 1 }]}>
+                          {track.title}
+                        </Typography>
+                        {track.explicit && (
+                          <View style={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.35)',
+                            paddingHorizontal: 4,
+                            paddingVertical: 1,
+                            borderRadius: 3,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}>
+                            <Typography style={{ fontSize: 9, fontWeight: '800', color: '#fff', lineHeight: 11 }}>
+                              E
+                            </Typography>
+                          </View>
+                        )}
+                      </View>
                       <Muted numberOfLines={1} style={styles.trackArtist}>
                         {track.artist}
                       </Muted>
@@ -279,7 +296,7 @@ const styles = StyleSheet.create({
   scrim: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   rankNum: {
     position: 'absolute',

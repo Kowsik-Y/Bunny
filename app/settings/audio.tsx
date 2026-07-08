@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
-import { Stack } from 'expo-router';
-import { Sliders, Check, ChevronRight, Zap, AlignLeft } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Sliders, Check, ChevronRight, Zap, AlignLeft, Volume2, Shuffle } from 'lucide-react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 import { H3, Muted, Typography } from '@/components/ui/typography';
@@ -29,6 +29,7 @@ const lyricsPrefetchOptions = [
 ] as const;
 
 export default function AudioSettingsScreen() {
+  const router = useRouter();
   const {
     colors,
     colorScheme,
@@ -38,16 +39,27 @@ export default function AudioSettingsScreen() {
     setPreResolveLimit,
     lyricsPrefetch,
     setLyricsPrefetch,
+    skipSilenceEnabled,
+    setSkipSilenceEnabled,
+    crossfadeEnabled,
+    setCrossfadeEnabled,
+    crossfadeDuration,
+    setCrossfadeDuration,
+    equalizerEnabled,
   } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
   const qualitySheetRef = useRef<BottomSheetModal>(null);
   const preResolveSheetRef = useRef<BottomSheetModal>(null);
   const prefetchSheetRef = useRef<BottomSheetModal>(null);
+  const silenceSheetRef = useRef<BottomSheetModal>(null);
+  const crossfadeSheetRef = useRef<BottomSheetModal>(null);
 
   const qualitySnapPoints = useMemo(() => ['32%'], []);
   const preResolveSnapPoints = useMemo(() => ['42%'], []);
   const prefetchSnapPoints = useMemo(() => ['28%'], []);
+  const silenceSnapPoints = useMemo(() => ['28%'], []);
+  const crossfadeSnapPoints = useMemo(() => ['42%'], []);
 
   const currentQualityLabel = qualityOptions.find((o) => o.value === audioQuality)?.label ?? 'Medium (128kbps)';
 
@@ -128,6 +140,69 @@ export default function AudioSettingsScreen() {
               <View style={styles.rightContainer}>
                 <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
                   {lyricsPrefetch ? 'Enabled' : 'Disabled'}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
+            </View>
+          </BunnyCard>
+        </Pressable>
+
+        {/* Skip Silence Card */}
+        <Pressable onPress={() => silenceSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Volume2 size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Skip Silence</Typography>
+                <Muted>Automatically skip silent parts of audio tracks</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {skipSilenceEnabled ? 'Enabled' : 'Disabled'}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
+            </View>
+          </BunnyCard>
+        </Pressable>
+
+        {/* Crossfade Card */}
+        <Pressable onPress={() => crossfadeSheetRef.current?.present()}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Shuffle size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Crossfade Transitions</Typography>
+                <Muted>Fade volumes smoothly on track change</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {crossfadeEnabled ? `${crossfadeDuration}s` : 'Disabled'}
+                </Typography>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </View>
+            </View>
+          </BunnyCard>
+        </Pressable>
+
+        {/* Equalizer Card */}
+        <Pressable onPress={() => router.push('/settings/equalizer' as any)}>
+          <BunnyCard style={styles.navCard}>
+            <View style={styles.navSettingRow}>
+              <View style={styles.iconContainer}>
+                <Sliders size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingInfo}>
+                <Typography variant="large">Equalizer</Typography>
+                <Muted>Adjust constellation controls and frequencies</Muted>
+              </View>
+              <View style={styles.rightContainer}>
+                <Typography style={[styles.selectedValue, { color: colors.mutedForeground }]}>
+                  {equalizerEnabled ? 'On' : 'Off'}
                 </Typography>
                 <ChevronRight size={18} color={colors.mutedForeground} />
               </View>
@@ -234,6 +309,90 @@ export default function AudioSettingsScreen() {
                 style={[
                   styles.sheetOptionRow,
                   { borderBottomColor: colors.border, borderBottomWidth: index < lyricsPrefetchOptions.length - 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* ─── Skip Silence Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={silenceSheetRef}
+        snapPoints={silenceSnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Skip Silence</Typography>
+          </View>
+          {[
+            { label: 'Enabled (Skip silent intervals)', value: true },
+            { label: 'Disabled', value: false },
+          ].map((item, index) => {
+            const selected = skipSilenceEnabled === item.value;
+            return (
+              <Pressable
+                key={String(item.value)}
+                onPress={() => {
+                  setSkipSilenceEnabled(item.value);
+                  silenceSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < 1 ? 0.5 : 0 },
+                  selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Typography style={[styles.optionLabel, selected && { color: colors.primary, fontWeight: '700' }]}>
+                  {item.label}
+                </Typography>
+                {selected && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </Pressable>
+            );
+          })}
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      {/* ─── Crossfade Duration Bottom Sheet ─── */}
+      <BottomSheetModal
+        ref={crossfadeSheetRef}
+        snapPoints={crossfadeSnapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: isDark ? '#151517' : '#F2F2F7' }}
+        handleIndicatorStyle={{ backgroundColor: colors.text, opacity: 0.3 }}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Typography style={styles.sheetTitle}>Crossfade Transitions</Typography>
+          </View>
+          {[
+            { label: 'Disabled', enabled: false, duration: 3 },
+            { label: '3 Seconds', enabled: true, duration: 3 },
+            { label: '5 Seconds', enabled: true, duration: 5 },
+            { label: '7 Seconds', enabled: true, duration: 7 },
+            { label: '10 Seconds', enabled: true, duration: 10 },
+          ].map((item, index) => {
+            const selected = crossfadeEnabled === item.enabled && (!item.enabled || crossfadeDuration === item.duration);
+            return (
+              <Pressable
+                key={index}
+                onPress={() => {
+                  setCrossfadeEnabled(item.enabled);
+                  setCrossfadeDuration(item.duration);
+                  crossfadeSheetRef.current?.dismiss();
+                }}
+                style={[
+                  styles.sheetOptionRow,
+                  { borderBottomColor: colors.border, borderBottomWidth: index < 4 ? 0.5 : 0 },
                   selected && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
                 ]}
               >
