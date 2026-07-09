@@ -6,7 +6,7 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { type AppTrack } from '../../Tracks';
 import { PlayerSheet } from './player-sheet';
 import { styles } from '../styles';
-import { ThumbsUp, ListMusic, AudioLines, Disc, User, CheckCircle2, Download, Share2, Info, BarChart2, ListX, Clock, Save, SlidersHorizontal, Repeat, Sliders, PhoneCall } from 'lucide-react-native';
+import { ThumbsUp, ListMusic, AudioLines, Disc, User, CheckCircle2, Download, Share2, Info, BarChart2, ListX, Clock, Save, SlidersHorizontal, Repeat, Sliders, PhoneCall, Users } from 'lucide-react-native';
 import { BottomSheetScrollView } from '../../SwipeBottomSheet';
 import { useSleepTimer } from '@/services/sleepTimer';
 import { useTrackOptions } from '@/contexts/track-options';
@@ -293,6 +293,20 @@ export function MoreMenu({
         >
           <Sliders size={18} color={colors.text} />
           <Text style={[styles.moreActionText, { color: colors.text }]}>Equalizer & Bass</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            onClose();
+            setTimeout(() => {
+              router.push('/settings/party' as any);
+            }, 250);
+          }}
+          style={styles.moreActionRow}
+          android_ripple={{ color: colors.border }}
+        >
+          <Users size={18} color={colors.text} />
+          <Text style={[styles.moreActionText, { color: colors.text }]}>Music Party</Text>
         </Pressable>
 
         <Pressable

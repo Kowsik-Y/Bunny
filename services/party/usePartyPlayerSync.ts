@@ -41,7 +41,7 @@ export function usePartyPlayerSync() {
             type: 'PLAY',
             track: currentTrack,
             position,
-            playAt: Date.now() + 500, // Schedule play 500ms in future
+            playAt: Date.now(), // Broadcast exact current time of event
           });
         } else if (state === State.Paused && currentTrack) {
           PartyManager.broadcast({
@@ -71,7 +71,7 @@ export function usePartyPlayerSync() {
           type: 'PLAY',
           track: activeTrack,
           position: 0,
-          playAt: Date.now() + 500,
+          playAt: Date.now(), // Broadcast exact current time of event
         });
       }
     }

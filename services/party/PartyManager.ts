@@ -556,7 +556,7 @@ class PartyManagerClass {
             type: 'PLAY',
             track,
             position,
-            playAt: Date.now() + 600, // Schedule slightly in future for new client
+            playAt: Date.now(), // Use exact current time for accurate resync calculation
           });
         } else if (track) {
           this.sendToClient(clientId, {

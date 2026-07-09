@@ -1,12 +1,12 @@
-# Release Notes - BlackBunny v2.0.1
+# Release Notes - Bunny v2.0.2
 
-Welcome to **BlackBunny v2.0.1**! This patch release addresses critical connection, synchronization, and socket stability issues in the Music Party network synchronization system.
+Welcome to **Bunny v2.0.2**! This patch release addresses critical connection, synchronization, and socket stability issues in the Music Party network synchronization system.
 
 ---
 
-## What's New in v2.0.1
+## What's New in v2.0.2
 
-### 🛠️ Music Party Fixes & Synchronization Tuning
+### ️ Music Party Fixes & Synchronization Tuning
 * **Client Post-Buffering Resync:** Implemented a delay-aware alignment check. When the client transitions to playback, it compares its position with the host's NTP-synced time. If out-of-sync by more than 150ms (due to network buffering latency), the client performs an automatic corrective seek to align the audio tracks perfectly.
 * **Global Player Sync Session:** Mounted the player event hook (`usePartyPlayerSync`) globally in the root application layout. Playback synchronization now remains fully active when navigating away from the Music Party settings screen or during hot reloads.
 * **Auto-Cleanup of Zombie Sockets:** Added self-healing socket cleanups on startup/evaluation to prevent socket leaks and port binding conflicts during reloads or crashes.
@@ -16,9 +16,9 @@ Welcome to **BlackBunny v2.0.1**! This patch release addresses critical connecti
 
 ---
 
-# Release Notes - BlackBunny v2.0.0
+# Release Notes - Bunny v2.0.0
 
-Welcome to **BlackBunny v2.0.0**! This release introduces massive feature additions, native module upgrades, and user interface refinements to provide a top-tier music listening experience.
+Welcome to **Bunny v2.0.0**! This release introduces massive feature additions, native module upgrades, and user interface refinements to provide a top-tier music listening experience.
 
 ---
 
@@ -30,7 +30,7 @@ Welcome to **BlackBunny v2.0.0**! This release introduces massive feature additi
 * **Interactive SVG Visualizer:** A fully responsive SVG equalizer curve interface that lets you view and drag band gains in real time.
 * **Simple & Advanced Modes:** Switch between clean UI presets/sliders and a detailed custom audio frequency graph.
 
-### 2. 👥 Music Party (Local Playback Sync & Spatial Audio)
+### 2.  Music Party (Local Playback Sync & Spatial Audio)
 * **Local Peer Discovery (NSD):** Discover and connect with other devices on the same Wi-Fi network using Android Network Service Discovery.
 * **Synchronized Playback:** Host or join a party to sync track playing, pausing, and seeking with other listeners.
 * **Spatial Audio Canvas:** A 2D grid allows dragging listener nodes relative to the source. The system dynamically updates client volume/panning offsets based on coordinates on the grid.
@@ -40,7 +40,7 @@ Welcome to **BlackBunny v2.0.0**! This release introduces massive feature additi
 * **End of Track Mode:** Stop music playback automatically when the currently playing track finishes.
 * **Active Status HUD:** Keep track of the remaining time with an active status header in the sleep timer panel.
 
-### 4. ⚡ Speed Dial & Home Screen Refinements
+### 4.  Speed Dial & Home Screen Refinements
 * **Pinned Quick Access Grid:** A paginated 2x3 grid (Speed Dial) on the home screen allowing you to pin, reorder, and quickly launch your favorite tracks, albums, playlists, or artists.
 * **Dynamic Feed Sections:** Native YouTube Music home feed integration with horizontal carousels (`HomeSectionCarousel`) and customized content rendering.
 
@@ -54,7 +54,7 @@ Welcome to **BlackBunny v2.0.0**! This release introduces massive feature additi
 
 ---
 
-## 🛠️ Technical Details & Refactoring
+## ️ Technical Details & Refactoring
 * Native Android libraries added to `modules/equalizer` and `modules/nsd` for hardware-accelerated processing and peer discovery.
 * Custom Expo configuration plugins in `plugins/withAppConfiguration.js` to automate native Android Gradle and package builds.
 * Refactored `contexts/app-theme-context.tsx` to persist and synchronize Equalizer values.

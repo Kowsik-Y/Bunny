@@ -6,7 +6,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ---
 
-## 📖 Table of Contents
+## Table of Contents
 1. [Reporting Bugs](#1-reporting-bugs)
 2. [Suggesting Features](#2-suggesting-features)
 3. [Local Development Setup](#3-local-development-setup)

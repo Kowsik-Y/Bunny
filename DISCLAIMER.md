@@ -1,4 +1,4 @@
-# ⚖️ Legal Disclaimer
+# Legal Disclaimer
 
 Please read this disclaimer carefully before using the **Bunny** application.
 
