@@ -13,8 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Share, DeviceEventEmitter, View, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, Share, DeviceEventEmitter, View, Alert } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTrackOptions } from '@/contexts/track-options-context';
 import { Typography } from '@/components/ui/typography';
 
@@ -32,10 +32,15 @@ export default function PlaylistScreen() {
   const { openPlaylistOptions } = useTrackOptions();
   const { isPlaying, isBuffering } = usePlayerState();
   const { playlists, createPlaylist, addTrackToPlaylist, removeTrackFromPlaylist } = usePlaylists();
-  const bottomSpacing = MINI_PLAYER_HEIGHT + 10;
+  const insets = useSafeAreaInsets();
+  const bottomSpacing = insets.bottom + MINI_PLAYER_HEIGHT + 20;
 
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const listPaddingBottom = isSelectMode 
+    ? bottomSpacing + 54 + 40
+    : bottomSpacing + 30;
 
   const enterSelectMode = () => {
     setIsSelectMode(true);
@@ -81,7 +86,7 @@ export default function PlaylistScreen() {
                   await removeTrackFromPlaylist(id, trackId);
                 }
               }
-              
+
               toast.success(`Removed successfully`);
               setSelectedIds([]);
               setIsSelectMode(false);
@@ -383,7 +388,7 @@ export default function PlaylistScreen() {
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.stickyBackContainer} pointerEvents="box-none">
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 5,paddingRight:10 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 5, paddingRight: 10 }}>
           <Button
             style={{
               padding: 5,
@@ -482,7 +487,7 @@ export default function PlaylistScreen() {
             );
           })()
         }
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: listPaddingBottom }]}
         showsVerticalScrollIndicator={false}
       />
 

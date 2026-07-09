@@ -2,21 +2,29 @@ import { useEffect, useRef } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import TrackPlayer, { Event, useTrackPlayerEvents, PlaybackState, State } from 'react-native-track-player';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { usePartyStore } from './partyStore';
-import { PartyManager } from './PartyManager';
+import { usePartyStore } from '@/services/party/partyStore';
+import { PartyManager } from '@/services/party/PartyManager';
 
 export function usePartyPlayerSync() {
   const { partyMode, connectionState, discoveredHosts, clockOffset } = usePartyStore();
+  
+  // Ref to hold the latest partyMode and connectionState to avoid stale closures in useTrackPlayerEvents
+  const statusRef = useRef({ partyMode, connectionState });
+  statusRef.current = { partyMode, connectionState };
   
   // Track previous playback state to avoid redundant broadcast loops
   const lastStateRef = useRef<State | string>('');
   const lastTrackIdRef = useRef<string>('');
 
+  // Ref to hold the sync play target for client post-buffering synchronization
+  const lastPlaySyncTargetRef = useRef<{ playAt: number; position: number; trackId: string } | null>(null);
+
   // 1. Host Mode: Monitor local player actions and broadcast
   useTrackPlayerEvents(
     [Event.PlaybackState, Event.PlaybackActiveTrackChanged],
     async (event) => {
-      if (partyMode !== 'host' || connectionState !== 'connected') return;
+      const { partyMode: activeMode, connectionState: activeConn } = statusRef.current;
+      if (activeMode !== 'host' || activeConn !== 'connected') return;
 
       if (event.type === Event.PlaybackState) {
         const stateObj = event as { state: State };
@@ -106,6 +114,13 @@ export function usePartyPlayerSync() {
             let trackIndex = -1;
             const queue = await TrackPlayer.getQueue();
             trackIndex = queue.findIndex((t) => t.id === msg.track.id);
+
+            // Save sync target details for post-buffering alignment
+            lastPlaySyncTargetRef.current = {
+              playAt: msg.playAt,
+              position: msg.position,
+              trackId: msg.track.id,
+            };
 
             let resolvedUrl = msg.track.url;
 
@@ -212,4 +227,43 @@ export function usePartyPlayerSync() {
       subscription.remove();
     };
   }, [partyMode, connectionState, clockOffset]);
+
+  // 3. Client Mode: Monitor local player state for post-buffering resync
+  useTrackPlayerEvents([Event.PlaybackState], async (event) => {
+    const { partyMode: activeMode, connectionState: activeConn } = statusRef.current;
+    if (activeMode !== 'client' || activeConn !== 'connected') return;
+
+    if (event.type === Event.PlaybackState) {
+      const stateObj = event as { state: State };
+      const state = stateObj.state;
+      console.log(`[PartyPlayerSync] Client state changed to: ${state}`);
+
+      if (state === State.Playing) {
+        if (!lastPlaySyncTargetRef.current) {
+          console.log('[PartyPlayerSync] Client playing, but lastPlaySyncTarget is null');
+          return;
+        }
+
+        const { playAt, position, trackId } = lastPlaySyncTargetRef.current;
+        const currentTrack = await TrackPlayer.getActiveTrack();
+        if (currentTrack && currentTrack.id === trackId) {
+          const currentPartyTime = PartyManager.getPartyTime();
+          const expectedPosition = position + (currentPartyTime - playAt) / 1000;
+          const currentPosition = await TrackPlayer.getPosition();
+          const diff = Math.abs(currentPosition - expectedPosition);
+
+          console.log(`[PartyPlayerSync] Sync calculation - client pos: ${currentPosition.toFixed(2)}, expected host pos: ${expectedPosition.toFixed(2)}, diff: ${(diff * 1000).toFixed(0)}ms (threshold: 150ms)`);
+
+          if (diff > 0.15) { // If offset is larger than 150ms
+            console.log(`[PartyPlayerSync] Post-buffering resync: seeking from ${currentPosition.toFixed(2)} to ${expectedPosition.toFixed(2)}`);
+            await TrackPlayer.seekTo(expectedPosition);
+          } else {
+            console.log('[PartyPlayerSync] Client is in-sync. Skipping seek.');
+          }
+        } else {
+          console.log(`[PartyPlayerSync] Client playing, but active track ID mismatch. Active: ${currentTrack?.id}, Expected: ${trackId}`);
+        }
+      }
+    }
+  });
 }

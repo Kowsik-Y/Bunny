@@ -1,3 +1,21 @@
+# Release Notes - BlackBunny v2.0.1
+
+Welcome to **BlackBunny v2.0.1**! This patch release addresses critical connection, synchronization, and socket stability issues in the Music Party network synchronization system.
+
+---
+
+## What's New in v2.0.1
+
+### 🛠️ Music Party Fixes & Synchronization Tuning
+* **Client Post-Buffering Resync:** Implemented a delay-aware alignment check. When the client transitions to playback, it compares its position with the host's NTP-synced time. If out-of-sync by more than 150ms (due to network buffering latency), the client performs an automatic corrective seek to align the audio tracks perfectly.
+* **Global Player Sync Session:** Mounted the player event hook (`usePartyPlayerSync`) globally in the root application layout. Playback synchronization now remains fully active when navigating away from the Music Party settings screen or during hot reloads.
+* **Auto-Cleanup of Zombie Sockets:** Added self-healing socket cleanups on startup/evaluation to prevent socket leaks and port binding conflicts during reloads or crashes.
+* **Connection Timing Tuning:** Introduced a 500ms delay on client connection before starting the NTP clock calibration. This resolves a race condition where early pings arrived before the host registered its event handlers.
+* **Graceful Disconnect Reset:** Modified client handlers to completely clear socket bindings and reset the local lobby store state on connection closed, ensuring the client UI returns cleanly to the Scanning view.
+* **Native Socket Exception Protection:** Patched `react-native-tcp-socket` Java module (`TcpSocketModule.java`) to swallow uncaught `IllegalArgumentException` socket-not-found errors on the native thread during teardown.
+
+---
+
 # Release Notes - BlackBunny v2.0.0
 
 Welcome to **BlackBunny v2.0.0**! This release introduces massive feature additions, native module upgrades, and user interface refinements to provide a top-tier music listening experience.

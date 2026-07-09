@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useEffect } from 'react';
 import { Dimensions } from 'react-native';
 import Animated, { useSharedValue, withSpring, SharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MINI_PLAYER_HEIGHT, PLAYER_BOTTOM_OFFSET } from '@/constants/layout';
 
 const { height } = Dimensions.get('window');
@@ -22,10 +23,18 @@ export const SPRING_CONFIG = {
 };
 
 export function PlayerAnimationProvider({ children }: { children: React.ReactNode }) {
-  const initialSnap = height - MINI_PLAYER_HEIGHT - PLAYER_BOTTOM_OFFSET;
+  const insets = useSafeAreaInsets();
+  const initialSnap = height - MINI_PLAYER_HEIGHT - (PLAYER_BOTTOM_OFFSET + insets.bottom);
   const snapCollapsed = useSharedValue(initialSnap); 
   const translateY = useSharedValue(initialSnap);
-  const bottomOffset = useSharedValue(PLAYER_BOTTOM_OFFSET);
+  const bottomOffset = useSharedValue(PLAYER_BOTTOM_OFFSET + insets.bottom);
+
+  useEffect(() => {
+    const nextOffset = PLAYER_BOTTOM_OFFSET + insets.bottom;
+    bottomOffset.value = nextOffset;
+    snapCollapsed.value = height - MINI_PLAYER_HEIGHT - nextOffset;
+    translateY.value = height - MINI_PLAYER_HEIGHT - nextOffset;
+  }, [insets.bottom]);
 
   const expand = useCallback(() => {
     translateY.value = withSpring(0, SPRING_CONFIG);

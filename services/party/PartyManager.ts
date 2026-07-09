@@ -1,7 +1,7 @@
 import TcpSocket from 'react-native-tcp-socket';
 import { Buffer } from 'buffer';
 import NsdModule, { addNsdListener, NsdService } from '@/modules/nsd';
-import { usePartyStore, PartyClient } from './partyStore';
+import { usePartyStore, PartyClient } from '@/services/party/partyStore';
 import TrackPlayer from 'react-native-track-player';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { getLocalDownloadUri, getActiveDirectory } from '@/services/downloads/storage';
@@ -20,6 +20,10 @@ class PartyManagerClass {
   private bufferMap: Map<any, string> = new Map();
   private ntpSyncCounter = 0;
 
+  constructor() {
+    this.stopAll();
+  }
+
   // Initialize discovery listener for NSD
   public startDiscovery() {
     this.stopDiscovery();
@@ -29,12 +33,12 @@ class PartyManagerClass {
 
     const resolvedListener = addNsdListener('onServiceResolved', (service: NsdService) => {
       console.log('[PartyManager] Service resolved:', service);
-      store.addDiscoveredHost(service);
+      usePartyStore.getState().addDiscoveredHost(service);
     });
 
     const lostListener = addNsdListener('onServiceLost', (event) => {
       console.log('[PartyManager] Service lost:', event.serviceName);
-      store.removeDiscoveredHost(event.serviceName);
+      usePartyStore.getState().removeDiscoveredHost(event.serviceName);
     });
 
     this.nsdListeners.push(resolvedListener, lostListener);
@@ -76,12 +80,14 @@ class PartyManagerClass {
         });
 
         socket.on('close', () => {
-          console.log('[PartyManager] Client disconnected:', clientId);
-          this.clientSockets.delete(clientId);
+          const cid = (socket as any).clientId || clientId;
+          console.log('[PartyManager] Client disconnected:', cid);
+          this.clientSockets.delete(cid);
           this.bufferMap.delete(socket);
           
-          const clients = store.connectedClients.filter(c => c.id !== clientId);
-          store.setConnectedClients(clients);
+          const currentStore = usePartyStore.getState();
+          const clients = currentStore.connectedClients.filter(c => c.id !== cid);
+          currentStore.setConnectedClients(clients);
         });
 
         socket.on('error', (err) => {
@@ -183,7 +189,7 @@ class PartyManagerClass {
           stream.open();
           
           stream.onData((chunk) => {
-            if (socket.writable) {
+            if (this.isSocketWritable(socket)) {
               socket.write(chunk, 'base64');
             }
           });
@@ -212,7 +218,7 @@ class PartyManagerClass {
     if (usePartyStore.getState().partyMode !== 'host') return;
     const dataStr = JSON.stringify(msg) + '\n';
     this.clientSockets.forEach((socket) => {
-      if (socket.writable) {
+      if (this.isSocketWritable(socket)) {
         socket.write(dataStr);
       }
     });
@@ -220,7 +226,7 @@ class PartyManagerClass {
 
   public sendToClient(clientId: string, msg: any) {
     const socket = this.clientSockets.get(clientId);
-    if (socket && socket.writable) {
+    if (this.isSocketWritable(socket)) {
       socket.write(JSON.stringify(msg) + '\n');
     }
   }
@@ -241,32 +247,34 @@ class PartyManagerClass {
       port: hostPort,
     }, () => {
       console.log('[PartyManager] Connected to Host control server');
-      store.setConnectionState('connected');
+      usePartyStore.getState().setConnectionState('connected');
 
-      // Calibrate clock offset via NTP
-      this.syncClock()
-        .then((offset) => {
-          console.log('[PartyManager] Synced clock offset:', offset);
-          store.setClockOffset(offset);
+      // Calibrate clock offset via NTP after a short delay to let the host register listeners
+      setTimeout(() => {
+        this.syncClock()
+          .then((offset) => {
+            console.log('[PartyManager] Synced clock offset:', offset);
+            usePartyStore.getState().setClockOffset(offset);
 
-          // Join the party with device information
-          const joinMsg = {
-            type: 'JOIN',
-            id: DeviceEventEmitter ? 'client_' + Math.random().toString(36).substr(2, 9) : 'client_device',
-            name: 'Device ' + Math.floor(Math.random() * 1000),
-          };
-          this.sendToHost(joinMsg);
-        })
-        .catch((err) => {
-          console.error('[PartyManager] Clock synchronization failed:', err);
-          // Join anyway with 0 offset if sync fails
-          const joinMsg = {
-            type: 'JOIN',
-            id: 'client_' + Math.random().toString(36).substr(2, 9),
-            name: 'Device ' + Math.floor(Math.random() * 1000),
-          };
-          this.sendToHost(joinMsg);
-        });
+            // Join the party with device information
+            const joinMsg = {
+              type: 'JOIN',
+              id: DeviceEventEmitter ? 'client_' + Math.random().toString(36).substr(2, 9) : 'client_device',
+              name: 'Device ' + Math.floor(Math.random() * 1000),
+            };
+            this.sendToHost(joinMsg);
+          })
+          .catch((err) => {
+            console.error('[PartyManager] Clock synchronization failed:', err);
+            // Join anyway with 0 offset if sync fails
+            const joinMsg = {
+              type: 'JOIN',
+              id: 'client_' + Math.random().toString(36).substr(2, 9),
+              name: 'Device ' + Math.floor(Math.random() * 1000),
+            };
+            this.sendToHost(joinMsg);
+          });
+      }, 500);
     });
 
     this.clientSocket.on('data', (data: Buffer) => {
@@ -277,13 +285,16 @@ class PartyManagerClass {
 
     this.clientSocket.on('close', () => {
       console.log('[PartyManager] Connection to host closed');
-      store.setConnectionState('disconnected');
       this.bufferMap.delete(this.clientSocket);
+      this.clientSocket = null;
+      usePartyStore.getState().reset();
     });
 
     this.clientSocket.on('error', (err: any) => {
       console.error('[PartyManager] Client socket error:', err);
-      store.setConnectionState('disconnected');
+      this.bufferMap.delete(this.clientSocket);
+      this.clientSocket = null;
+      usePartyStore.getState().reset();
     });
   }
 
@@ -296,38 +307,35 @@ class PartyManagerClass {
   }
 
   public sendToHost(msg: any) {
-    if (this.clientSocket && this.clientSocket.writable) {
+    if (this.isSocketWritable(this.clientSocket)) {
       this.clientSocket.write(JSON.stringify(msg) + '\n');
     }
   }
 
   // --- NTP CLOCK SYNC ---
 
-  private syncClock(): Promise<number> {
-    return new Promise(async (resolve, reject) => {
-      const offsets: number[] = [];
-      const samples = 5;
+  private async syncClock(): Promise<number> {
+    const offsets: number[] = [];
+    const samples = 5;
 
-      for (let i = 0; i < samples; i++) {
-        try {
-          const offset = await this.pingNtpSample();
-          offsets.push(offset);
-          await new Promise(r => setTimeout(r, 150));
-        } catch (e) {
-          console.warn('[PartyManager] NTP sample ping failed:', e);
-        }
+    for (let i = 0; i < samples; i++) {
+      try {
+        const offset = await this.pingNtpSample();
+        offsets.push(offset);
+        await new Promise(r => setTimeout(r, 150));
+      } catch (e) {
+        console.warn('[PartyManager] NTP sample ping failed:', e);
       }
+    }
 
-      if (offsets.length === 0) {
-        reject(new Error('NTP sync samples failed entirely'));
-        return;
-      }
+    if (offsets.length === 0) {
+      throw new Error('NTP sync samples failed entirely');
+    }
 
-      // Median offset calculation
-      offsets.sort((a, b) => a - b);
-      const median = offsets[Math.floor(offsets.length / 2)];
-      resolve(median);
-    });
+    // Median offset calculation
+    offsets.sort((a, b) => a - b);
+    const median = offsets[Math.floor(offsets.length / 2)];
+    return median;
   }
 
   private pingNtpSample(): Promise<number> {
@@ -409,11 +417,35 @@ class PartyManagerClass {
     });
   }
 
-  // --- STREAM & MESSAGE HANDLERS ---
+  private decodeDataToString(data: any): string {
+    if (typeof data === 'string') {
+      return data;
+    }
+    if (Buffer.isBuffer(data)) {
+      return data.toString('utf8');
+    }
+    if (data instanceof Uint8Array || (data && data.buffer)) {
+      return Buffer.from(data).toString('utf8');
+    }
+    try {
+      return data.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  private isSocketWritable(socket: any): boolean {
+    if (!socket) return false;
+    const readyState = socket.readyState || socket._readyState;
+    const destroyed = socket.destroyed !== undefined ? socket.destroyed : socket._destroyed;
+    const isWritable = !destroyed && (readyState === 'open' || readyState === 'writeOnly');
+    console.log('[PartyManager] Socket check - readyState:', readyState, 'destroyed:', destroyed, 'isWritable:', isWritable);
+    return isWritable;
+  }
 
   private handleSocketStream(socket: any, data: any, callback: (msg: any) => void) {
     let currentBuffer = this.bufferMap.get(socket) || '';
-    currentBuffer += data.toString('utf8');
+    currentBuffer += this.decodeDataToString(data);
 
     let boundary = currentBuffer.indexOf('\n');
     while (boundary !== -1) {
@@ -450,11 +482,13 @@ class PartyManagerClass {
         break;
 
       case 'JOIN':
-        console.log('[PartyManager] Client registered:', msg.name);
-        this.clientSockets.set(clientId, socket);
+        const clientRegisteredId = msg.id || clientId;
+        console.log('[PartyManager] Client registered:', msg.name, 'with ID:', clientRegisteredId);
+        (socket as any).clientId = clientRegisteredId;
+        this.clientSockets.set(clientRegisteredId, socket);
 
         const newClient: PartyClient = {
-          id: clientId,
+          id: clientRegisteredId,
           name: msg.name,
           x: 0.2 + Math.random() * 0.6,
           y: 0.2 + Math.random() * 0.6,
@@ -467,7 +501,7 @@ class PartyManagerClass {
         store.setConnectedClients(updatedClients);
 
         // Share current playback state and queue to the joined client
-        this.syncStateToClient(clientId);
+        this.syncStateToClient(clientRegisteredId);
         break;
 
       default:

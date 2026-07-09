@@ -24,6 +24,7 @@ import Animated, {
 import { MINI_PLAYER_HEIGHT } from '@/constants/layout';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { usePlayerAnimation } from '@/contexts/player-animation-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TrackPlayer, { RepeatMode } from 'react-native-track-player';
 import MiniPlayerControls from './Miniplayercontrols';
 import TrackContent from './Trackcontent';
@@ -62,6 +63,7 @@ const MusicPlayerModal = ({
 }: Props) => {
     const { colors, colorScheme } = useAppTheme();
     const isDark = colorScheme === 'dark';
+    const insets = useSafeAreaInsets();
     const miniOuterColors: [string, string] = isDark 
         ? [colors.border, colors.background] 
         : ['#FFFFFF', colors.border];
@@ -118,7 +120,7 @@ const MusicPlayerModal = ({
         if (!track) return; // ignore undefined flashes during track resolution swap
         const snap = () => {
             const currentHeight = Dimensions.get('window').height;
-            const extraSpace = bottomOffset.value === 0 ? 20 : 0;
+            const extraSpace = bottomOffset.value <= (insets.bottom || 0) ? 20 : 0;
             const newSnap = currentHeight - MINI_PLAYER_HEIGHT - bottomOffset.value - extraSpace;
             snapCollapsed.value = newSnap;
             if (!isExpanded.value) {
@@ -141,14 +143,17 @@ const MusicPlayerModal = ({
             showSub.remove();
             hideSub.remove();
         };
-    }, [track]);
+    }, [track, insets.bottom]);
 
     // Keep snapCollapsed and translateY in sync with bottomOffset (fires on every change)
     useAnimatedReaction(
-        () => bottomOffset.value,
-        (offset) => {
-            const extraSpace = offset === 0 ? 20 : 0;
-            const newSnap = height - MINI_PLAYER_HEIGHT - offset - extraSpace;
+        () => ({
+            offset: bottomOffset.value,
+            insetBottom: insets.bottom,
+        }),
+        (prepared) => {
+            const extraSpace = prepared.offset <= prepared.insetBottom ? 20 : 0;
+            const newSnap = height - MINI_PLAYER_HEIGHT - prepared.offset - extraSpace;
             snapCollapsed.value = newSnap;
             if (!isExpanded.value) {
                 translateY.value = withSpring(newSnap, SPRING_CONFIG);

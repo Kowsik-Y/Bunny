@@ -1,0 +1,92 @@
+diff --git a/node_modules/react-native-tcp-socket/android/src/main/java/com/asterinet/react/tcpsocket/TcpSocketModule.java b/node_modules/react-native-tcp-socket/android/src/main/java/com/asterinet/react/tcpsocket/TcpSocketModule.java
+index 121edb4..11887fe 100644
+--- a/node_modules/react-native-tcp-socket/android/src/main/java/com/asterinet/react/tcpsocket/TcpSocketModule.java
++++ b/node_modules/react-native-tcp-socket/android/src/main/java/com/asterinet/react/tcpsocket/TcpSocketModule.java
+@@ -128,9 +128,13 @@ public class TcpSocketModule extends ReactContextBaseJavaModule {
+     @SuppressWarnings("unused")
+     @ReactMethod
+     public void write(final int cId, @NonNull final String base64String, final int msgId) {
+-        TcpSocketClient socketClient = getTcpClient(cId);
+-        byte[] data = Base64.decode(base64String, Base64.NO_WRAP);
+-        socketClient.write(msgId, data);
++        try {
++            TcpSocketClient socketClient = getTcpClient(cId);
++            byte[] data = Base64.decode(base64String, Base64.NO_WRAP);
++            socketClient.write(msgId, data);
++        } catch (IllegalArgumentException e) {
++            // Ignore: socket was closed/destroyed before write executed
++        }
+     }
+ 
+     @SuppressLint("StaticFieldLeak")
+@@ -140,8 +144,12 @@ public class TcpSocketModule extends ReactContextBaseJavaModule {
+         executorService.execute(new Runnable() {
+             @Override
+             public void run() {
+-                TcpSocketClient socketClient = getTcpClient(cId);
+-                socketClient.destroy();
++                try {
++                    TcpSocketClient socketClient = getTcpClient(cId);
++                    socketClient.destroy();
++                } catch (IllegalArgumentException e) {
++                    // Ignore: socket already closed/destroyed
++                }
+             }
+         });
+     }
+@@ -186,37 +194,49 @@ public class TcpSocketModule extends ReactContextBaseJavaModule {
+     @SuppressWarnings("unused")
+     @ReactMethod
+     public void setNoDelay(@NonNull final Integer cId, final boolean noDelay) {
+-        final TcpSocketClient client = getTcpClient(cId);
+         try {
++            final TcpSocketClient client = getTcpClient(cId);
+             client.setNoDelay(noDelay);
+         } catch (IOException e) {
+             tcpEvtListener.onError(cId, e);
++        } catch (IllegalArgumentException e) {
++            // Ignore: socket already closed/destroyed
+         }
+     }
+ 
+     @SuppressWarnings("unused")
+     @ReactMethod
+     public void setKeepAlive(@NonNull final Integer cId, final boolean enable, final int initialDelay) {
+-        final TcpSocketClient client = getTcpClient(cId);
+         try {
++            final TcpSocketClient client = getTcpClient(cId);
+             client.setKeepAlive(enable, initialDelay);
+         } catch (IOException e) {
+             tcpEvtListener.onError(cId, e);
++        } catch (IllegalArgumentException e) {
++            // Ignore: socket already closed/destroyed
+         }
+     }
+ 
+     @SuppressWarnings("unused")
+     @ReactMethod
+     public void pause(final int cId) {
+-        TcpSocketClient client = getTcpClient(cId);
+-        client.pause();
++        try {
++            TcpSocketClient client = getTcpClient(cId);
++            client.pause();
++        } catch (IllegalArgumentException e) {
++            // Ignore: socket already closed/destroyed
++        }
+     }
+ 
+     @SuppressWarnings("unused")
+     @ReactMethod
+     public void resume(final int cId) {
+-        TcpSocketClient client = getTcpClient(cId);
+-        client.resume();
++        try {
++            TcpSocketClient client = getTcpClient(cId);
++            client.resume();
++        } catch (IllegalArgumentException e) {
++            // Ignore: socket already closed/destroyed
++        }
+     }
+ 
+     @SuppressWarnings("unused")

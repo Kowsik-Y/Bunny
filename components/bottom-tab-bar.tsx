@@ -8,6 +8,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Home, Search, ListMusic, Podcast } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { TAB_BAR_BOTTOM, PLAYER_BOTTOM_OFFSET } from '@/constants/layout';
@@ -21,6 +22,7 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const { translateY, snapCollapsed, bottomOffset } = usePlayerAnimation();
+  const insets = useSafeAreaInsets();
 
   const activeRouteName = state.routes[state.index].name;
   const isTabBarVisible = VISIBLE_ROUTES.includes(activeRouteName);
@@ -39,11 +41,11 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
 
   useEffect(() => {
     tabVisibility.value = withTiming(isTabBarVisible ? 1 : 0, { duration: 250 });
-    bottomOffset.value = isTabBarVisible ? PLAYER_BOTTOM_OFFSET : 0;
+    bottomOffset.value = isTabBarVisible ? (PLAYER_BOTTOM_OFFSET + insets.bottom) : insets.bottom;
     return () => {
-      bottomOffset.value = 0;
+      bottomOffset.value = insets.bottom;
     };
-  }, [isTabBarVisible]);
+  }, [isTabBarVisible, insets.bottom]);
 
   const pillX = useRef(new RNAnimated.Value(0)).current;
   const pillW = useRef(new RNAnimated.Value(0)).current;
@@ -224,7 +226,7 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
         <View
           style={{
             position: 'absolute',
-            bottom: TAB_BAR_BOTTOM,
+            bottom: TAB_BAR_BOTTOM + insets.bottom,
             left: 24,
             right: 24,
             borderRadius: 999,

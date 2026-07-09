@@ -29,6 +29,7 @@ import { Alert } from '@/components/ui/alert';
 import TrackPlayer from 'react-native-track-player';
 import { NetworkProvider } from '@/contexts/network-context';
 import { NetworkStatusBanner } from '@/components/network/NetworkStatusBanner';
+import { usePartyPlayerSync } from '@/services/party/usePartyPlayerSync';
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -42,6 +43,7 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootLayoutWithTheme() {
   const { colorScheme, colors } = useAppTheme();
+  usePartyPlayerSync();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
